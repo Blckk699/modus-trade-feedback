@@ -208,3 +208,16 @@ async def test_first_message_from_assignee_counts_as_first_response(client, logi
 async def test_no_messages_after_final_status(client, login_as) -> None:
     response = await client.post("/api/v1/appeals/17/messages", headers=await login_as("employee_office"), json={"text": "А когда?"})
     assert (response.status_code, response.json()["error"]["code"]) == (409, "invalid_transition")
+
+
+async def test_history_does_not_leak_private_thread(client, login_as) -> None:
+    """История видна администратору — текст переписки и уточнений в неё не попадает."""
+    head = await login_as("head_procurement")
+    await client.post("/api/v1/appeals/1/take", headers=head, json={"comment": "секрет-1"})
+    await client.post("/api/v1/appeals/1/request-info", headers=head, json={"question": "секрет-2"})
+    await client.post("/api/v1/appeals/1/messages", headers=await login_as("employee_procurement"), json={"text": "секрет-3"})
+    await client.post("/api/v1/appeals/1/messages", headers=head, json={"text": "секрет-4"})
+    history = (await client.get("/api/v1/appeals/1/history", headers=await login_as("admin"))).text
+    assert "секрет" not in history
+    seeded = (await client.get("/api/v1/appeals/5/history", headers=await login_as("admin"))).text
+    assert "Уточните" not in seeded, "в сиде вопрос к A-005 тоже только в переписке"

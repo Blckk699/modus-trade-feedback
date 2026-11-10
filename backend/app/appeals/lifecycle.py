@@ -82,7 +82,8 @@ async def request_info(session: AsyncSession, appeal: Appeal, user: User, now: d
     await _check(session, appeal, user, AppealAction.REQUEST_INFO, who="process")
     _first_response(appeal, now)
     _message(session, appeal, user, question, now, question=True)
-    record(session, appeal, HistoryKind.CLARIFICATION_REQUESTED, now, user.id, comment=question.strip())
+    # Текст вопроса и ответа живёт только в приватной переписке: историю видит и администратор.
+    record(session, appeal, HistoryKind.CLARIFICATION_REQUESTED, now, user.id)
     _move(appeal, AppealStatus.AWAITING_INFO, user, now, session)
 
 
@@ -137,7 +138,7 @@ async def post_message(session: AsyncSession, appeal: Appeal, user: User, now: d
     if appeal.status == AppealStatus.AWAITING_INFO and appeal.author_id == user.id:
         await _check(session, appeal, user, AppealAction.REPLY_CLARIFICATION, who="author")
         message = _message(session, appeal, user, text, now)
-        record(session, appeal, HistoryKind.CLARIFICATION_ANSWERED, now, user.id, comment=text.strip())
+        record(session, appeal, HistoryKind.CLARIFICATION_ANSWERED, now, user.id)
         _move(appeal, AppealStatus.IN_REVIEW, user, now, session)
         return message
     rel = await _check(session, appeal, user, AppealAction.SEND_MESSAGE, who="message")
