@@ -27,6 +27,8 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql://modus:modus@db:5432/modus
+    volumes:
+      - appdata:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -37,3 +39,4 @@ services:
 
 volumes:
   pgdata:
+  appdata:
