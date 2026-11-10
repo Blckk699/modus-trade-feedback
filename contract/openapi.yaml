@@ -1296,6 +1296,10 @@ paths:
                   type: string
                   format: binary
                   description: ogg/opus из Telegram, mp3, m4a, wav
+                duration_seconds:
+                  type: integer
+                  minimum: 0
+                  description: Длительность в секундах, если клиент её знает (Telegram `voice.duration`); больше 300 — `422 audio_too_long`
       responses:
         '200':
           description: Черновик с расшифровкой
