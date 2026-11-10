@@ -10,7 +10,7 @@
 
 part of openapi.api;
 
-/// `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 · `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 · `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 · `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500 
+/// `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 · `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 · `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 · `too_many_requests` 429 · `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500 
 enum ErrorCode {
   unauthorized._(r'unauthorized'),
   invalidTelegramAuth._(r'invalid_telegram_auth'),
@@ -28,6 +28,7 @@ enum ErrorCode {
   validationError._(r'validation_error'),
   audioEmpty._(r'audio_empty'),
   audioTooLong._(r'audio_too_long'),
+  tooManyRequests._(r'too_many_requests'),
   bitrixUnavailable._(r'bitrix_unavailable'),
   aiUnavailable._(r'ai_unavailable'),
   internalError._(r'internal_error'),
@@ -106,6 +107,7 @@ class ErrorCodeTypeTransformer {
         case r'validation_error': return ErrorCode.validationError;
         case r'audio_empty': return ErrorCode.audioEmpty;
         case r'audio_too_long': return ErrorCode.audioTooLong;
+        case r'too_many_requests': return ErrorCode.tooManyRequests;
         case r'bitrix_unavailable': return ErrorCode.bitrixUnavailable;
         case r'ai_unavailable': return ErrorCode.aiUnavailable;
         case r'internal_error': return ErrorCode.internalError;

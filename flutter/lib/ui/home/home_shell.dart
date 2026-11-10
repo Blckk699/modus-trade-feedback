@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../app.dart';
 import '../../navigation/sections.dart';
+import '../appeals/my_appeals_screen.dart';
 import 'profile_screen.dart';
 import 'section_screen.dart';
+import 'unread_scope.dart';
 
 /// Главный экран: нижняя навигация по разделам роли. Больше пяти разделов —
 /// первые четыре на панели, остальные в «Ещё».
@@ -30,6 +32,9 @@ class _HomeShellState extends State<HomeShell> {
     final onBar = overflow ? sections.take(HomeShell.maxBarItems - 1).toList() : sections;
     final inMore = overflow ? sections.skip(HomeShell.maxBarItems - 1).toList() : <Section>[];
     final barIndex = onBar.contains(current) ? onBar.indexOf(current) : onBar.length;
+    // Счётчик непрочитанного — на первом разделе панели (у сотрудника это «Мои обращения»).
+    final unread = UnreadScope.of(context).count;
+    final badgeOn = onBar.first;
 
     return Scaffold(
       body: _screenFor(current),
@@ -46,8 +51,8 @@ class _HomeShellState extends State<HomeShell> {
           for (final s in onBar)
             NavigationDestination(
               key: Key('nav-${s.name}'),
-              icon: Icon(s.icon),
-              selectedIcon: Icon(s.selectedIcon),
+              icon: _withUnread(Icon(s.icon), s == badgeOn ? unread : 0),
+              selectedIcon: _withUnread(Icon(s.selectedIcon), s == badgeOn ? unread : 0),
               label: s.shortTitle,
             ),
           if (overflow)
@@ -85,7 +90,16 @@ class _HomeShellState extends State<HomeShell> {
     if (picked != null) setState(() => _current = picked);
   }
 
+  static Widget _withUnread(Widget icon, int count) => count <= 0
+      ? icon
+      : Badge(
+          key: const Key('unread-badge'),
+          label: Text(count > 99 ? '99+' : '$count'),
+          child: icon,
+        );
+
   Widget _screenFor(Section section) => switch (section) {
+        Section.myAppeals => const MyAppealsScreen(),
         Section.profile => const ProfileScreen(),
         _ => SectionScreen(section: section),
       };

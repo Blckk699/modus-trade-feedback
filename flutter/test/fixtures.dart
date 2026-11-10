@@ -76,12 +76,22 @@ Map<String, dynamic> sessionJson([Map<String, dynamic>? me]) => {
 const dictionariesJson = {
   'appeal_types': [
     {'code': 'problem', 'label': 'Проблема'},
+    {'code': 'suggestion', 'label': 'Предложение'},
+    {'code': 'praise', 'label': 'Положительный отзыв'},
   ],
   'priorities': [
     {'code': 'high', 'label': 'Высокий'},
+    {'code': 'medium', 'label': 'Средний'},
+    {'code': 'low', 'label': 'Низкий'},
   ],
   'statuses': [
     {'code': 'new', 'label': 'Новое', 'is_final': false},
+    {'code': 'in_review', 'label': 'На рассмотрении', 'is_final': false},
+    {'code': 'awaiting_info', 'label': 'Ожидает уточнения', 'is_final': false},
+    {'code': 'in_progress', 'label': 'В работе', 'is_final': false},
+    {'code': 'implemented', 'label': 'Реализовано', 'is_final': true},
+    {'code': 'rejected', 'label': 'Отклонено', 'is_final': true},
+    {'code': 'closed', 'label': 'Закрыто', 'is_final': true},
   ],
   'roles': [
     {'code': 'employee', 'label': 'Сотрудник'},
@@ -130,3 +140,86 @@ class FakeServer {
   http.Request last(String method, String path) =>
       requests.lastWhere((r) => r.method == method && r.url.path == path);
 }
+
+const author = {'id': 4, 'full_name': 'Айгерим Нурланова', 'role': 'employee', 'department': {'id': 1, 'name': 'Закупки'}};
+const assignee = {'id': 3, 'full_name': 'Марат Сейткали', 'role': 'head', 'department': {'id': 1, 'name': 'Закупки'}};
+
+/// Обращение по схеме `Appeal` (для списка — подмножество `AppealListItem` тоже подходит).
+Map<String, dynamic> appealJson({
+  int id = 21,
+  String number = 'A-021',
+  String status = 'new',
+  String dueState = 'on_time',
+  String? summary = 'В заявках на оборудование не хватает параметров',
+  String? rejectionReason,
+  String? result,
+  List<String> allowedActions = const ['send_message', 'upload_attachment'],
+  List<Map<String, dynamic>> attachments = const [],
+  bool hasUnread = false,
+  Map<String, dynamic>? assigneeJson = assignee,
+}) =>
+    {
+      'id': id,
+      'number': number,
+      'type': 'problem',
+      'category': {'id': 1, 'name': 'Межотдельное взаимодействие'},
+      'department': {'id': 1, 'name': 'Закупки'},
+      'priority': 'medium',
+      'status': status,
+      'summary': summary,
+      'author': author,
+      'assignee': assigneeJson,
+      'source': 'form',
+      'first_response_due_at': assigneeJson == null ? null : '2026-11-13T10:15:00+05:00',
+      'due_state': assigneeJson == null ? 'no_deadline' : dueState,
+      'escalation_level': 0,
+      'participants_count': 1,
+      'merged_into': null,
+      'access': 'full',
+      'has_unread': hasUnread,
+      'created_at': '2026-11-10T10:15:00+05:00',
+      'updated_at': '2026-11-10T10:15:00+05:00',
+      'text': 'В заявках на приобретение оборудования иногда не хватает назначения изделия.',
+      'proposed_solution': 'Добавить обязательные поля',
+      'first_response_at': null,
+      'decision': null,
+      'rejection_reason': rejectionReason,
+      'result': result,
+      'public_summary': null,
+      'public_result': null,
+      'forwarded_from': null,
+      'closed_reason': null,
+      'bitrix_task': null,
+      'discussion': null,
+      'attachments': attachments,
+      'viewer_relations': ['author'],
+      'allowed_actions': allowedActions,
+    };
+
+Map<String, dynamic> messageJson(int id, String text, {bool question = false, Map<String, dynamic> by = assignee}) => {
+      'id': id,
+      'appeal_id': 21,
+      'author': by,
+      'text': text,
+      'is_clarification_question': question,
+      'created_at': '2026-11-10T11:00:00+05:00',
+    };
+
+const categoriesJson = [
+  {
+    'id': 1,
+    'name': 'Межотдельное взаимодействие',
+    'department': {'id': 1, 'name': 'Закупки'},
+    'responsible': assignee,
+    'deputy': null,
+    'is_active': true,
+  },
+  {
+    'id': 9,
+    'name': 'Архивная',
+    'department': {'id': 1, 'name': 'Закупки'},
+    'responsible': null,
+    'deputy': null,
+    'is_active': false,
+  },
+];
