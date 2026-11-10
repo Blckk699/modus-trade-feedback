@@ -4,4 +4,5 @@
 Новый модуль с задачами (эскалация, сводка, совещания) — добавьте строку импорта сюда.
 """
 
+from app.appeals import escalation  # noqa: F401
 from app.jobs import builtin  # noqa: F401
