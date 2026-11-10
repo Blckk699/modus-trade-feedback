@@ -224,7 +224,7 @@ async def _add_appeal(
         asked = first_response + timedelta(minutes=10)
         session.add(Message(appeal_id=appeal.id, author_id=assignee_id, text=sa.question,
                             is_clarification_question=True, created_at=asked))
-        event(asked, HistoryKind.CLARIFICATION_REQUESTED, assignee_id, comment=sa.question)
+        event(asked, HistoryKind.CLARIFICATION_REQUESTED, assignee_id)  # текст вопроса — только в переписке
         status(asked, AppealStatus.IN_REVIEW, AppealStatus.AWAITING_INFO)
         last = asked
 

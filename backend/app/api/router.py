@@ -6,6 +6,7 @@
 from fastapi import APIRouter
 
 from app.api import health
+from app.appeals import actions_router as appeal_actions
 from app.appeals import router as appeals
 from app.auth import router as auth
 from app.directory import router as directory
@@ -16,4 +17,5 @@ api_router = APIRouter(prefix=API_PREFIX)
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(appeals.router)
+api_router.include_router(appeal_actions.router)
 api_router.include_router(directory.router)

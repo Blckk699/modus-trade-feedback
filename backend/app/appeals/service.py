@@ -107,12 +107,16 @@ async def reassign(
     await routing.assign(session, appeal, assignee, now, tz, actor_id=actor.id, reason=reason.strip(), kind=kind)
 
 
-async def get_visible(session: AsyncSession, appeal_id: int, user: User, *, full: bool = True) -> Appeal:
+async def get_visible(
+    session: AsyncSession, appeal_id: int, user: User, *, full: bool = True, lock: bool = False
+) -> Appeal:
     """Обращение, которое пользователь видит. Нет такого — 404, не видит — 403.
 
     `full=True` требует полный доступ: участник склеенного повтора видит только карточку.
+    `lock=True` — для действий, меняющих обращение: строка блокируется до конца транзакции, и
+    параллельные действия выполняются по очереди, каждое — от уже изменённого статуса.
     """
-    appeal = await session.get(Appeal, appeal_id)
+    appeal = await session.get(Appeal, appeal_id, with_for_update=lock, populate_existing=lock)
     if appeal is None:
         raise NotFound("Обращение не найдено")
     directory = await Directory.load(session)
