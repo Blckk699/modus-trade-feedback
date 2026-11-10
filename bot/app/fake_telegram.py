@@ -27,7 +27,9 @@ class FakeTelegram(BaseSession):
         if isinstance(method, GetFile):
             return File(file_id=method.file_id, file_unique_id=method.file_id, file_path=f"files/{method.file_id}")
         if isinstance(method, SendMessage) and method.chat_id in self.errors:
-            raise self.errors[method.chat_id](method)
+            error = self.errors[method.chat_id](method)
+            if error is not None:
+                raise error
         if isinstance(method, SendMessage):
             message_id = next(self._ids)
             self._message_ids[id(method)] = message_id

@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from aiogram.exceptions import TelegramForbiddenError, TelegramNetworkError
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
 from app import texts
 from app.notifications import deliver_pending
@@ -189,3 +189,20 @@ async def test_api_error_in_callback_alert_is_plain_text(harness, backend):
 
     [alert] = harness.telegram.of_type(AnswerCallbackQuery)
     assert alert.text == "Доступ <отключён>."
+
+
+async def test_broken_html_is_resent_as_plain_text_and_acknowledged(harness, backend):
+    broken = {**STATUS_CHANGED, "text": "Обращение A-005: суть «цена < себестоимости»"}
+    backend.on("GET", "/api/v1/bot/notifications/pending", 200, [broken])
+    # Telegram отвергает HTML-разметку, но принимает тот же текст без parse_mode.
+    harness.telegram.errors[USER] = lambda m: (
+        TelegramBadRequest(m, "Bad Request: can't parse entities: Unsupported start tag") if m.parse_mode else None
+    )
+
+    assert await deliver(harness) == 1
+
+    first, second = harness.telegram.sent()
+    assert second.parse_mode is None
+    assert second.text == broken["text"]
+    assert backend.calls("POST", "/api/v1/bot/notifications/907/ack")
+    assert backend.calls("POST", "/api/v1/bot/notifications/907/fail") == []

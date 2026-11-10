@@ -3,7 +3,7 @@
     npx -y @stoplight/prism-cli@5.15.11 mock -h 127.0.0.1 -p 4011 ../contract/openapi.yaml
     uv run python -m scripts.smoke_mock [http://127.0.0.1:4011]
 
-Подаёт боту команды меню, подачу обращения и уведомления из очереди, запросы идут по контракту, ответы бота печатаются.
+Подаёт боту команды меню, подачу обращения текстом и голосом и уведомления из очереди, запросы идут по контракту, ответы бота печатаются.
 """
 
 import asyncio
@@ -38,6 +38,9 @@ async def main(base_url: str) -> int:
         n = show(h, n, "Приоритет → Высокий")
         await h.press(card, texts.BTN_DRAFT_SEND)
         n = show(h, n, texts.BTN_DRAFT_SEND)
+
+        await h.send_voice(b"OggS-smoke", duration=7)
+        n = show(h, n, "голосовое")
 
         delivered = await deliver_pending(h.bot, h.api, h.settings)
         n = show(h, n, f"очередь уведомлений: доставлено {delivered}")
