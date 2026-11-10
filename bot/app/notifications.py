@@ -80,6 +80,11 @@ def notification_keyboard(notification: dict[str, Any], settings: Settings) -> I
         if url:  # без MINI_APP_URL кнопки перехода не показываем
             rows.append([InlineKeyboardButton(text=text, web_app=WebAppInfo(url=url))])
             has_open_button = True
+    # Утренняя сводка ведёт на экран аналитики, даже если бэкенд не прислал кнопку.
+    if notification.get("kind") == "digest" and not has_open_button and settings.mini_app_url:
+        url = settings.mini_app_link("/analytics")
+        rows.append([InlineKeyboardButton(text=texts.BTN_OPEN_ANALYTICS, web_app=WebAppInfo(url=url))])
+        has_open_button = True
     # Каждое уведомление по обращению ведёт к карточке, даже если бэкенд не прислал такую кнопку.
     appeal = notification.get("appeal")
     if appeal and not has_open_button and settings.mini_app_url:

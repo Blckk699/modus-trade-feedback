@@ -98,3 +98,7 @@ def ask_clarification(number: str) -> str:
 
 def clarification_sent(number: str) -> str:
     return f"Ответ по обращению <b>{number}</b> отправлен ответственному."
+
+# ---- сводка (T-05)
+BTN_OPEN_ANALYTICS = "Открыть аналитику"
+DIGEST_UNAVAILABLE = "Сводка доступна руководителям подразделений и собственнику."

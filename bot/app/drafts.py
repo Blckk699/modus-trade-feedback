@@ -164,6 +164,8 @@ async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api) 
         await message.answer(EDITABLE_TEXT_FIELDS[field])
         return
     draft[field] = new_value
+    if field == "text":
+        draft["transcript"] = None  # исправленный текст — уже не расшифровка голосового
     await _show_card(message, bot, state, api, draft)
 
 
