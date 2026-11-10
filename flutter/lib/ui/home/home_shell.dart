@@ -6,6 +6,7 @@ import '../appeals/my_appeals_screen.dart';
 import '../analytics/digest_screen.dart';
 import '../appeals/queue_screen.dart';
 import '../discussions/feed_screen.dart';
+import '../meetings/meetings_screen.dart';
 import 'profile_screen.dart';
 import 'section_screen.dart';
 import 'unread_scope.dart';
@@ -106,6 +107,7 @@ class _HomeShellState extends State<HomeShell> {
         Section.processing => const QueueScreen(),
         Section.feed => const FeedScreen(),
         Section.analytics => const DigestScreen(),
+        Section.meetings => const MeetingsScreen(),
         Section.profile => const ProfileScreen(),
         _ => SectionScreen(section: section),
       };

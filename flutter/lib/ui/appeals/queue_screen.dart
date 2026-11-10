@@ -412,14 +412,15 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           const SizedBox(height: 12),
           FutureBuilder<List<Category>>(
             future: _categories,
-            builder: (context, snapshot) => DropdownButtonFormField<int?>(
-              key: const Key('filter-category'),
-              initialValue: _f.categoryId,
+            builder: (context, s) => DropdownButtonFormField<int?>(
+              // Пока список грузится, выбранного пункта ещё нет — без значения, затем поле пересоздаётся.
+              key: Key('filter-category-${s.hasData}'),
+              initialValue: s.hasData ? _f.categoryId : null,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Категория', border: OutlineInputBorder()),
               items: [
                 const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                for (final c in snapshot.data ?? const <Category>[])
+                for (final c in s.data ?? const <Category>[])
                   DropdownMenuItem<int?>(value: c.id, child: Text(c.name, overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (v) => setState(() => _f = _f.copyWith(categoryId: () => v)),
@@ -429,14 +430,15 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             const SizedBox(height: 12),
             FutureBuilder<List<Department>>(
               future: _departments,
-              builder: (context, snapshot) => DropdownButtonFormField<int?>(
-                key: const Key('filter-department'),
-                initialValue: _f.departmentId,
+              builder: (context, s) => DropdownButtonFormField<int?>(
+                // Пока список грузится, выбранного пункта ещё нет — без значения, затем поле пересоздаётся.
+                key: Key('filter-department-${s.hasData}'),
+                initialValue: s.hasData ? _f.departmentId : null,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Подразделение', border: OutlineInputBorder()),
                 items: [
                   const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                  for (final d in snapshot.data ?? const <Department>[])
+                  for (final d in s.data ?? const <Department>[])
                     DropdownMenuItem<int?>(value: d.id, child: Text(d.name)),
                 ],
                 onChanged: (v) => setState(() => _f = _f.copyWith(departmentId: () => v)),
