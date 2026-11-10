@@ -43,7 +43,11 @@ def draft_card(draft: dict[str, Any], dictionaries: dict[str, Any]) -> str:
         lines.append(f"<b>Предлагаемое решение:</b> {e(draft['proposed_solution'])}")
     if draft.get("forwarded_from"):
         lines.append(f"<b>Переслано из:</b> {e(draft['forwarded_from'])}")
-    lines += ["", f"<blockquote>{e(_clip(draft['text']))}</blockquote>", "", "Проверьте и отправьте или поправьте поля."]
+    if draft.get("transcript"):
+        lines += ["", "🎙 <b>Расшифровка голосового</b> — проверьте, что вас поняли верно:"]
+    else:
+        lines.append("")
+    lines += [f"<blockquote>{e(_clip(draft['text']))}</blockquote>", "", "Проверьте и отправьте или поправьте поля."]
     return "\n".join(lines)
 
 

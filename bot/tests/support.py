@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from aiogram.types import CallbackQuery, Chat, Message, MessageEntity, MessageOriginChat, Update, User
+from aiogram.types import CallbackQuery, Chat, Message, MessageEntity, MessageOriginChat, Update, User, Voice
 
 from app.api import Api
 from app.config import Settings

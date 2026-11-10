@@ -6,7 +6,7 @@ from typing import Any
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import SendMessage, TelegramMethod
+from aiogram.methods import GetFile, SendMessage, TelegramMethod
 from aiogram.types import Chat, Message
 
 
@@ -35,8 +35,8 @@ class FakeTelegram(BaseSession):
     async def close(self) -> None:
         pass
 
-    async def stream_content(self, *args, **kwargs):  # pragma: no cover
-        yield b""
+    async def stream_content(self, url: str, *args, **kwargs):
+        yield self.files[url.rsplit("/", 1)[-1]]
 
     def sent(self) -> list[SendMessage]:
         return [c for c in self.calls if isinstance(c, SendMessage)]
