@@ -3,13 +3,23 @@ import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
+import { PublishDiscussionForm } from '../discussions/PublishDiscussionForm';
 import { useAsync } from '../lib/useAsync';
 
 type Appeal = Schemas['Appeal'];
 type Action = Schemas['AppealAction'];
 
 /** Действия обработки в карточке. Набор кнопок — ровно allowed_actions от бэкенда. */
-const PROCESSING: Action[] = ['take', 'request_info', 'start_work', 'reject', 'implement', 'accept_feedback', 'reassign'];
+const PROCESSING: Action[] = [
+  'take',
+  'request_info',
+  'start_work',
+  'reject',
+  'implement',
+  'accept_feedback',
+  'reassign',
+  'publish_discussion',
+];
 
 interface Props {
   appeal: Appeal;
@@ -19,7 +29,10 @@ interface Props {
 export function ActionsPanel({ appeal, onUpdated }: Props) {
   const dict = useDictionaries();
   const [open, setOpen] = useState<Action | null>(null);
-  const actions = PROCESSING.filter((a) => appeal.allowed_actions.includes(a));
+  // Уже вынесенное обращение второй раз не выносим: ссылка на обсуждение — в карточке.
+  const actions = PROCESSING.filter(
+    (a) => appeal.allowed_actions.includes(a) && !(a === 'publish_discussion' && appeal.discussion),
+  );
   if (actions.length === 0) return null;
 
   const label = (a: Action) => dict.data?.actions.find((x) => x.code === a)?.label ?? a;
@@ -98,6 +111,12 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
         />
       )}
       {open === 'reassign' && <ReassignForm appeal={appeal} onDone={done} />}
+      {open === 'publish_discussion' && (
+        <PublishDiscussionForm
+          appeal={appeal}
+          onDone={(d) => done({ ...appeal, discussion: { id: d.id, status: d.status } })}
+        />
+      )}
     </div>
   );
 }

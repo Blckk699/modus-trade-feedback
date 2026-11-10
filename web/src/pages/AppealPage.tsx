@@ -108,6 +108,13 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
 
+      {a.discussion && (
+        <div className="notice">
+          {a.discussion.status === 'open' ? 'Вынесено на общее обсуждение. ' : 'Общее обсуждение завершено. '}
+          <Link to={`/discussions/${a.discussion.id}`}>Открыть обсуждение</Link>
+        </div>
+      )}
+
       {!participant && (
         <>
           <DuplicatesSection appeal={a} onMerged={() => onChanged()} />
