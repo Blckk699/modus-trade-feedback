@@ -7,8 +7,8 @@ import '../analytics/digest_screen.dart';
 import '../appeals/queue_screen.dart';
 import '../discussions/feed_screen.dart';
 import '../meetings/meetings_screen.dart';
+import '../settings/settings_screen.dart';
 import 'profile_screen.dart';
-import 'section_screen.dart';
 import 'unread_scope.dart';
 
 /// Главный экран: нижняя навигация по разделам роли. Больше пяти разделов —
@@ -108,7 +108,7 @@ class _HomeShellState extends State<HomeShell> {
         Section.feed => const FeedScreen(),
         Section.analytics => const DigestScreen(),
         Section.meetings => const MeetingsScreen(),
+        Section.settings => const SettingsScreen(),
         Section.profile => const ProfileScreen(),
-        _ => SectionScreen(section: section),
       };
 }
