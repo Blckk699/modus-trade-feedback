@@ -97,6 +97,7 @@ class AnalyticsSummary(BaseModel):
     repeated_topics: list[RepeatedTopic]
     overdue: list[StuckAppeal]
     assignee_load: list[AssigneeLoad]
+    unassigned_count: int
 
 
 class Digest(BaseModel):
@@ -237,6 +238,7 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
         repeated_topics=[RepeatedTopic(appeal=appeal_ref(a), participants_count=1 + extra_participants[a.id]) for a in repeated],
         overdue=[stuck_item(a) for a in overdue],
         assignee_load=load,
+        unassigned_count=sum(a.assignee_id is None and not AppealStatus(a.status).is_final for a in appeals),
     )
 
 
@@ -265,6 +267,8 @@ def digest_template(summary: AnalyticsSummary, tz: tzinfo) -> str:
         len(summary.stuck),
     )
     lines += ["", f"✅ Закрыто за неделю: {len(summary.closed_last_week)}"]
+    if summary.scope == "company":
+        lines += ["", f"📥 В очереди нераспределённых: {summary.unassigned_count}"]
     if summary.repeated_topics:
         lines += ["", "🔁 Повторяется:"]
         lines += _limited(

@@ -4071,6 +4071,7 @@ components:
         - repeated_topics
         - overdue
         - assignee_load
+        - unassigned_count
       properties:
         scope:
           type: string
@@ -4137,6 +4138,9 @@ components:
           description: Нагрузка по ответственным в выборке (история 53), по убыванию открытых
           items:
             $ref: '#/components/schemas/AssigneeLoad'
+        unassigned_count:
+          type: integer
+          description: Открытых обращений без ответственного в выборке
     AssigneeLoad:
       type: object
       required: [assignee, open_count, overdue_count, avg_first_response_hours]
@@ -5166,6 +5170,7 @@ components:
       summary: Сводка по компании на сид-данных
       value:
         scope: company
+        unassigned_count: 0
         department: null
         generated_at: '2026-11-10T09:00:00+05:00'
         total: 20

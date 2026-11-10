@@ -180,3 +180,22 @@ async def test_digest_not_sent_long_after_planned_time(client, login_as, time_ma
     await time_machine.travel_to(next_morning(time_machine.now, 15, 0))
     await time_machine.advance(minutes=3, step=timedelta(minutes=1))
     assert await digests(client, owner) == []
+
+
+async def test_unassigned_queue_is_visible_to_owner(client, login_as, fake_claude) -> None:
+    """Нераспределённые не эскалируются, поэтому собственник видит их отдельным счётчиком."""
+    owner = await login_as("owner")
+    before = (await summary(client, owner))["unassigned_count"]
+    created = await client.post(
+        "/api/v1/appeals",
+        headers=await login_as("employee_sales"),
+        json={"type": "problem", "category_id": None, "priority": "medium", "text": "Непонятно, к кому относится"},
+    )
+    assert created.json()["assignee"] is None
+    assert (await summary(client, owner))["unassigned_count"] == before + 1
+
+    fake_claude.fail = True
+    text = (await client.get(DIGEST, headers=owner)).json()["text"]
+    assert f"В очереди нераспределённых: {before + 1}" in text
+    head_text = (await client.get(DIGEST, headers=await login_as(HEAD))).json()["text"]
+    assert "нераспределённых" not in head_text
