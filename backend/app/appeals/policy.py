@@ -66,6 +66,11 @@ def can_reassign(rel: list[ViewerRelation]) -> bool:
     return any(r in rel for r in (ViewerRelation.DEPARTMENT_HEAD, ViewerRelation.ADMIN, ViewerRelation.OWNER))
 
 
+def can_close_discussion(rel: list[ViewerRelation]) -> bool:
+    """Итог обсуждения фиксирует руководитель подразделения обращения или собственник, не ответственный."""
+    return any(r in rel for r in (ViewerRelation.DEPARTMENT_HEAD, ViewerRelation.OWNER))
+
+
 def can_read_messages(rel: list[ViewerRelation]) -> bool:
     """Приватная переписка: автор, ответственный, руководитель, собственник. Не администратор, не участник."""
     return ViewerRelation.AUTHOR in rel or can_process(rel)
@@ -91,7 +96,7 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
     add(AppealAction.REJECT, process and status == AppealStatus.IN_REVIEW)
     add(AppealAction.IMPLEMENT, process and status == AppealStatus.IN_PROGRESS)
     add(AppealAction.ACCEPT_FEEDBACK, process and status == AppealStatus.NEW and praise)
-    add(AppealAction.MERGE, process and status in (AppealStatus.NEW, AppealStatus.IN_REVIEW))
+    add(AppealAction.MERGE, process and status in (AppealStatus.NEW, AppealStatus.IN_REVIEW) and not praise)
     add(AppealAction.REASSIGN, can_reassign(rel) and status in NOT_FINAL)
     add(AppealAction.PUBLISH_DISCUSSION, process and status != AppealStatus.CLOSED and not appeal.has_discussion)
     add(

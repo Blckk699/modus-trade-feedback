@@ -87,7 +87,9 @@ async def find_duplicates(ctx: JobContext, payload: dict[str, Any]) -> None:
 
 
 def _both_mergeable(appeal: Appeal, main: Appeal) -> bool:
-    return appeal.id != main.id and AppealStatus(appeal.status) in MERGEABLE and AppealStatus(main.status) in MERGEABLE
+    if appeal.id == main.id or AppealType.PRAISE in (appeal.type, main.type):
+        return False
+    return AppealStatus(appeal.status) in MERGEABLE and AppealStatus(main.status) in MERGEABLE
 
 
 @router.get("/appeals/{appeal_id}/similar", response_model=list[DuplicateSuggestionOut], summary="Подсказки о похожих обращениях")
@@ -174,7 +176,11 @@ async def merge(appeal_id: int, body: MergeIn, user: CurrentUserDep, session: Se
     await _require_processor(session, duplicate, user)
     await _require_processor(session, main, user)
     if not _both_mergeable(duplicate, main):
-        message = "Обращение нельзя присоединить к самому себе" if duplicate.id == main.id else None
+        message = None
+        if duplicate.id == main.id:
+            message = "Обращение нельзя присоединить к самому себе"
+        elif AppealType.PRAISE in (duplicate.type, main.type):
+            message = "Положительный отзыв нельзя склеить: он принимается одним действием"
         raise MergeNotAllowed(message, details={"appeal_status": duplicate.status, "main_appeal_status": main.status})
 
     inherited = list(await session.scalars(select(AppealParticipant.user_id).where(AppealParticipant.appeal_id == duplicate.id)))

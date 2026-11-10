@@ -131,3 +131,13 @@ async def test_merge_requires_rights_on_both_appeals(client, login_as) -> None:
     assert (await merge(client, await login_as("head_sales"), A_001, A_002)).status_code == 403
     assert (await merge(client, await login_as(HEAD), A_001, 9999)).status_code == 404
     assert (await merge(client, await login_as("head_procurement"), A_001, A_002)).status_code == 200
+
+
+async def test_praise_cannot_be_merged(client, login_as) -> None:
+    """Отзыв принимается одним действием, склейки у него нет."""
+    praise = await submit(client, await login_as("employee_sales"), {**FORM, "type": "praise"})
+    owner = await login_as("owner")
+    assert "merge" not in (await client.get(f"/api/v1/appeals/{praise['id']}", headers=owner)).json()["allowed_actions"]
+    for duplicate, main in ((praise["id"], A_001), (A_001, praise["id"])):
+        response = await merge(client, owner, duplicate, main)
+        assert (response.status_code, response.json()["error"]["code"]) == (409, "merge_not_allowed")
