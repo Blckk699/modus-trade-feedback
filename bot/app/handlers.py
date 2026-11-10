@@ -6,6 +6,7 @@ from typing import Any
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import MenuButtonWebApp, Message, WebAppInfo
 
 from app import keyboards, texts
@@ -13,7 +14,8 @@ from app.api import Api, ApiError
 from app.config import Settings
 
 log = logging.getLogger(__name__)
-async def start(message: Message, bot: Bot, me: dict[str, Any], settings: Settings) -> None:
+async def start(message: Message, bot: Bot, state: FSMContext, me: dict[str, Any], settings: Settings) -> None:
+    await state.set_state(None)
     if settings.mini_app_url:
         # Кнопка меню чата открывает Mini App с initData — вход без экрана входа.
         await bot.set_chat_menu_button(
@@ -36,13 +38,14 @@ async def login_code(message: Message, api: Api) -> None:
     await message.answer(texts.login_code(html.escape(code.code), code.ttl_seconds))
 
 
-async def submit_hint(message: Message) -> None:
+async def submit_hint(message: Message, state: FSMContext) -> None:
+    await state.set_state(None)
     await message.answer(texts.SUBMIT_HINT)
 
 
 async def my_appeals(message: Message, me: dict[str, Any], settings: Settings) -> None:
     if not settings.mini_app_url:
-        await message.answer(texts.USE_MENU, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
+        await message.answer(texts.MINI_APP_NOT_CONFIGURED, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
         return
     await message.answer(
         texts.MY_APPEALS,
@@ -76,5 +79,11 @@ def build_router() -> Router:
     router.message.register(my_appeals, F.text == texts.BTN_MY_APPEALS)
     router.message.register(digest, Command("digest"))
     router.message.register(digest, F.text == texts.BTN_DIGEST)
-    router.message.register(fallback)  # последним: всё остальное
+    return router
+
+
+def build_fallback_router() -> Router:
+    """Подключается последним: всё, что не разобрали меню и черновики."""
+    router = Router(name="fallback")
+    router.message.register(fallback)
     return router

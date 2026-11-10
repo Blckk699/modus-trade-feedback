@@ -1,59 +1,45 @@
-"""Прогон бота против мок-сервера Prism без настоящего Telegram.
+"""Прогон бота против мок-сервера Prism (или бэкенда) без настоящего Telegram.
 
     npx -y @stoplight/prism-cli@5.15.11 mock -h 127.0.0.1 -p 4011 ../contract/openapi.yaml
     uv run python -m scripts.smoke_mock [http://127.0.0.1:4011]
 
-Подаёт боту команды меню, запросы идут в мок по контракту, ответы бота печатаются.
+Подаёт боту команды меню и подачу обращения, запросы идут по контракту, ответы бота печатаются.
 """
 
 import asyncio
-import itertools
 import sys
-from datetime import datetime
-
-from aiogram.types import Chat, Message, MessageEntity, Update, User
 
 from app import texts
-from app.api import Api
-from app.config import Settings
-from app.fake_telegram import FakeTelegram
-from app.main import build_bot, build_dispatcher
+from tests.support import BotHarness
 
-USER_ID = 100000004
+
+def show(h: BotHarness, before: int, title: str) -> int:
+    print(f"> {title}")
+    for call in h.telegram.calls[before:]:
+        text = getattr(call, "text", None)
+        if text:
+            print("  " + text.replace("\n", "\n  "))
+    return len(h.telegram.calls)
 
 
 async def main(base_url: str) -> int:
-    settings = Settings(
-        _env_file=None,
-        telegram_bot_token="123456:SMOKE",
-        bot_service_key="smoke-key",
-        api_base_url=base_url,
-        mini_app_url="https://modus.example/app",
-    )
-    api = Api(base_url, "smoke-key")
-    telegram = FakeTelegram()
-    bot = build_bot("123456:SMOKE", session=telegram)
-    dp = build_dispatcher(api, settings)
-    ids = itertools.count(1)
+    h = BotHarness(real_api_url=base_url)
     try:
+        n = 0
         for text in ["/start", texts.BTN_LOGIN_CODE, texts.BTN_DIGEST, texts.BTN_MY_APPEALS, texts.BTN_SUBMIT]:
-            before = len(telegram.sent())
-            entities = [MessageEntity(type="bot_command", offset=0, length=len(text))] if text.startswith("/") else None
-            message = Message(
-                message_id=next(ids),
-                date=datetime.now(),
-                chat=Chat(id=USER_ID, type="private"),
-                from_user=User(id=USER_ID, is_bot=False, first_name="Айгерим"),
-                text=text,
-                entities=entities,
-            )
-            await dp.feed_update(bot, Update(update_id=next(ids), message=message))
-            print(f"> {text}")
-            for sent in telegram.sent()[before:]:
-                print("  " + sent.text.replace("\n", "\n  "))
+            await h.send_text(text)
+            n = show(h, n, text)
+        await h.send_forward("Опять в заявке на камеры не написали, для какого объекта", chat_title="Закупки — продажи")
+        n = show(h, n, "пересланное сообщение")
+        card = h.telegram.sent()[-1]
+        await h.press(card, texts.BTN_DRAFT_PRIORITY)
+        await h.press(h.telegram.calls[-2], "Высокий")
+        n = show(h, n, "Приоритет → Высокий")
+        await h.press(card, texts.BTN_DRAFT_SEND)
+        show(h, n, texts.BTN_DRAFT_SEND)
         return 0
     finally:
-        await api.close()
+        await h.close()
 
 
 if __name__ == "__main__":

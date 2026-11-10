@@ -35,6 +35,11 @@ npx -y @stoplight/prism-cli@5.15.11 mock -h 127.0.0.1 -p 4011 ../contract/openap
 uv run python -m scripts.smoke_mock http://127.0.0.1:4011
 ```
 
+Подача обращения: любой текст или пересланное сообщение → `POST /api/v1/drafts/text` → карточка черновика
+(тип, категория, приоритет, суть) с кнопками «Отправить», «Тип», «Категория», «Приоритет», «Поправить текст»,
+«Поправить суть», «Отменить» → `POST /api/v1/appeals` с `source=bot`. Черновик хранится в памяти бота (FSM aiogram)
+и после перезапуска теряется. При `503 ai_unavailable` бот предлагает форму в Mini App.
+
 ## Устройство
 
 ```
@@ -44,7 +49,9 @@ app/
   config.py         настройки из окружения (.env.example)
   api.py            клиент API, ApiError по формату ошибки контракта
   middleware.py     IdentifyUser: GET /me перед каждым обновлением, отказ постороннему
-  handlers.py       меню: /start, код входа, мои обращения, сводка
+  handlers.py       меню: /start, код входа, мои обращения, сводка; fallback последним
+  drafts.py         подача текстом и пересылкой: черновик → правка кнопками → POST /appeals
+  formatting.py     карточка черновика и созданного обращения
   keyboards.py      клавиатуры по Me.permissions
   texts.py          тексты и подписи кнопок
   fake_telegram.py  фейк Bot API для тестов и прогона на моке

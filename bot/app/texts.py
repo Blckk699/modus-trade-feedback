@@ -63,3 +63,25 @@ def login_code(code: str, ttl_seconds: int) -> str:
 
 
 USE_MENU = "Выберите действие в меню ниже."
+MINI_APP_NOT_CONFIGURED = "Приложение в Telegram пока не подключено. Обращения можно подавать прямо здесь, в чате."
+
+# ---- черновик обращения (T-02)
+BTN_DRAFT_SEND = "✅ Отправить"
+BTN_DRAFT_TYPE = "Тип"
+BTN_DRAFT_CATEGORY = "Категория"
+BTN_DRAFT_PRIORITY = "Приоритет"
+BTN_DRAFT_TEXT = "Поправить текст"
+BTN_DRAFT_SUMMARY = "Поправить суть"
+BTN_DRAFT_CANCEL = "Отменить"
+BTN_BACK = "← Назад"
+BTN_OPEN_FORM = "Заполнить форму"
+
+CATEGORY_UNKNOWN = "Не знаю — пусть определит администратор"
+FORWARDED_UNKNOWN = "пересланное сообщение"
+ASK_NEW_TEXT = "Пришлите исправленный текст обращения одним сообщением."
+ASK_NEW_SUMMARY = "Пришлите краткую суть одной фразой."
+DRAFT_EXPIRED = "Этот черновик уже неактуален. Напишите сообщение заново."
+DRAFT_CANCELLED = "Черновик отменён."
+NEED_TEXT = "Пришлите обращение текстом или перешлите текстовое сообщение."
+CANNOT_CREATE = "Подача обращений вам недоступна."
+FORM_ELSEWHERE = "Форма есть в веб-версии и в мобильном приложении «Модус Трейд»."

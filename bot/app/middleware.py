@@ -1,5 +1,6 @@
 """Опознание сотрудника: перед каждым обновлением бот спрашивает GET /me от имени пользователя."""
 
+import html
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -34,7 +35,7 @@ class IdentifyUser(BaseMiddleware):
             data["me"] = await self.api.me(user.id)
         except ApiError as exc:
             if exc.code in ACCESS_DENIED_CODES:
-                await _reply(event, exc.message, remove_keyboard=True)
+                await _reply(event, html.escape(exc.message), remove_keyboard=True)
             else:
                 log.warning("GET /me failed for update: %s", exc)
                 await _reply(event, texts.API_UNAVAILABLE)

@@ -17,12 +17,15 @@ class FakeTelegram(BaseSession):
         super().__init__()
         self.calls: list[TelegramMethod] = []
         self._ids = itertools.count(1000)
+        self._message_ids: dict[int, int] = {}  # id(SendMessage) → message_id
 
     async def make_request(self, bot: Bot, method: TelegramMethod, timeout: int | None = None) -> Any:
         self.calls.append(method)
         if isinstance(method, SendMessage):
+            message_id = next(self._ids)
+            self._message_ids[id(method)] = message_id
             return Message(
-                message_id=next(self._ids),
+                message_id=message_id,
                 date=datetime.now(),
                 chat=Chat(id=method.chat_id, type="private"),
                 text=method.text,
@@ -37,3 +40,9 @@ class FakeTelegram(BaseSession):
 
     def sent(self) -> list[SendMessage]:
         return [c for c in self.calls if isinstance(c, SendMessage)]
+
+    def message_id_of(self, method: SendMessage) -> int:
+        return self._message_ids[id(method)]
+
+    def of_type(self, method_type: type) -> list[TelegramMethod]:
+        return [c for c in self.calls if isinstance(c, method_type)]
