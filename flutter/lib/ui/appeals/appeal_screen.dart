@@ -7,11 +7,12 @@ import '../../appeals/attachment_files.dart';
 import '../../appeals/labels.dart';
 import '../../format.dart';
 import '../home/unread_scope.dart';
+import 'actions_panel.dart';
 import 'badges.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
-/// Действия показываются только из `allowed_actions`; смену статуса добавит F-03.
+/// Действия показываются только из `allowed_actions`.
 class AppealScreen extends StatefulWidget {
   const AppealScreen({super.key, required this.appealId, this.pickFiles = pickFilesFromDevice});
 
@@ -54,6 +55,12 @@ class _AppealScreenState extends State<AppealScreen> {
     }
   }
 
+  /// Действие вернуло обращение — показываем его и перечитываем историю и переписку.
+  void _replace(Appeal appeal) => setState(() {
+        _appeal = appeal;
+        _version++;
+      });
+
   @override
   Widget build(BuildContext context) {
     final appeal = _appeal;
@@ -69,6 +76,7 @@ class _AppealScreenState extends State<AppealScreen> {
                     appeal: appeal,
                     version: _version,
                     onChanged: _load,
+                    onUpdated: _replace,
                     pickFiles: widget.pickFiles,
                   ),
                 ),
@@ -104,11 +112,18 @@ class _ErrorView extends StatelessWidget {
 }
 
 class _AppealBody extends StatelessWidget {
-  const _AppealBody({required this.appeal, required this.version, required this.onChanged, required this.pickFiles});
+  const _AppealBody({
+    required this.appeal,
+    required this.version,
+    required this.onChanged,
+    required this.onUpdated,
+    required this.pickFiles,
+  });
 
   final Appeal appeal;
   final int version;
   final Future<void> Function() onChanged;
+  final ValueChanged<Appeal> onUpdated;
   final FilesPicker pickFiles;
 
   @override
@@ -135,6 +150,7 @@ class _AppealBody extends StatelessWidget {
           ),
         ],
         _Outcome(appeal: a),
+        ActionsPanel(appeal: a, onUpdated: onUpdated),
         const SizedBox(height: 8),
         _Fact('Тип', session.typeLabel(a.type)),
         _Fact('Категория', a.category?.name ?? 'Не указана'),

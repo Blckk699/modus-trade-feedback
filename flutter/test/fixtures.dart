@@ -223,3 +223,33 @@ const categoriesJson = [
     'is_active': false,
   },
 ];
+
+const headPermissions = {
+  'can_create_appeal': true,
+  'can_process_appeals': true,
+  'can_view_department': true,
+  'can_view_all_appeals': false,
+  'analytics_scope': 'department',
+  'can_upload_meetings': false,
+  'can_manage_settings': false,
+  'can_view_unassigned': false,
+};
+
+const usersJson = [
+  {
+    'id': 3, 'telegram_id': null, 'full_name': 'Марат Сейткали', 'position': null, 'role': 'head',
+    'department': {'id': 1, 'name': 'Закупки'}, 'is_absent': false, 'is_disabled': false,
+  },
+  {
+    'id': 5, 'telegram_id': null, 'full_name': 'Ольга Петрова', 'position': null, 'role': 'employee',
+    'department': {'id': 2, 'name': 'Бухгалтерия'}, 'is_absent': true, 'is_disabled': false,
+  },
+  {
+    'id': 2, 'telegram_id': null, 'full_name': 'Анна Ли', 'position': null, 'role': 'admin',
+    'department': null, 'is_absent': false, 'is_disabled': false,
+  },
+  {
+    'id': 9, 'telegram_id': null, 'full_name': 'Уволенный', 'position': null, 'role': 'employee',
+    'department': null, 'is_absent': false, 'is_disabled': true,
+  },
+];
