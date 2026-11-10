@@ -73,7 +73,20 @@ def build_app(database_url: str):
         attachments_dir=tempfile.mkdtemp(prefix="modus-e2e-files-"),
     )
     services = Services(clock=SystemClock(), claude=claude, speech=speech, telegram=FakeTelegram(), bitrix=FakeBitrix())
-    return create_app(settings, services)
+    app = create_app(settings, services)
+    add_e2e_routes(app)
+    return app
+
+
+def add_e2e_routes(app) -> None:
+    """Только для e2e: выполнить фоновую задачу сейчас, не дожидаясь расписания (например, digest.check)."""
+    from app.jobs import enqueue
+
+    @app.post("/e2e/run-job/{kind}", include_in_schema=False)
+    async def run_job(kind: str) -> dict:
+        async with app.state.sessionmaker() as session, session.begin():
+            await enqueue(session, kind, run_at=app.state.services.clock.now())
+        return {"processed": await app.state.jobs.run_due()}
 
 
 def main() -> int:
