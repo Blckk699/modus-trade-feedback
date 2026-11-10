@@ -29,7 +29,9 @@ async def create(client: httpx.AsyncClient, headers: dict, **fields) -> dict:
 
 async def kinds(app: FastAPI, user_id: int) -> list[str]:
     async with app.state.sessionmaker() as session:
-        rows = await session.execute(select(Notification.kind).where(Notification.user_id == user_id).order_by(Notification.id))
+        rows = await session.execute(
+            select(Notification.kind).where(Notification.user_id == user_id, Notification.kind != "digest").order_by(Notification.id)
+        )
         return list(rows.scalars())
 
 

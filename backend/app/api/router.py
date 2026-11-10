@@ -6,6 +6,7 @@
 from fastapi import APIRouter
 
 from app.admin import router as admin
+from app.analytics import router as analytics
 from app.api import dictionaries, health
 from app.appeals import actions_router as appeal_actions
 from app.appeals import bitrix as appeal_bitrix
@@ -32,5 +33,6 @@ api_router.include_router(directory.router)
 api_router.include_router(discussions.router)
 api_router.include_router(notifications.router)
 api_router.include_router(admin.router)
+api_router.include_router(analytics.router)
 api_router.include_router(drafts.router)
 api_router.include_router(meetings.router)

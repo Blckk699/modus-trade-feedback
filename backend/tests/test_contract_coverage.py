@@ -15,22 +15,7 @@ from app.domain.enums import AppealAction, AppealSource, AppealStatus, AppealTyp
 CONTRACT = Path(__file__).resolve().parents[2] / "contract" / "openapi.yaml"
 
 # Операции незакрытых тикетов. Список только сокращается: смержили тикет — удалите его строки.
-NOT_YET_IMPLEMENTED: set[tuple[str, str]] = {
-    # B-10
-    ("get", "/api/v1/appeals/{}/similar"),
-    ("post", "/api/v1/duplicate-suggestions/{}/dismiss"),
-    ("post", "/api/v1/appeals/{}/merge"),
-    # B-12
-    ("get", "/api/v1/meetings"),
-    ("post", "/api/v1/meetings"),
-    ("get", "/api/v1/meetings/{}"),
-    ("patch", "/api/v1/meetings/{}/drafts/{}"),
-    ("post", "/api/v1/meetings/{}/drafts/{}/confirm"),
-    ("post", "/api/v1/meetings/{}/drafts/{}/discard"),
-    # B-13
-    ("get", "/api/v1/analytics/summary"),
-    ("get", "/api/v1/analytics/digest"),
-}
+NOT_YET_IMPLEMENTED: set[tuple[str, str]] = set()
 
 
 def _normalized(path: str) -> str:
