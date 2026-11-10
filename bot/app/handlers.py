@@ -63,15 +63,17 @@ async def my_appeals(message: Message, state: FSMContext, api: Api, me: dict[str
     await message.answer(formatting.my_appeals(page, dictionaries), reply_markup=markup)
 
 
-async def digest(message: Message, state: FSMContext, api: Api) -> None:
+async def digest(message: Message, state: FSMContext, api: Api, settings: Settings) -> None:
     await state.set_state(None)
     try:
         data = await api.digest(message.from_user.id)
     except ApiError as exc:
-        await message.answer(html.escape(exc.message))
+        # 403 — сводка только руководителю и собственнику.
+        text = texts.DIGEST_UNAVAILABLE if exc.code == "forbidden" else html.escape(exc.message)
+        await message.answer(text)
         return
     # Текст сводки бэкенд отдаёт готовым Telegram HTML.
-    await message.answer(data["text"])
+    await message.answer(data["text"], reply_markup=keyboards.open_analytics(settings))
 
 
 async def fallback(message: Message, me: dict[str, Any], settings: Settings) -> None:
