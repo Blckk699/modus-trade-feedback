@@ -4,9 +4,10 @@ import 'package:modus_api/api.dart';
 import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../discussions/publish_discussion_form.dart';
 
 /// Действия обработки в карточке. Набор кнопок — ровно `allowed_actions` от бэкенда
-/// (как `ActionsPanel` в вебе). Вынос на обсуждение добавит F-05.
+/// (как `ActionsPanel` в вебе).
 const processingActions = [
   AppealAction.take,
   AppealAction.requestInfo,
@@ -15,6 +16,7 @@ const processingActions = [
   AppealAction.implement,
   AppealAction.acceptFeedback,
   AppealAction.reassign,
+  AppealAction.publishDiscussion,
 ];
 
 class ActionsPanel extends StatelessWidget {
@@ -24,7 +26,7 @@ class ActionsPanel extends StatelessWidget {
   final ValueChanged<Appeal> onUpdated;
 
   Future<void> _open(BuildContext context, AppealAction action) async {
-    final updated = await showModalBottomSheet<Appeal>(
+    final updated = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -33,7 +35,11 @@ class ActionsPanel extends StatelessWidget {
         child: _formFor(action),
       ),
     );
-    if (updated != null) onUpdated(updated);
+    if (updated is Appeal) onUpdated(updated);
+    // Вынос возвращает обсуждение — подставляем ссылку на него в обращение, как в вебе.
+    if (updated is Discussion) {
+      onUpdated(appeal..discussion = DiscussionRef(id: updated.id, status: updated.status).toJson());
+    }
   }
 
   Widget _formFor(AppealAction action) {
@@ -76,6 +82,7 @@ class ActionsPanel extends StatelessWidget {
         ),
       AppealAction.implement => _ImplementForm(appeal: appeal),
       AppealAction.reassign => _ReassignForm(appeal: appeal),
+      AppealAction.publishDiscussion => PublishDiscussionForm(appeal: appeal),
       _ => const SizedBox.shrink(),
     };
   }
@@ -83,7 +90,11 @@ class ActionsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    final actions = processingActions.where(appeal.allowedActions.contains).toList();
+    // Уже вынесенное обращение второй раз не выносим: ссылка на обсуждение — в карточке.
+    final actions = processingActions
+        .where(appeal.allowedActions.contains)
+        .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
+        .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     return Padding(

@@ -33,7 +33,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Собственник начинает со сводки; шесть разделов — четыре на панели и «Ещё».
-    expect(find.widgetWithText(AppBar, 'Сводка'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Сводка по компании'), findsOneWidget);
     expect(find.byKey(const Key('nav-more')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('nav-more')));

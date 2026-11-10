@@ -121,6 +121,8 @@ http.Response json(Object body, [int status = 200]) => http.Response.bytes(
       headers: {'content-type': 'application/json; charset=utf-8'},
     );
 
+http.Response http204() => http.Response('', 204);
+
 /// Фейковый сервер: маршрут `МЕТОД /путь` → ответ. Запоминает запросы.
 class FakeServer {
   FakeServer(this.routes);
@@ -157,6 +159,12 @@ Map<String, dynamic> appealJson({
   List<Map<String, dynamic>> attachments = const [],
   bool hasUnread = false,
   Map<String, dynamic>? assigneeJson = assignee,
+  int participantsCount = 1,
+  Map<String, dynamic>? mergedInto,
+  String? closedReason,
+  Map<String, dynamic>? bitrixTask,
+  Map<String, dynamic>? discussion,
+  String access = 'full',
 }) =>
     {
       'id': id,
@@ -173,9 +181,9 @@ Map<String, dynamic> appealJson({
       'first_response_due_at': assigneeJson == null ? null : '2026-11-13T10:15:00+05:00',
       'due_state': assigneeJson == null ? 'no_deadline' : dueState,
       'escalation_level': 0,
-      'participants_count': 1,
-      'merged_into': null,
-      'access': 'full',
+      'participants_count': participantsCount,
+      'merged_into': mergedInto,
+      'access': access,
       'has_unread': hasUnread,
       'created_at': '2026-11-10T10:15:00+05:00',
       'updated_at': '2026-11-10T10:15:00+05:00',
@@ -188,9 +196,9 @@ Map<String, dynamic> appealJson({
       'public_summary': null,
       'public_result': null,
       'forwarded_from': null,
-      'closed_reason': null,
-      'bitrix_task': null,
-      'discussion': null,
+      'closed_reason': closedReason,
+      'bitrix_task': bitrixTask,
+      'discussion': discussion,
       'attachments': attachments,
       'viewer_relations': ['author'],
       'allowed_actions': allowedActions,
@@ -253,3 +261,38 @@ const usersJson = [
     'department': null, 'is_absent': false, 'is_disabled': true,
   },
 ];
+
+Map<String, dynamic> discussionJson({
+  int id = 9,
+  String status = 'open',
+  String consent = 'pending',
+  int votesFor = 4,
+  int votesAgainst = 1,
+  String? myVote,
+  String? outcome,
+  bool canVote = true,
+  bool canClose = false,
+  bool canSetNameConsent = false,
+  String authorDisplay = 'Сотрудник подразделения «Закупки»',
+}) =>
+    {
+      'id': id,
+      'appeal': {'id': 21, 'number': 'A-021', 'type': 'suggestion', 'status': 'in_review'},
+      'public_text': 'Добавить обязательные поля в шаблон заявки на оборудование',
+      'deadline': '2026-11-13T18:00:00+05:00',
+      'status': status,
+      'author_name_consent': consent,
+      'author_display': authorDisplay,
+      'department': {'id': 1, 'name': 'Закупки'},
+      'votes_for': votesFor,
+      'votes_against': votesAgainst,
+      'my_vote': myVote,
+      'comments_count': 2,
+      'outcome': outcome,
+      'created_by': assignee,
+      'created_at': '2026-11-10T12:00:00+05:00',
+      'closed_at': status == 'closed' ? '2026-11-13T18:05:00+05:00' : null,
+      'can_vote': canVote,
+      'can_close': canClose,
+      'can_set_name_consent': canSetNameConsent,
+    };
