@@ -1,0 +1,9 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # Сгенерированный клиент API: правится только через tool/generate_api.sh.
+    - packages/modus_api/**
+    - build/**
+    - android/**
+    - ios/**
