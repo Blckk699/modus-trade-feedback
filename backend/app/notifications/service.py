@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.enums import AppealStatus, NotificationKind
-from app.models import Appeal, AppealParticipant, Notification, User
+from app.models import Appeal, AppealParticipant, Message, Notification, User
 
 STATUS_TEXT = {
     AppealStatus.IN_REVIEW: "взято на рассмотрение",
@@ -27,12 +27,24 @@ STATUS_TEXT = {
 }
 
 
+# Telegram принимает до 4096 символов: пользовательский фрагмент обрезаем, остальное — в карточке.
+FRAGMENT_LIMIT = 1000
+
+
+def fragment(text: str, limit: int = FRAGMENT_LIMIT) -> str:
+    """Экранированный пользовательский фрагмент не длиннее `limit` символов исходного текста."""
+    text = text.strip()
+    if len(text) <= limit:
+        return escape(text)
+    return escape(text[:limit].rstrip()) + "… <i>полностью — в карточке обращения</i>"
+
+
 def open_button(appeal: Appeal) -> dict:
     return {"type": "open_appeal", "text": "Открыть обращение", "appeal_id": appeal.id, "discussion_id": None}
 
 
 def _title(appeal: Appeal) -> str:
-    summary = f" «{escape(appeal.summary)}»" if appeal.summary else ""
+    summary = f" «{fragment(appeal.summary, 200)}»" if appeal.summary else ""
     return f"<b>{escape(appeal.number)}</b>{summary}"
 
 
@@ -107,20 +119,22 @@ async def status_changed(session: AsyncSession, appeal: Appeal, actor_id: int | 
     if detail:
         label = {AppealStatus.REJECTED: "Причина", AppealStatus.IMPLEMENTED: "Результат", AppealStatus.IN_PROGRESS: "Решение"}.get(status)
         if label:
-            text += f"\n{label}: {escape(detail)}"
+            text += f"\n{label}: {fragment(detail)}"
     for uid in _recipients([appeal.author_id, *await participants(session, appeal)], actor_id):
         add(session, uid, NotificationKind.STATUS_CHANGED, text, now, appeal=appeal)
 
 
 async def clarification_requested(session: AsyncSession, appeal: Appeal, question: str, actor_id: int, now: datetime) -> None:
-    """Автору: уточняющий вопрос с кнопкой «Ответить» — ответ уходит прямо из бота (история 13)."""
+    """Автору: уточняющий вопрос с кнопкой «Ответить» — ответ уходит прямо из бота (история 13).
+    Участникам повторов — только смена статуса."""
+    await participants_status(session, appeal, now)
     if appeal.author_id == actor_id:
         return
     add(
         session,
         appeal.author_id,
         NotificationKind.CLARIFICATION_REQUESTED,
-        f"По обращению {_title(appeal)} вопрос от ответственного:\n{escape(question)}",
+        f"По обращению {_title(appeal)} вопрос от ответственного:\n{fragment(question)}",
         now,
         appeal=appeal,
         buttons=[
@@ -131,11 +145,26 @@ async def clarification_requested(session: AsyncSession, appeal: Appeal, questio
 
 
 async def clarification_answered(session: AsyncSession, appeal: Appeal, answer: str, actor_id: int, now: datetime) -> None:
-    if appeal.assignee_id is None:
-        return
-    for uid in _recipients([appeal.assignee_id], actor_id):
+    """Ответственному и тому, кто задал последний вопрос (руководитель или собственник)."""
+    asker = await session.scalar(
+        select(Message.author_id)
+        .where(Message.appeal_id == appeal.id, Message.is_clarification_question.is_(True))
+        .order_by(Message.created_at.desc(), Message.id.desc())
+        .limit(1)
+    )
+    for uid in _recipients([appeal.assignee_id, asker], actor_id):
         add(session, uid, NotificationKind.CLARIFICATION_ANSWERED,
-            f"Автор ответил на уточнение по обращению {_title(appeal)}:\n{escape(answer)}", now, appeal=appeal)
+            f"Автор ответил на уточнение по обращению {_title(appeal)}:\n{fragment(answer)}", now, appeal=appeal)
+    await participants_status(session, appeal, now)
+
+
+async def participants_status(session: AsyncSession, appeal: Appeal, now: datetime) -> None:
+    """Участникам склеенных повторов — смена статуса основного без текста вопроса и ответа."""
+    status = AppealStatus(appeal.status)
+    for uid in await participants(session, appeal):
+        if uid != appeal.author_id:
+            add(session, uid, NotificationKind.STATUS_CHANGED,
+                f"Обращение {_title(appeal)} {STATUS_TEXT.get(status, status)}.", now, appeal=appeal)
 
 
 async def message_received(session: AsyncSession, appeal: Appeal, author: User, text: str, now: datetime) -> None:
@@ -143,7 +172,7 @@ async def message_received(session: AsyncSession, appeal: Appeal, author: User, 
     target = appeal.assignee_id if author.id == appeal.author_id else appeal.author_id
     for uid in _recipients([target], author.id):
         add(session, uid, NotificationKind.MESSAGE_RECEIVED,
-            f"Новое сообщение по обращению {_title(appeal)} от {escape(author.full_name)}:\n{escape(text)}", now, appeal=appeal)
+            f"Новое сообщение по обращению {_title(appeal)} от {escape(author.full_name)}:\n{fragment(text)}", now, appeal=appeal)
 
 
 async def deadline_reminder(session: AsyncSession, appeal: Appeal, now: datetime, tz) -> None:
