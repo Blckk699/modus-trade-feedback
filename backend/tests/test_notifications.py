@@ -190,3 +190,46 @@ async def test_user_text_is_escaped_for_telegram_html(app, client, login_as) -> 
     assert "Это &lt;script&gt; &amp; что?" in joined
     assert "<script>" not in joined and "<b>ООО" not in joined
     assert all(t.count("<b>") == t.count("</b>") for t in texts), "своя разметка — только номер обращения"
+
+
+# --- правки по ревью ---------------------------------------------------------------------------------
+
+
+async def test_many_failures_do_not_overflow_and_stop_after_limit(app, client, login_as, time_machine) -> None:
+    await client.post("/api/v1/appeals", headers=await login_as("employee_sales"), json=FORM)
+    target = (await pending(client))[0]["id"]
+    for _ in range(45):
+        response = await client.post(f"/api/v1/bot/notifications/{target}/fail", headers=BOT, json={"error": "timeout"})
+        assert response.status_code == 204
+    await time_machine.advance(hours=2)
+    assert target not in [n["id"] for n in await pending(client)], "после предела попыток — недоставленным"
+
+
+async def test_long_user_text_is_truncated_for_telegram(app, client, login_as) -> None:
+    head = await login_as("head_procurement")
+    await client.post("/api/v1/appeals/1/take", headers=head)
+    await client.post("/api/v1/appeals/1/request-info", headers=head, json={"question": "Подробнее " * 2000})
+    question = (await inbox(app, 4))[-1]
+    assert len(question.text) < 1500 and "полностью — в карточке" in question.text
+
+
+async def test_participants_follow_clarification_and_asker_gets_answer(app, client, login_as, clock) -> None:
+    """Участник повтора узнаёт об «Ожидает уточнения» и возврате; ответ автора видит и спросивший собственник."""
+    async with app.state.sessionmaker() as session, session.begin():
+        session.add(AppealParticipant(appeal_id=7, user_id=8, added_at=clock.now()))
+    owner = await login_as("owner")
+    await client.post("/api/v1/appeals/7/take", headers=owner)
+    await client.post("/api/v1/appeals/7/request-info", headers=owner, json={"question": "Какие системы?"})
+    await client.post("/api/v1/appeals/7/messages", headers=await login_as("employee_accounting"), json={"text": "1С и Битрикс"})
+
+    participant = [n.text for n in await inbox(app, 8)]
+    assert len(participant) == 3 and "ожидает" in participant[1] and "Какие системы" not in " ".join(participant)
+    assert [n.kind for n in await inbox(app, 1)][-1:] == ["clarification_answered"]  # собственник спрашивал
+    assert "clarification_answered" in [n.kind for n in await inbox(app, 13)]  # и ответственный
+
+
+async def test_old_undelivered_notifications_are_not_sent(app, client, login_as, time_machine) -> None:
+    await client.post("/api/v1/appeals", headers=await login_as("employee_sales"), json=FORM)
+    assert await pending(client)
+    await time_machine.advance(days=3)
+    assert await pending(client) == []
