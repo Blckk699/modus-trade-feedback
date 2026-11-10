@@ -1,5 +1,7 @@
 """T-05: сводка по команде и утренняя сводка из очереди."""
 
+from aiogram.exceptions import TelegramBadRequest
+
 from app import texts
 from app.notifications import deliver_pending
 from tests.support import MINI_APP_URL, employee
@@ -74,3 +76,23 @@ async def test_morning_digest_from_queue_gets_analytics_button(harness):
     assert added.text == texts.BTN_OPEN_ANALYTICS and added.web_app.url == MINI_APP_URL + "/analytics"
     [[from_backend]] = head.reply_markup.inline_keyboard
     assert from_backend.text == "Аналитика"
+
+
+async def test_digest_command_with_broken_html_is_sent_as_plain_text(harness):
+    broken = "Сводка: маржа < 10% в A-003"
+    harness.backend.on("GET", "/api/v1/me", 200, employee(OWNER, analytics_scope="company"))
+    harness.backend.on(
+        "GET",
+        "/api/v1/analytics/digest",
+        200,
+        {"scope": "company", "department": None, "generated_at": "2026-11-10T09:00:00+05:00", "text": broken},
+    )
+    harness.telegram.errors[OWNER] = lambda m: (
+        TelegramBadRequest(m, "Bad Request: can't parse entities") if m.parse_mode else None
+    )
+
+    await harness.send_text("/digest", user_id=OWNER)
+
+    first, second = harness.telegram.sent()
+    assert second.text == broken and second.parse_mode is None
+    assert second.reply_markup is not None

@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import MenuButtonWebApp, Message, WebAppInfo
@@ -72,8 +73,15 @@ async def digest(message: Message, state: FSMContext, api: Api, settings: Settin
         text = texts.DIGEST_UNAVAILABLE if exc.code == "forbidden" else html.escape(exc.message)
         await message.answer(text)
         return
-    # Текст сводки бэкенд отдаёт готовым Telegram HTML.
-    await message.answer(data["text"], reply_markup=keyboards.open_analytics(settings))
+    # Текст сводки бэкенд отдаёт готовым Telegram HTML; битая разметка — тот же текст без parse_mode.
+    markup = keyboards.open_analytics(settings)
+    try:
+        await message.answer(data["text"], reply_markup=markup)
+    except TelegramBadRequest as exc:
+        if "can't parse entities" not in str(exc).lower():
+            raise
+        log.warning("digest: bad HTML, sending as plain text: %s", exc)
+        await message.answer(data["text"], reply_markup=markup, parse_mode=None)
 
 
 async def fallback(message: Message, me: dict[str, Any], settings: Settings) -> None:
