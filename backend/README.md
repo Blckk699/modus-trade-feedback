@@ -85,6 +85,10 @@ docker compose exec api python -m app.seed reset         # то же в docker
   ключи — `key` демо-пользователей из `app/seed/data.py` (`owner`, `admin`, `head_procurement`,
   `employee_procurement`, …). Без файла сид всё равно загружается и печатает, под какими ролями никто
   не сможет войти. Telegram ID сид не печатает.
+- В docker файл кладётся на хост в `~/.config/modus-trade/seed-accounts.json` (или каталог из
+  `SEED_ACCOUNTS_DIR`): compose монтирует каталог в контейнер только на чтение и задаёт `SEED_ACCOUNTS_FILE`.
+  Положите файл до первого запуска, иначе `seed init` создаст пользователей без Telegram ID
+  (исправляется `docker compose exec api python -m app.seed reset`).
 
 ## Соглашения API
 
