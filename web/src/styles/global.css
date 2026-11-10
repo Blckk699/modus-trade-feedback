@@ -1,0 +1,347 @@
+/* Токены темы. Светлая по умолчанию, тёмная — по системе или по выбору (data-theme).
+   Оболочка Mini App (T-06) может переопределить эти переменные цветами Telegram. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --text: #1a1d23;
+  --muted: #5d6470;
+  --border: #dde1e7;
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --danger: #c62828;
+  --radius: 10px;
+  --topbar-h: 56px;
+  --bottombar-h: 60px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #111317;
+    --surface: #1b1e24;
+    --surface-2: #252932;
+    --text: #e8eaee;
+    --muted: #9aa1ad;
+    --border: #2f343d;
+    --accent: #5b8cff;
+    --accent-text: #0b1020;
+    --danger: #ff6b6b;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #111317;
+  --surface: #1b1e24;
+  --surface-2: #252932;
+  --text: #e8eaee;
+  --muted: #9aa1ad;
+  --border: #2f343d;
+  --accent: #5b8cff;
+  --accent-text: #0b1020;
+  --danger: #ff6b6b;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-text {
+  color: var(--danger);
+}
+
+.center {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  justify-items: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.btn {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- вход */
+.login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.login__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.login__title {
+  font-size: 22px;
+}
+
+.telegram-login {
+  min-height: 40px;
+}
+
+.telegram-login:empty {
+  display: none;
+}
+
+.dev-login {
+  display: grid;
+  gap: 8px;
+  border-top: 1px dashed var(--border);
+  padding-top: 16px;
+}
+
+.dev-login__title {
+  font-size: 15px;
+}
+
+.dev-login__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dev-login__user {
+  width: 100%;
+  display: grid;
+  text-align: left;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.dev-login__user:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.dev-login__user:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dev-login__name {
+  font-weight: 600;
+}
+
+/* ---------- оболочка */
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: var(--topbar-h) 1fr;
+  grid-template-areas:
+    'top top'
+    'nav main';
+}
+
+.topbar {
+  grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar__brand {
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.topbar__user {
+  display: grid;
+  text-align: right;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.topbar__name,
+.topbar__role {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__role {
+  font-size: 13px;
+}
+
+.sidenav {
+  grid-area: nav;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sidenav__link {
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.sidenav__link:hover {
+  background: var(--surface-2);
+}
+
+.sidenav__link.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.sidenav__short {
+  display: none;
+}
+
+.content {
+  grid-area: main;
+  padding: 24px;
+  min-width: 0;
+}
+
+.page {
+  display: grid;
+  gap: 8px;
+  max-width: 960px;
+}
+
+.page__title {
+  font-size: 22px;
+}
+
+/* ---------- телефон и Mini App: навигация внизу */
+@media (max-width: 720px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--topbar-h) 1fr;
+    grid-template-areas:
+      'top'
+      'main';
+  }
+
+  .topbar {
+    gap: 8px;
+  }
+
+  .topbar__brand {
+    display: none;
+  }
+
+  .topbar__user {
+    margin-right: auto;
+    text-align: left;
+  }
+
+  .content {
+    padding: 16px 16px calc(var(--bottombar-h) + 16px + env(safe-area-inset-bottom));
+  }
+
+  .sidenav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 2;
+    flex-direction: row;
+    gap: 0;
+    padding: 4px 4px env(safe-area-inset-bottom);
+    height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .sidenav__link {
+    flex: 1 0 64px;
+    display: grid;
+    place-items: center;
+    padding: 6px 4px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .sidenav__label {
+    display: none;
+  }
+
+  .sidenav__short {
+    display: inline;
+  }
+}

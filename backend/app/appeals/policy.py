@@ -10,10 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import ColumnElement, false, or_, select, true
+from sqlalchemy import ColumnElement, or_, select, true
 
 from app.domain.enums import AppealAction, AppealStatus, AppealType, Role, ViewerRelation
-from app.models import Appeal, AppealParticipant, Category, User
+from app.models import Appeal, AppealParticipant, Category, Department, User
 
 NOT_FINAL = (AppealStatus.NEW, AppealStatus.IN_REVIEW, AppealStatus.AWAITING_INFO, AppealStatus.IN_PROGRESS)
 
@@ -28,6 +28,8 @@ class AppealFacts:
     status: AppealStatus
     type: AppealType
     is_participant: bool
+    # Пользователь — руководитель подразделения этого обращения (Department.head_id).
+    viewer_heads_department: bool = False
     has_discussion: bool = False
     has_bitrix_task: bool = False
 
@@ -40,7 +42,7 @@ def relations(user: User, appeal: AppealFacts) -> list[ViewerRelation]:
         out.append(ViewerRelation.PARTICIPANT)
     if appeal.assignee_id == user.id:
         out.append(ViewerRelation.ASSIGNEE)
-    if user.role == Role.HEAD and user.department_id is not None and appeal.department_id == user.department_id:
+    if appeal.viewer_heads_department:
         out.append(ViewerRelation.DEPARTMENT_HEAD)
     if user.role == Role.OWNER:
         out.append(ViewerRelation.OWNER)
@@ -75,7 +77,6 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
     status, praise = appeal.status, appeal.type == AppealType.PRAISE
     process = can_process(rel)
     is_author = ViewerRelation.AUTHOR in rel
-    is_assignee = ViewerRelation.ASSIGNEE in rel
     actions: list[AppealAction] = []
 
     def add(action: AppealAction, condition: bool) -> None:
@@ -99,8 +100,21 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
         and not appeal.has_bitrix_task,
     )
     add(AppealAction.SEND_MESSAGE, (is_author or process) and status in NOT_FINAL)
-    add(AppealAction.UPLOAD_ATTACHMENT, (is_author or is_assignee) and status in NOT_FINAL)
+    add(AppealAction.UPLOAD_ATTACHMENT, (is_author or process) and status in NOT_FINAL)
     return actions
+
+
+def headed_departments(user: User):
+    """Подразделения, которыми пользователь руководит: зона руководителя — по `Department.head_id`."""
+    return select(Department.id).where(Department.head_id == user.id)
+
+
+def full_visible_filter(user: User) -> ColumnElement[bool]:
+    """Обращения, которые пользователь видит полностью (без «участник склеенного повтора»)."""
+    if user.role in (Role.ADMIN, Role.OWNER):
+        return true()
+    own_categories = select(Category.id).where(Category.department_id.in_(headed_departments(user)))
+    return or_(Appeal.author_id == user.id, Appeal.assignee_id == user.id, Appeal.category_id.in_(own_categories))
 
 
 def visible_filter(user: User) -> ColumnElement[bool]:
@@ -108,8 +122,4 @@ def visible_filter(user: User) -> ColumnElement[bool]:
     if user.role in (Role.ADMIN, Role.OWNER):
         return true()
     participant = select(AppealParticipant.appeal_id).where(AppealParticipant.user_id == user.id)
-    clauses = [Appeal.author_id == user.id, Appeal.assignee_id == user.id, Appeal.id.in_(participant)]
-    if user.role == Role.HEAD and user.department_id is not None:
-        own_categories = select(Category.id).where(Category.department_id == user.department_id)
-        clauses.append(Appeal.category_id.in_(own_categories))
-    return or_(*clauses) if clauses else false()
+    return or_(full_visible_filter(user), Appeal.id.in_(participant))
