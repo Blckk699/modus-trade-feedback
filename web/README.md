@@ -47,3 +47,15 @@ npm run dev
 - `src/app/navigation.ts` — разделы по `Me.permissions` и стартовый экран роли. Права клиент не вычисляет.
 - `src/app/dictionaries.tsx` — русские подписи статусов, типов и ролей из `GET /api/v1/dictionaries`.
 - `src/styles/global.css` — токены темы. Светлая и тёмная тема: по системе или переключателем в шапке. Оболочка Mini App может переопределить переменные цветами Telegram.
+
+## Mini App (T-06)
+
+Та же сборка открывается в Telegram как Mini App. Скрипт `telegram-web-app.js` подключён в `index.html`. Если в `Telegram.WebApp.initData` пусто, то это обычный браузер, и всё работает как раньше.
+
+- Вход: `auth/methods/miniApp.ts` идёт первым в `authMethods` и отправляет `initData` в `POST /api/v1/auth/telegram/mini-app`. При отказе (`401`/`403`) показывается экран входа с `message`.
+- Оболочка `telegram/MiniAppShell.tsx` (в `App` рядом с `AuthGate`, вне Telegram ничего не делает):
+  - вызывает `ready()` и `expand()`;
+  - берёт тему из `themeParams` (`telegram/theme.ts`, переменные из `global.css`) и обновляет её по `themeChanged`;
+  - показывает кнопку «Назад» Telegram, когда в истории есть куда вернуться (`navigate(-1)`).
+- Ссылки из бота (`telegram/startParam.ts`): `startapp` — это маршрут контракта (`Notification.path`), в котором `/` заменён на `_`. Например, `appeals_21` → `/appeals/21`, `discussions_5` → `/discussions/5`, `analytics` → `/digest`. Inline-кнопка `web_app` в боте может вести сразу на путь: `<MINI_APP_URL>/appeals/21`.
+- Проверка в браузере без Telegram: откройте `http://localhost:5173/#tgWebAppData=<urlencoded initData>&tgWebAppVersion=8.0&tgWebAppPlatform=ios&tgWebAppThemeParams=<urlencoded JSON>`. Мок принимает любые `initData`.
