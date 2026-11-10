@@ -4,6 +4,7 @@
 Новый модуль с задачами (эскалация, сводка, совещания) — добавьте строку импорта сюда.
 """
 
+from app.analytics import router as analytics  # noqa: F401
 from app.appeals import duplicates, escalation  # noqa: F401
 from app.jobs import builtin  # noqa: F401
 from app.meetings import router as meetings  # noqa: F401
