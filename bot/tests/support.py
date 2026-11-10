@@ -73,18 +73,20 @@ def employee(telegram_id: int, analytics_scope: str = "none") -> dict:
 class BotHarness:
     """Бот целиком: подаём обновление Telegram, смотрим, что ушло в API и что бот отправил."""
 
-    def __init__(self, mini_app_url: str | None = MINI_APP_URL, real_api_url: str | None = None) -> None:
+    def __init__(
+        self, mini_app_url: str | None = MINI_APP_URL, real_api_url: str | None = None, service_key: str = SERVICE_KEY
+    ) -> None:
         self.telegram = FakeTelegram()
         self.backend = FakeApi()
         self.settings = Settings(
             _env_file=None,
             telegram_bot_token=BOT_TOKEN,
-            bot_service_key=SERVICE_KEY,
+            bot_service_key=service_key,
             api_base_url="http://api.test",
             mini_app_url=mini_app_url,
         )
         if real_api_url:  # прогон против мок-сервера Prism или бэкенда
-            self.api = Api(real_api_url, SERVICE_KEY)
+            self.api = Api(real_api_url, service_key)
         else:
             self.api = Api("http://api.test", SERVICE_KEY, transport=httpx.MockTransport(self.backend.handler))
         self.bot = build_bot(BOT_TOKEN, session=self.telegram)

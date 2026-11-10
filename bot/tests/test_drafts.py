@@ -206,3 +206,13 @@ async def test_menu_buttons_and_commands_are_not_drafts(harness, backend):
     await harness.send_text("/unknown")
 
     assert backend.calls("POST", "/api/v1/drafts/text") == []
+
+
+async def test_draft_card_survives_missing_dictionaries(harness, backend):
+    backend.error("GET", "/api/v1/dictionaries", 404, "not_found", "Не найдено.")
+
+    await harness.send_text("Текст обращения")
+
+    [card] = harness.telegram.sent()
+    assert "<b>Тип:</b> Проблема" in card.text
+    assert "<b>Приоритет:</b> Средний" in card.text

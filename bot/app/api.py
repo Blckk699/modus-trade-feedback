@@ -3,7 +3,34 @@
 from dataclasses import dataclass
 from typing import Any
 
+import logging
+
 import httpx
+
+log = logging.getLogger(__name__)
+
+# Подписи из примера GET /dictionaries в контракте — запасной вариант, если справочник недоступен.
+FALLBACK_DICTIONARIES: dict[str, Any] = {
+    "appeal_types": [
+        {"code": "problem", "label": "Проблема"},
+        {"code": "suggestion", "label": "Предложение"},
+        {"code": "praise", "label": "Положительный отзыв"},
+    ],
+    "priorities": [
+        {"code": "high", "label": "Высокий"},
+        {"code": "medium", "label": "Средний"},
+        {"code": "low", "label": "Низкий"},
+    ],
+    "statuses": [
+        {"code": "new", "label": "Новое"},
+        {"code": "in_review", "label": "На рассмотрении"},
+        {"code": "awaiting_info", "label": "Ожидает уточнения"},
+        {"code": "in_progress", "label": "В работе"},
+        {"code": "implemented", "label": "Реализовано"},
+        {"code": "rejected", "label": "Отклонено"},
+        {"code": "closed", "label": "Закрыто"},
+    ],
+}
 
 UNAVAILABLE_MESSAGE = "Сервис временно недоступен. Попробуйте ещё раз через минуту."
 
@@ -130,9 +157,16 @@ class Api:
         await self.request("POST", path, json={"error": error[:500], "permanent": permanent})
 
     async def dictionaries(self) -> dict[str, Any]:
-        """Подписи перечислений. Справочник не меняется, поэтому читается один раз."""
+        """Подписи перечислений. Справочник не меняется, поэтому читается один раз.
+
+        Если справочник недоступен, бот не падает: берёт подписи из контракта и попробует снова в следующий раз.
+        """
         if self._dictionaries is None:
-            self._dictionaries = await self.request("GET", "/api/v1/dictionaries")
+            try:
+                self._dictionaries = await self.request("GET", "/api/v1/dictionaries")
+            except ApiError as exc:
+                log.warning("GET /dictionaries failed, using built-in labels: %s", exc)
+                return FALLBACK_DICTIONARIES
         return self._dictionaries
 
 
