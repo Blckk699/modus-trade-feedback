@@ -328,9 +328,9 @@ async def _recipients(session: AsyncSession) -> list[User]:
     return list((await session.scalars(query)).all())
 
 
-@registry.periodic("digest.check", Every(minutes=1))
+@registry.periodic("digest.check", Every(minutes=5))
 async def send_daily_digest(ctx: JobContext, payload: dict[str, Any]) -> None:
-    """Каждую минуту сверяет часы с настройкой: так новое время действует без перезапуска воркера."""
+    """Раз в пять минут сверяет часы с настройкой: так новое время действует без перезапуска воркера."""
     now, tz = ctx.now(), ctx.settings.tz
     local = now.astimezone(tz)
     at = await configured_digest_time(ctx.session, ctx.settings)

@@ -170,7 +170,7 @@ async def test_digest_time_comes_from_admin_setting(client, login_as, time_machi
     await time_machine.advance(minutes=2, step=timedelta(minutes=1))
     assert await digests(client, owner) == []
     await time_machine.travel_to(next_morning(time_machine.now, 18, 30) - timedelta(minutes=2))
-    await time_machine.advance(minutes=5, step=timedelta(minutes=1))
+    await time_machine.advance(minutes=10, step=timedelta(minutes=1))
     assert len(await digests(client, owner)) == 1
 
 
