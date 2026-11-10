@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -28,6 +29,8 @@ from app.errors import AppError, Conflict, ExternalServiceError, FileTooLarge, F
 from app.jobs.registry import JobContext, registry
 from app.jobs.runner import enqueue
 from app.models import Appeal, Category, Meeting, MeetingDraft, User
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["meetings"])
 
@@ -338,12 +341,12 @@ async def process_meeting(ctx: JobContext, payload: dict[str, Any]) -> None:
         return
     try:
         await _process(ctx, meeting)
-    except ExternalServiceError as exc:
-        if exc.code == "speech_empty":
-            meeting.status, meeting.error = MeetingStatus.FAILED, EMPTY_RECORDING
-        elif ctx.attempt >= PROCESS_ATTEMPTS:
-            meeting.status, meeting.error = MeetingStatus.FAILED, PROCESSING_FAILED
-        else:
+    except Exception as exc:
+        empty = isinstance(exc, ExternalServiceError) and exc.code == "speech_empty"
+        if not (empty or isinstance(exc, OSError) or ctx.attempt >= PROCESS_ATTEMPTS):
             raise
-    except OSError:
-        meeting.status, meeting.error = MeetingStatus.FAILED, PROCESSING_FAILED
+        # Запись не должна остаться «обрабатывается» навсегда, а частичный результат — сохраниться.
+        log.exception("Запись совещания #%s не обработана", payload["meeting_id"])
+        await ctx.session.rollback()
+        meeting = await ctx.session.get(Meeting, payload["meeting_id"])
+        meeting.status, meeting.error = MeetingStatus.FAILED, EMPTY_RECORDING if empty else PROCESSING_FAILED

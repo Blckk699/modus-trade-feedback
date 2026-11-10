@@ -171,3 +171,22 @@ async def test_retry_succeeds_after_transient_failure(client, login_as, time_mac
     await time_machine.advance(timedelta(minutes=3), step=timedelta(minutes=1))
     meeting = (await client.get(f"/api/v1/meetings/{created['id']}", headers=head)).json()
     assert (meeting["status"], len(meeting["drafts"])) == ("ready", 2)
+
+
+async def test_unexpected_error_marks_failed_after_last_attempt(client, login_as, time_machine, fake_speech, adapters, monkeypatch) -> None:
+    """Неожиданная ошибка не оставляет запись «обрабатывается» навсегда."""
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("неожиданный сбой")
+
+    monkeypatch.setattr(fake_speech, "transcribe", broken)
+    head = await login_as(HEAD)
+    created = (await upload(client, head)).json()
+    url = f"/api/v1/meetings/{created['id']}"
+
+    await time_machine.run_due()
+    assert (await client.get(url, headers=head)).json()["status"] == "processing"
+    await time_machine.advance(timedelta(minutes=10), step=timedelta(minutes=1))
+    body = (await client.get(url, headers=head)).json()
+    assert (body["status"], body["drafts"]) == ("failed", [])
+    assert "неожиданный" not in body["error"]
