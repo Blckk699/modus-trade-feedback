@@ -155,10 +155,38 @@ async def test_my_appeals_lists_what_was_submitted(bot, people):
 async def test_digest_command(bot, backend, people):
     owner = people["Ержан Касымов"]
     probe = await backend.get("/api/v1/analytics/digest", headers=as_user(owner))
-    if probe.status_code == 404:
-        pytest.skip("сводки в бэкенде ещё нет (B-13)")
+    assert probe.status_code == 200, probe.text
     await bot.send_text("/digest", user_id=owner)
-    assert bot.telegram.sent()[-1].text == probe.json()["text"]
+    reply = bot.telegram.sent()[-1]
+    assert reply.text == probe.json()["text"]
+    [[button]] = reply.reply_markup.inline_keyboard
+    assert button.text == texts.BTN_OPEN_ANALYTICS
+
+
+async def test_digest_is_unavailable_for_employee(bot, people):
+    await bot.send_text("/digest", user_id=people[EMPLOYEE])
+    assert bot.telegram.sent()[-1].text == texts.DIGEST_UNAVAILABLE
+
+
+async def test_morning_digest_reaches_owner_and_heads(bot, backend, people):
+    await drain(bot)
+    admin = people["Анна Ли"]
+    # Время рассылки — «сейчас» по UTC+5; задача сверки запускается сразу, без ожидания расписания.
+    now_local = datetime.now(timezone(timedelta(hours=5))).strftime("%H:%M")
+    patched = await backend.patch("/api/v1/admin/settings", headers=as_user(admin), json={"digest_time": now_local})
+    assert patched.status_code == 200, patched.text
+    ran = await backend.post("/e2e/run-job/digest.check")
+    assert ran.status_code == 200, ran.text
+
+    delivered = await drain(bot)
+    recipients = {m.chat_id for m in delivered}
+    assert people["Ержан Касымов"] in recipients  # собственник — по компании
+    assert people["Марат Сейткали"] in recipients  # руководитель закупок — по подразделению
+    assert people[EMPLOYEE] not in recipients
+    owner_digest = next(m for m in delivered if m.chat_id == people["Ержан Касымов"])
+    captions = [b.text for row in owner_digest.reply_markup.inline_keyboard for b in row]
+    assert captions  # кнопка перехода к аналитике
+    assert (await backend.get("/api/v1/bot/notifications/pending")).json() == []
 
 
 async def test_name_consent_buttons_reach_discussion(bot, backend, people):
