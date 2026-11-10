@@ -23,17 +23,51 @@ def resolve(ref):
     return node
 
 
+def deref(s):
+    while isinstance(s, dict) and "$ref" in s:
+        s = resolve(s["$ref"])
+    return s
+
+
+def merge_all_of(s):
+    """Сливает allOf из объектов в одну схему, чтобы строгая проверка видела все поля сразу."""
+    merged = {k: v for k, v in s.items() if k != "allOf"}
+    props = dict(merged.get("properties", {}))
+    required = list(merged.get("required", []))
+    for part in s["allOf"]:
+        part = deref(part)
+        if "allOf" in part:
+            part = merge_all_of(part)
+        if part.get("type", "object") != "object" or "enum" in part:
+            return None  # allOf над перечислением или строкой — не сливаем
+        props.update(part.get("properties", {}))
+        required += part.get("required", [])
+    merged.update(type="object", properties=props, required=required)
+    return merged
+
+
 def to_json_schema(s):
+    """OpenAPI 3.0 -> JSON Schema. Строгая: у объектов с описанными полями лишние ключи запрещены,
+    чтобы опечатка в примере (например, запятая без кавычек во flow-записи YAML) не прошла."""
     if isinstance(s, list):
         return [to_json_schema(x) for x in s]
     if not isinstance(s, dict):
         return s
-    s = {k: to_json_schema(v) for k, v in s.items() if k not in ("example", "examples", "description", "format")}
-    if "$ref" in s:
-        s["$ref"] = s["$ref"]
-    if s.pop("nullable", False):
-        return {"anyOf": [{k: v for k, v in s.items()}, {"type": "null"}]}
-    return s
+    if "allOf" in s:
+        merged = merge_all_of(s)
+        if merged is not None:
+            s = merged
+    nullable = s.get("nullable", False)
+    out = {
+        k: to_json_schema(v)
+        for k, v in s.items()
+        if k not in ("example", "examples", "description", "format", "nullable")
+    }
+    if "properties" in out and "additionalProperties" not in out:
+        out["additionalProperties"] = False
+    if nullable:
+        return {"anyOf": [out, {"type": "null"}]}
+    return out
 
 
 defs = {name: to_json_schema(sch) for name, sch in spec["components"]["schemas"].items()}

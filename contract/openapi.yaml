@@ -40,6 +40,16 @@ info:
 
     Любой другой переход — `409 invalid_transition`. Отказ без причины, «В работу» без решения и
     «Реализовано» без результата — `422 validation_error`.
+
+    **Кто выполняет действия.** Действия жизненного цикла выполняют ответственный обращения, руководитель
+    подразделения обращения и собственник. Руководитель и собственник действуют без смены ответственного:
+    для смены есть `reassign`. Администратор видит все обращения, но не меняет статусы, не склеивает,
+    не выносит на обсуждение, не создаёт задачи в Битрикс24 и не видит приватную переписку (`403`).
+    Автор пишет в переписку и отвечает на уточняющий вопрос.
+
+    **Срок.** В системе один срок — срок первого ответа. Он назначается при маршрутизации и при переназначении,
+    первый ответ фиксирует `take` (или `accept_feedback` у отзыва). Уточняющий вопрос задаётся уже после
+    первого ответа и на срок не влияет.
 servers:
   - url: http://localhost:4010
     description: Мок-сервер (Prism, без состояния)
@@ -576,7 +586,9 @@ paths:
     post:
       tags: [appeal-actions]
       summary: Взять на рассмотрение (Новое → На рассмотрении)
-      description: Фиксирует время первого ответа, если оно ещё не зафиксировано.
+      description: |
+        Фиксирует время первого ответа, если оно ещё не зафиксировано.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
       operationId: takeAppeal
       requestBody:
         required: false
@@ -591,7 +603,14 @@ paths:
                   description: Необязательный первый ответ автору, попадает в переписку
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealTaken:
+                  $ref: '#/components/examples/AppealTaken'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -608,7 +627,8 @@ paths:
       summary: Задать автору уточняющий вопрос (На рассмотрении → Ожидает уточнения)
       description: |
         Вопрос попадает в переписку с `is_clarification_question=true`, автору уходит уведомление.
-        Отсчёт срока первого ответа приостанавливается до ответа автора.
+        Срок первого ответа к этому моменту уже выполнен (первый ответ фиксирует `take`), других сроков нет.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
       operationId: requestInfo
       requestBody:
         required: true
@@ -625,7 +645,14 @@ paths:
               question: Пришлите, пожалуйста, пример заявки, где не хватило параметров.
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealAwaitingInfo:
+                  $ref: '#/components/examples/AppealAwaitingInfo'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -642,6 +669,7 @@ paths:
     post:
       tags: [appeal-actions]
       summary: Принять решение и перевести в работу (На рассмотрении → В работе)
+      description: 'Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.'
       operationId: startWork
       requestBody:
         required: true
@@ -659,7 +687,14 @@ paths:
               decision: Добавим в шаблон заявки обязательные поля «назначение» и «параметры» до конца месяца.
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealInWork:
+                  $ref: '#/components/examples/AppealInWork'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -676,6 +711,7 @@ paths:
     post:
       tags: [appeal-actions]
       summary: Отклонить с обязательной причиной (На рассмотрении → Отклонено)
+      description: 'Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.'
       operationId: rejectAppeal
       requestBody:
         required: true
@@ -692,7 +728,14 @@ paths:
               reason: Сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса.
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealA017Rejected:
+                  $ref: '#/components/examples/AppealA017Rejected'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -710,9 +753,12 @@ paths:
       tags: [appeal-actions]
       summary: Зафиксировать результат (В работе → Реализовано)
       description: |
-        Обращение попадает в ленту реализованного. В ленте показываются `public_summary` (что предложили)
-        и `result` (что сделали). Если `public_summary` не задан, берётся публичная формулировка обсуждения,
-        а если обсуждения не было — краткая суть обращения.
+        Обращение попадает в ленту реализованного, которую видят все сотрудники. В ленте показываются
+        «что предложили» и «что сделали»:
+        - что предложили — `public_summary`; если не задан — публичная формулировка обсуждения, а без обсуждения — краткая суть;
+        - что сделали — `public_result`; если не задан — `result`. Поэтому `result` без `public_result` пишите так,
+          чтобы его можно было показать всем.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
       operationId: implementAppeal
       requestBody:
         required: true
@@ -728,12 +774,25 @@ paths:
                 public_summary:
                   type: string
                   nullable: true
+                  description: Что предложили — для ленты
+                public_result:
+                  type: string
+                  nullable: true
+                  description: Что сделали — публичная формулировка для ленты
             example:
               result: Запланирован пробный обучающий семинар по новым товарным линейкам на 20 ноября.
               public_summary: Короткие занятия по новым товарным линейкам
+              public_result: Проведём пробный семинар по новым товарным линейкам
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealA004Implemented:
+                  $ref: '#/components/examples/AppealA004Implemented'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -750,7 +809,9 @@ paths:
     post:
       tags: [appeal-actions]
       summary: Принять положительный отзыв одним действием (Новое → Закрыто)
-      description: Только для `type=praise`. Для других типов — `409 invalid_transition`.
+      description: |
+        Только для `type=praise`. Для других типов — `409 invalid_transition`.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
       operationId: acceptFeedback
       requestBody:
         required: false
@@ -766,7 +827,14 @@ paths:
               comment: Спасибо! Передали организаторам обучения.
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealFeedbackAccepted:
+                  $ref: '#/components/examples/AppealFeedbackAccepted'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -785,6 +853,7 @@ paths:
         Руководитель (в своём подразделении), администратор, собственник. Срок первого ответа
         отсчитывается заново, причина пишется в историю. Этим же маршрутом администратор
         назначает ответственного из очереди нераспределённых.
+        Ответственному, сотруднику — `403`.
       operationId: reassignAppeal
       requestBody:
         required: true
@@ -804,7 +873,14 @@ paths:
               reason: Вопрос про синхронизацию систем — в зоне IT.
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealReassigned:
+                  $ref: '#/components/examples/AppealReassigned'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -827,6 +903,7 @@ paths:
         ответственных склеивает руководитель или собственник. Повтор переходит в «Закрыто» со ссылкой
         на основное, его автор становится участником основного и получает его статусы.
         Ответ — основное обращение с обновлённым `participants_count`.
+        Кто: ответственный (оба обращения назначены ему), руководитель, собственник. Администратору — `403`, даже если он видит оба обращения.
       operationId: mergeAppeal
       requestBody:
         required: true
@@ -842,7 +919,14 @@ paths:
               main_appeal_id: 3
       responses:
         '200':
-          $ref: '#/components/responses/AppealUpdated'
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealMergedMain:
+                  $ref: '#/components/examples/AppealMergedMain'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1100,6 +1184,7 @@ paths:
       description: |
         Ответственный, руководитель, собственник. Повторный вызов не создаёт вторую задачу и возвращает
         существующую с кодом 200. При ошибке портала — `502 bitrix_unavailable`, обращение не меняется.
+        Администратору и сотруднику — `403`.
       operationId: createBitrixTask
       responses:
         '200':
@@ -1226,6 +1311,7 @@ paths:
       description: |
         Ответственный, руководитель, собственник. Одно обсуждение на обращение (повторно — `409 conflict`).
         Автору уходит запрос на показ имени; до ответа `author_name_consent=pending` и в ленте стоит только подразделение.
+        Администратору и сотруднику — `403`.
       operationId: publishDiscussion
       requestBody:
         required: true
@@ -1582,6 +1668,7 @@ paths:
       description: |
         Обработка идёт в фоне: ответ сразу со `status=processing`. Клиент опрашивает `GET /meetings/{id}`
         раз в несколько секунд, пока статус не станет `ready` или `failed`. До 200 МБ.
+        Только руководитель и собственник, остальным — `403`.
       operationId: uploadMeeting
       requestBody:
         required: true
@@ -1618,13 +1705,14 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '413':
-          $ref: '#/components/responses/FileTooLarge'
+          $ref: '#/components/responses/MeetingFileTooLarge'
   /api/v1/meetings/{meeting_id}:
     parameters:
       - $ref: '#/components/parameters/MeetingId'
     get:
       tags: [meetings]
       summary: 'Совещание: состояние, расшифровка, черновики'
+      description: Только загрузивший (руководитель или собственник), остальным — `403`.
       operationId: getMeeting
       responses:
         '200':
@@ -1649,7 +1737,9 @@ paths:
     patch:
       tags: [meetings]
       summary: Поправить черновик
-      description: Только загрузивший и только черновик в статусе `pending`.
+      description: |
+        Только загрузивший и только черновик в статусе `pending`.
+        Остальным — `403`.
       operationId: updateMeetingDraft
       requestBody:
         required: true
@@ -1690,6 +1780,7 @@ paths:
       description: |
         Обращение создаётся с `source=meeting` и идёт по обычной маршрутизации. Автор — `author_id` черновика,
         если указан, иначе загрузивший. Тело необязательно: можно сразу передать последние правки.
+        Только загрузивший, остальным — `403`.
       operationId: confirmMeetingDraft
       requestBody:
         required: false
@@ -1724,6 +1815,7 @@ paths:
     post:
       tags: [meetings]
       summary: Отбросить черновик
+      description: Только загрузивший, остальным — `403`.
       operationId: discardMeetingDraft
       responses:
         '200':
@@ -1925,7 +2017,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/BotNotification'
               example:
-                - {"id": 905, "kind": "clarification_requested", "text": "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?", "appeal": {"id": 5, "number": "A-005", "summary": "Не видно", "на каком этапе пакет документов": null, "status": "awaiting_info", "type": "problem"}, "path": "/appeals/5", "buttons": [{"type": "reply_clarification", "text": "Ответить", "appeal_id": 5, "discussion_id": null}, {"type": "open_appeal", "text": "Открыть обращение", "appeal_id": 5, "discussion_id": null}], "is_read": false, "created_at": "2026-11-09T12:40:00+05:00", "recipient": {"user_id": 6, "telegram_id": 100000006}, "attempts": 0}
+                - {"id": 905, "kind": "clarification_requested", "text": "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?", "appeal": {"id": 5, "number": "A-005", "summary": "Не видно, на каком этапе пакет документов", "status": "awaiting_info", "type": "problem"}, "path": "/appeals/5", "buttons": [{"type": "reply_clarification", "text": "Ответить", "appeal_id": 5, "discussion_id": null}, {"type": "open_appeal", "text": "Открыть обращение", "appeal_id": 5, "discussion_id": null}], "is_read": false, "created_at": "2026-11-09T12:40:00+05:00", "recipient": {"user_id": 6, "telegram_id": 100000006}, "attempts": 0}
                 - {"id": 906, "kind": "name_consent_request", "text": "Ваше обращение <b>A-020</b> вынесено на общее обсуждение.\nПоказывать ваше имя? Без согласия будет указано только подразделение.", "appeal": {"id": 20, "number": "A-020", "summary": "Публиковать обзор завершённых внутренних улучшений", "status": "in_review", "type": "suggestion"}, "path": "/discussions/12", "buttons": [{"type": "name_consent_show", "text": "Показать имя", "appeal_id": 20, "discussion_id": 12}, {"type": "name_consent_hide", "text": "Скрыть", "appeal_id": 20, "discussion_id": 12}], "is_read": false, "created_at": "2026-11-10T13:00:00+05:00", "recipient": {"user_id": 4, "telegram_id": 100000004}, "attempts": 0}
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -2078,6 +2170,7 @@ paths:
     post:
       tags: [admin]
       summary: Добавить сотрудника по Telegram ID
+      description: Только администратор, остальным — `403`.
       operationId: adminCreateUser
       requestBody:
         required: true
@@ -2128,6 +2221,7 @@ paths:
       description: |
         `is_absent=true` — новые обращения его категорий получает заместитель.
         `is_disabled=true` — вход запрещён, текущие сессии сбрасываются.
+        Только администратор, остальным — `403`.
       operationId: adminUpdateUser
       requestBody:
         required: true
@@ -2165,6 +2259,7 @@ paths:
     post:
       tags: [admin]
       summary: Добавить подразделение
+      description: Только администратор, остальным — `403`.
       operationId: adminCreateDepartment
       requestBody:
         required: true
@@ -2204,6 +2299,7 @@ paths:
     patch:
       tags: [admin]
       summary: Изменить название или руководителя подразделения
+      description: Только администратор, остальным — `403`.
       operationId: adminUpdateDepartment
       requestBody:
         required: true
@@ -2236,6 +2332,7 @@ paths:
     post:
       tags: [admin]
       summary: Добавить категорию
+      description: Только администратор, остальным — `403`.
       operationId: adminCreateCategory
       requestBody:
         required: true
@@ -2280,7 +2377,9 @@ paths:
     patch:
       tags: [admin]
       summary: 'Изменить категорию: ответственный, заместитель, подразделение, активность'
-      description: Изменение влияет на маршрутизацию новых обращений; уже назначенные не переназначаются.
+      description: |
+        Изменение влияет на маршрутизацию новых обращений; уже назначенные не переназначаются.
+        Только администратор, остальным — `403`.
       operationId: adminUpdateCategory
       requestBody:
         required: true
@@ -2317,6 +2416,7 @@ paths:
     get:
       tags: [admin]
       summary: Сроки первого ответа по приоритетам
+      description: Только администратор, остальным — `403`.
       operationId: adminGetDeadlineRules
       responses:
         '200':
@@ -2338,7 +2438,9 @@ paths:
     put:
       tags: [admin]
       summary: Изменить сроки первого ответа
-      description: Применяются к новым обращениям и к переназначениям после изменения.
+      description: |
+        Применяются к новым обращениям и к переназначениям после изменения.
+        Только администратор, остальным — `403`.
       operationId: adminUpdateDeadlineRules
       requestBody:
         required: true
@@ -2377,6 +2479,7 @@ paths:
     get:
       tags: [admin]
       summary: Общие настройки
+      description: Только администратор, остальным — `403`.
       operationId: adminGetSettings
       responses:
         '200':
@@ -2395,6 +2498,7 @@ paths:
     patch:
       tags: [admin]
       summary: Изменить время утренней сводки
+      description: Только администратор, остальным — `403`.
       operationId: adminUpdateSettings
       requestBody:
         required: true
@@ -2499,15 +2603,6 @@ components:
           examples:
             employee:
               $ref: '#/components/examples/SessionEmployee'
-    AppealUpdated:
-      description: Обращение после действия
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Appeal'
-          examples:
-            assignee_view:
-              $ref: '#/components/examples/AppealA001AssigneeView'
     Unauthorized:
       description: Нет токена, токен истёк или неверный сервисный ключ
       content:
@@ -2642,6 +2737,17 @@ components:
               code: file_too_large
               message: Файл больше 20 МБ.
               details: {max_bytes: 20971520}
+    MeetingFileTooLarge:
+      description: Запись больше допустимого
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: file_too_large
+              message: Запись больше 200 МБ.
+              details: {max_bytes: 209715200}
     AiUnavailable:
       description: Claude или ElevenLabs недоступны — предложите заполнить форму
       content:
@@ -2737,10 +2843,10 @@ components:
       enum: [overdue, due_today, due_week, no_deadline]
     DueState:
       type: string
-      enum: [on_time, due_soon, overdue, paused, answered, none]
+      enum: [on_time, due_soon, overdue, answered, no_deadline]
       description: |
-        on_time — срок не скоро; due_soon — меньше суток; overdue — просрочен; paused — ждём уточнения от автора;
-        answered — первый ответ уже дан; none — срока нет (отзыв или нет ответственного)
+        on_time — срок не скоро; due_soon — меньше суток; overdue — просрочен;
+        answered — первый ответ уже дан; no_deadline — срока нет (отзыв или нет ответственного)
     AppealAction:
       type: string
       enum:
@@ -3224,6 +3330,10 @@ components:
           type: string
           enum: [form, bot]
           default: form
+        forwarded_from:
+          type: string
+          nullable: true
+          description: Для пересылки в бот — откуда переслано (из `TextDraftRequest.forwarded_from`)
     AppealListItem:
       type: object
       required:
@@ -3291,7 +3401,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Срок первого ответа. null у отзывов и нераспределённых. Сдвигается на время паузы уточнения.
+          description: Срок первого ответа — единственный срок в системе. null у отзывов и нераспределённых.
         due_state:
           $ref: '#/components/schemas/DueState'
         escalation_level:
@@ -3328,11 +3438,12 @@ components:
             - text
             - proposed_solution
             - first_response_at
-            - due_paused_since
             - decision
             - rejection_reason
             - result
             - public_summary
+            - public_result
+            - forwarded_from
             - closed_reason
             - bitrix_task
             - discussion
@@ -3351,11 +3462,6 @@ components:
               type: string
               format: date-time
               nullable: true
-            due_paused_since:
-              type: string
-              format: date-time
-              nullable: true
-              description: С какого момента срок приостановлен (статус «Ожидает уточнения»)
             decision:
               type: string
               nullable: true
@@ -3370,7 +3476,15 @@ components:
             public_summary:
               type: string
               nullable: true
-              description: Публичная формулировка для ленты реализованного
+              description: Что предложили — публичная формулировка для ленты реализованного
+            public_result:
+              type: string
+              nullable: true
+              description: Что сделали — публичная формулировка результата для ленты
+            forwarded_from:
+              type: string
+              nullable: true
+              description: Откуда переслано сообщение, если обращение подано пересылкой в бот
             closed_reason:
               type: string
               nullable: true
@@ -3430,8 +3544,6 @@ components:
             - reassigned
             - status_changed
             - deadline_set
-            - deadline_paused
-            - deadline_resumed
             - clarification_requested
             - clarification_answered
             - escalated
@@ -3732,7 +3844,7 @@ components:
           description: Что предложили
         result:
           type: string
-          description: Что сделали
+          description: Что сделали — `public_result` обращения, а если он не задан — `result`
         author_display:
           type: string
           description: Имя автора при согласии, иначе подразделение
@@ -3936,6 +4048,7 @@ components:
         - closed_last_week
         - repeated_topics
         - overdue
+        - assignee_load
       properties:
         scope:
           type: string
@@ -3997,6 +4110,27 @@ components:
           description: Все с просроченным сроком первого ответа
           items:
             $ref: '#/components/schemas/StuckAppeal'
+        assignee_load:
+          type: array
+          description: Нагрузка по ответственным в выборке (история 53), по убыванию открытых
+          items:
+            $ref: '#/components/schemas/AssigneeLoad'
+    AssigneeLoad:
+      type: object
+      required: [assignee, open_count, overdue_count, avg_first_response_hours]
+      properties:
+        assignee:
+          $ref: '#/components/schemas/UserBrief'
+        open_count:
+          type: integer
+          description: Открытых обращений (не в финальном статусе)
+        overdue_count:
+          type: integer
+          description: Из них с просроченным сроком первого ответа
+        avg_first_response_hours:
+          type: number
+          format: float
+          nullable: true
     Digest:
       type: object
       required: [scope, department, generated_at, text]
@@ -4281,11 +4415,12 @@ components:
         text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
         proposed_solution: Добавить обязательные поля «назначение» и «параметры» в шаблон заявки
         first_response_at: null
-        due_paused_since: null
         decision: null
         rejection_reason: null
         result: null
         public_summary: null
+        public_result: null
+        forwarded_from: null
         closed_reason: null
         bitrix_task: null
         discussion: null
@@ -4318,11 +4453,12 @@ components:
         text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
         proposed_solution: Добавить обязательные поля в шаблон заявки
         first_response_at: null
-        due_paused_since: null
         decision: null
         rejection_reason: null
         result: null
         public_summary: null
+        public_result: null
+        forwarded_from: null
         closed_reason: null
         bitrix_task: null
         discussion: null
@@ -4363,11 +4499,12 @@ components:
         text: Предлагаю организовать отдельную небольшую зону для коротких перерывов рядом с рабочими помещениями.
         proposed_solution: null
         first_response_at: '2026-10-27T11:00:00+05:00'
-        due_paused_since: null
         decision: null
         rejection_reason: Сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса.
         result: null
         public_summary: null
+        public_result: null
+        forwarded_from: null
         closed_reason: null
         bitrix_task: null
         discussion: null
@@ -4400,11 +4537,12 @@ components:
         text: Было бы полезно проводить короткие занятия по новым товарным линейкам с разбором типовых запросов. Предлагаю составить календарь таких встреч.
         proposed_solution: Составить календарь занятий
         first_response_at: '2026-10-21T10:00:00+05:00'
-        due_paused_since: null
         decision: Проведём пробный семинар и по итогам решим о календаре.
         rejection_reason: null
         result: Запланирован пробный обучающий семинар по новым товарным линейкам.
         public_summary: Короткие занятия по новым товарным линейкам
+        public_result: Запланирован пробный обучающий семинар по новым товарным линейкам.
+        forwarded_from: null
         closed_reason: null
         bitrix_task:
           task_id: '1287'
@@ -4440,17 +4578,430 @@ components:
         text: null
         proposed_solution: null
         first_response_at: '2026-11-03T10:30:00+05:00'
-        due_paused_since: null
         decision: Подготовим правило проверки и корректировки номенклатуры.
         rejection_reason: null
         result: null
         public_summary: null
+        public_result: null
+        forwarded_from: null
         closed_reason: null
         bitrix_task: null
         discussion: null
         attachments: []
         viewer_relations: [participant]
         allowed_actions: []
+    AppealTaken:
+      summary: A-001 после «Взять»
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: in_review
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-10T11:02:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - request_info
+        - start_work
+        - reject
+        - reassign
+        - merge
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealAwaitingInfo:
+      summary: A-001 после уточняющего вопроса
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: awaiting_info
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-10T11:05:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - reassign
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealInWork:
+      summary: A-001 после «В работу»
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: in_progress
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-11T10:00:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: Добавим в шаблон заявки обязательные поля «назначение» и «параметры» до конца месяца.
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - implement
+        - reassign
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealFeedbackAccepted:
+      summary: 'A-018: отзыв принят'
+      value:
+        id: 18
+        number: A-018
+        type: praise
+        category:
+          id: 16
+          name: Корпоративная среда
+        department:
+          id: 7
+          name: Административный отдел
+        priority: low
+        status: closed
+        summary: Польза внутренних учебных встреч
+        author:
+          id: 15
+          full_name: Асель Тулегенова
+          role: employee
+          department:
+            id: 7
+            name: Административный отдел
+        assignee:
+          id: 14
+          full_name: Гульнара Омарова
+          role: head
+          department:
+            id: 7
+            name: Административный отдел
+        source: form
+        first_response_due_at: null
+        due_state: no_deadline
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-05T09:00:00+05:00'
+        updated_at: '2026-11-05T15:00:00+05:00'
+        text: 'Хочу отметить пользу внутренних учебных встреч: после них стало легче обращаться к коллегам за консультацией. Было бы хорошо сохранить этот формат.'
+        proposed_solution: null
+        first_response_at: '2026-11-05T15:00:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: feedback_accepted
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions: []
+    AppealReassigned:
+      summary: 'A-007 после переназначения на IT: срок отсчитан заново'
+      value:
+        id: 7
+        number: A-007
+        type: problem
+        category:
+          id: 7
+          name: Интеграции и IT
+        department:
+          id: 6
+          name: IT
+        priority: high
+        status: new
+        summary: Повторный ввод данных в разных системах
+        author:
+          id: 6
+          full_name: Дина Жуматова
+          role: employee
+          department:
+            id: 2
+            name: Бухгалтерия
+        assignee:
+          id: 13
+          full_name: Даурен Исаев
+          role: employee
+          department:
+            id: 6
+            name: IT
+        source: form
+        first_response_due_at: '2026-11-11T18:00:00+05:00'
+        due_state: on_time
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-05T10:00:00+05:00'
+        updated_at: '2026-11-10T16:00:00+05:00'
+        text: Иногда повторный ввод одних и тех же сведений в разных рабочих системах занимает много времени. Нужна оценка, какие операции можно синхронизировать безопасно.
+        proposed_solution: null
+        first_response_at: null
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - owner
+        allowed_actions:
+        - take
+        - reassign
+        - merge
+        - publish_discussion
+        - send_message
+        - upload_attachment
+    AppealMergedMain:
+      summary: 'Основное обращение A-003 после склейки: участников стало 3'
+      value:
+        id: 3
+        number: A-003
+        type: problem
+        category:
+          id: 3
+          name: Каталог и данные
+        department:
+          id: 4
+          name: Проектирование
+        priority: high
+        status: in_review
+        summary: Разные обозначения одного изделия в рабочих материалах
+        author:
+          id: 10
+          full_name: Алия Сапарова
+          role: employee
+          department:
+            id: 4
+            name: Проектирование
+        assignee:
+          id: 9
+          full_name: Нурлан Беков
+          role: head
+          department:
+            id: 4
+            name: Проектирование
+        source: form
+        first_response_due_at: '2026-11-03T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 0
+        participants_count: 3
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-02T09:00:00+05:00'
+        updated_at: '2026-11-10T10:16:00+05:00'
+        text: В рабочих материалах иногда встречаются разные обозначения одного изделия. Это увеличивает время проверки спецификации. Нужен понятный способ находить актуальную карточку позиции.
+        proposed_solution: null
+        first_response_at: '2026-11-03T10:30:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - request_info
+        - start_work
+        - reject
+        - reassign
+        - merge
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
     AttachmentExample:
       value:
         id: 7
@@ -4638,6 +5189,19 @@ components:
             assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
             days_overdue: 1
             escalation_level: 1
+        assignee_load:
+          - assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            open_count: 4
+            overdue_count: 1
+            avg_first_response_hours: 20.0
+          - assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            open_count: 2
+            overdue_count: 1
+            avg_first_response_hours: null
+          - assignee: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+            open_count: 2
+            overdue_count: 0
+            avg_first_response_hours: 6.5
     NotificationStatusExample:
       value:
         id: 901
@@ -4654,7 +5218,7 @@ components:
         id: 905
         kind: clarification_requested
         text: "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?"
-        appeal: {id: 5, number: A-005, summary: Не видно, на каком этапе пакет документов, status: awaiting_info, type: problem}
+        appeal: {id: 5, number: A-005, summary: 'Не видно, на каком этапе пакет документов', status: awaiting_info, type: problem}
         path: /appeals/5
         buttons:
           - {type: reply_clarification, text: Ответить, appeal_id: 5, discussion_id: null}
