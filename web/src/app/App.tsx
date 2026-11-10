@@ -1,8 +1,18 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginScreen, useAuth } from '../auth';
+import type { ReactNode } from 'react';
+import { AppealPage } from '../pages/AppealPage';
+import { MyAppealsPage } from '../pages/MyAppealsPage';
+import { NewAppealPage } from '../pages/NewAppealPage';
 import { SectionPage } from '../pages/SectionPage';
 import { Layout } from './Layout';
 import { buildNav, startPath, type NavId } from './navigation';
+import { UnreadProvider } from './unread';
+
+/** Готовые разделы. Остальные показывают заголовок, пока их не наполнят тикеты W-03…W-08. */
+const PAGES: Partial<Record<NavId, ReactNode>> = {
+  my: <MyAppealsPage />,
+};
 
 const SECTIONS: Record<NavId, { title: string; lead: string }> = {
   my: { title: 'Мои обращения', lead: 'Обращения, которые вы подали, их статусы и история.' },
@@ -37,14 +47,18 @@ function AuthGate() {
 
   const nav = buildNav(state.me);
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        {nav.map((item) => (
-          <Route key={item.id} path={item.path} element={<SectionPage {...SECTIONS[item.id]} />} />
-        ))}
-        <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
-      </Route>
-    </Routes>
+    <UnreadProvider>
+      <Routes>
+        <Route element={<Layout />}>
+          {nav.map((item) => (
+            <Route key={item.id} path={item.path} element={PAGES[item.id] ?? <SectionPage {...SECTIONS[item.id]} />} />
+          ))}
+          {state.me.permissions.can_create_appeal && <Route path="/my/new" element={<NewAppealPage />} />}
+          <Route path="/appeals/:id" element={<AppealPage />} />
+          <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
+        </Route>
+      </Routes>
+    </UnreadProvider>
   );
 }
 
