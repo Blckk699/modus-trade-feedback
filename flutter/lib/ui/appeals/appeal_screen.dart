@@ -9,6 +9,7 @@ import '../../format.dart';
 import '../home/unread_scope.dart';
 import 'actions_panel.dart';
 import 'badges.dart';
+import 'duplicates_bitrix.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
@@ -149,8 +150,24 @@ class _AppealBody extends StatelessWidget {
                 'Статусы и итог приходят вам, текст и автор основного обращения скрыты.',
           ),
         ],
-        _Outcome(appeal: a),
+        _Outcome(appeal: a, onOpen: (id) => _openAppeal(context, id)),
+        if (a.participantsCount > 1 && !participant)
+          _Notice(
+            key2: const Key('participants-count'),
+            text: 'Об этом сказали ${a.participantsCount} '
+                '${plural(a.participantsCount, ('человек', 'человека', 'человек'))}',
+            tone: _Tone.info,
+          ),
         ActionsPanel(appeal: a, onUpdated: onUpdated),
+        if (!participant) ...[
+          DuplicatesSection(
+            key: ValueKey('duplicates-$version'),
+            appeal: a,
+            onMerged: onChanged,
+            onOpen: (id) => _openAppeal(context, id),
+          ),
+          BitrixSection(appeal: a, onUpdated: onUpdated),
+        ],
         const SizedBox(height: 8),
         _Fact('Тип', session.typeLabel(a.type)),
         _Fact('Категория', a.category?.name ?? 'Не указана'),
@@ -161,7 +178,6 @@ class _AppealBody extends StatelessWidget {
         _Fact('Срок первого ответа', due != null ? formatDateTime(due) : 'Без срока'),
         if (a.firstResponseAt != null) _Fact('Первый ответ', formatDateTime(a.firstResponseAt!)),
         _Fact('Подано', formatDateTime(a.createdAt)),
-        if (a.participantsCount > 1) _Fact('Сообщили о том же', '${a.participantsCount}'),
         if (a.text != null) ...[
           const _Title('Описание'),
           SelectableText(a.text!),
@@ -184,6 +200,9 @@ class _AppealBody extends StatelessWidget {
     );
   }
 }
+
+void _openAppeal(BuildContext context, int id) => Navigator.of(context)
+    .push(MaterialPageRoute<void>(builder: (_) => AppealScreen(key: ValueKey('appeal-$id'), appealId: id)));
 
 class _Title extends StatelessWidget {
   const _Title(this.text);
@@ -236,6 +255,7 @@ class _Notice extends StatelessWidget {
       _Tone.danger => (scheme.errorContainer, scheme.onErrorContainer),
       _Tone.warn => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
       _Tone.neutral => (scheme.surfaceContainerHighest, scheme.onSurface),
+      _Tone.info => (scheme.secondaryContainer, scheme.onSecondaryContainer),
     };
     return Container(
       key: key2,
@@ -255,13 +275,15 @@ class _Notice extends StatelessWidget {
   }
 }
 
-enum _Tone { neutral, success, danger, warn }
+enum _Tone { neutral, info, success, danger, warn }
 
 /// Итог: причина отказа, результат, принятое решение, причина закрытия.
+/// Автор повтора видит, к какому обращению его присоединили, и статус основного.
 class _Outcome extends StatelessWidget {
-  const _Outcome({required this.appeal});
+  const _Outcome({required this.appeal, required this.onOpen});
 
   final Appeal appeal;
+  final ValueChanged<int> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -276,9 +298,41 @@ class _Outcome extends StatelessWidget {
     if (a.status == AppealStatus.inProgress && a.decision != null) {
       return _Notice(title: 'Принятое решение', text: a.decision!);
     }
+    final main = a.mergedInto;
+    if (a.status == AppealStatus.closed && main != null) {
+      final theme = Theme.of(context);
+      return Container(
+        key: const Key('merged-into'),
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(closedReasonLabel(a.closedReason ?? ClosedReason.merged), style: theme.textTheme.titleSmall),
+          const SizedBox(height: 4),
+          InkWell(
+            key: const Key('open-main'),
+            onTap: () => onOpen(main.id),
+            child: Text(
+              [main.number, if (main.summary != null) main.summary!].join(' · '),
+              style: TextStyle(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Text('Статус основного: ', style: theme.textTheme.bodySmall),
+            StatusBadge(main.status),
+          ]),
+          const SizedBox(height: 4),
+          Text('Статусы основного обращения будут приходить вам.', style: theme.textTheme.bodySmall),
+        ]),
+      );
+    }
     if (a.status == AppealStatus.closed && a.closedReason != null) {
-      final merged = a.mergedInto != null ? ': ${a.mergedInto!.number}' : '';
-      return _Notice(text: '${closedReasonLabel(a.closedReason!)}$merged');
+      return _Notice(text: closedReasonLabel(a.closedReason!));
     }
     return const SizedBox.shrink();
   }
