@@ -16,6 +16,7 @@ from app.appeals.views import Directory, Extras, facts
 from app.domain.enums import AppealAction, AppealStatus, AppealType, ClosedReason, HistoryKind
 from app.errors import Forbidden, InvalidTransition
 from app.models import Appeal, Message, User
+from app.notifications import service as notify
 
 STATUS_LABELS = {
     AppealStatus.NEW: "Новое",
@@ -76,6 +77,7 @@ async def take(session: AsyncSession, appeal: Appeal, user: User, now: datetime,
     if comment and comment.strip():
         _message(session, appeal, user, comment, now)
     _move(appeal, AppealStatus.IN_REVIEW, user, now, session)
+    await notify.status_changed(session, appeal, user.id, now)
 
 
 async def request_info(session: AsyncSession, appeal: Appeal, user: User, now: datetime, question: str) -> None:
@@ -85,18 +87,21 @@ async def request_info(session: AsyncSession, appeal: Appeal, user: User, now: d
     # Текст вопроса и ответа живёт только в приватной переписке: историю видит и администратор.
     record(session, appeal, HistoryKind.CLARIFICATION_REQUESTED, now, user.id)
     _move(appeal, AppealStatus.AWAITING_INFO, user, now, session)
+    await notify.clarification_requested(session, appeal, question.strip(), user.id, now)
 
 
 async def start_work(session: AsyncSession, appeal: Appeal, user: User, now: datetime, decision: str) -> None:
     await _check(session, appeal, user, AppealAction.START_WORK, who="process")
     appeal.decision = decision.strip()
     _move(appeal, AppealStatus.IN_PROGRESS, user, now, session, appeal.decision)
+    await notify.status_changed(session, appeal, user.id, now, appeal.decision)
 
 
 async def reject(session: AsyncSession, appeal: Appeal, user: User, now: datetime, reason: str) -> None:
     await _check(session, appeal, user, AppealAction.REJECT, who="process")
     appeal.rejection_reason = reason.strip()
     _move(appeal, AppealStatus.REJECTED, user, now, session, appeal.rejection_reason)
+    await notify.status_changed(session, appeal, user.id, now, appeal.rejection_reason)
 
 
 async def implement(
@@ -114,6 +119,7 @@ async def implement(
     appeal.public_result = (public_result or "").strip() or None
     appeal.implemented_at = now
     _move(appeal, AppealStatus.IMPLEMENTED, user, now, session, appeal.result)
+    await notify.status_changed(session, appeal, user.id, now, appeal.public_result or appeal.result)
 
 
 async def accept_feedback(session: AsyncSession, appeal: Appeal, user: User, now: datetime, comment: str | None) -> None:
@@ -123,6 +129,7 @@ async def accept_feedback(session: AsyncSession, appeal: Appeal, user: User, now
         _message(session, appeal, user, comment, now)
     appeal.closed_reason = ClosedReason.FEEDBACK_ACCEPTED
     _move(appeal, AppealStatus.CLOSED, user, now, session, "Положительный отзыв принят")
+    await notify.status_changed(session, appeal, user.id, now)
 
 
 async def ensure_can_read_messages(session: AsyncSession, appeal: Appeal, user: User) -> None:
@@ -141,8 +148,10 @@ async def post_message(session: AsyncSession, appeal: Appeal, user: User, now: d
         message = _message(session, appeal, user, text, now)
         record(session, appeal, HistoryKind.CLARIFICATION_ANSWERED, now, user.id)
         _move(appeal, AppealStatus.IN_REVIEW, user, now, session)
+        await notify.clarification_answered(session, appeal, text.strip(), user.id, now)
         return message
     await _check(session, appeal, user, AppealAction.SEND_MESSAGE, who="message")
     message = _message(session, appeal, user, text, now)
     appeal.updated_at = now
+    await notify.message_received(session, appeal, user, text.strip(), now)
     return message
