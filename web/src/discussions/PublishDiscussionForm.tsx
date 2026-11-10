@@ -1,0 +1,65 @@
+import { useState, type FormEvent } from 'react';
+import { api, unwrap } from '../api/client';
+import { errorMessage } from '../api/errors';
+import type { Schemas } from '../api/types';
+import { deadlineFromDate, defaultDeadlineDate, todayDate } from './deadline';
+
+type Appeal = Schemas['Appeal'];
+type Discussion = Schemas['Discussion'];
+
+/** Вынос на общее обсуждение: публичная формулировка и срок (история 38). */
+export function PublishDiscussionForm({ appeal, onDone }: { appeal: Appeal; onDone: (d: Discussion) => void }) {
+  const [text, setText] = useState(appeal.public_summary ?? appeal.summary ?? '');
+  const [date, setDate] = useState(defaultDeadlineDate());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const canSubmit = Boolean(text.trim() && date);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setBusy(true);
+    setError('');
+    try {
+      const d = await unwrap(
+        api.POST('/api/v1/appeals/{appeal_id}/discussion', {
+          params: { path: { appeal_id: appeal.id } },
+          body: { public_text: text.trim(), deadline: deadlineFromDate(date) },
+        }),
+      );
+      onDone(d);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="actions__form" onSubmit={submit}>
+      <h3 className="actions__title">Вынести на общее обсуждение</h3>
+      <p className="muted field__hint">
+        Обсуждение увидят все сотрудники. Приватная переписка не публикуется. Автора спросят, показывать ли его имя, — без
+        согласия будет указано только подразделение.
+      </p>
+      <label className="field">
+        <span className="field__label">Публичная формулировка</span>
+        <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} required />
+      </label>
+      <label className="field field--narrow">
+        <span className="field__label">Голосование до</span>
+        <input className="input" type="date" value={date} min={todayDate()} onChange={(e) => setDate(e.target.value)} required />
+      </label>
+      <div className="form__actions">
+        <button type="submit" className="btn" disabled={busy || !canSubmit}>
+          {busy ? 'Публикуем…' : 'Вынести на обсуждение'}
+        </button>
+        {error && (
+          <span className="error-text" role="alert">
+            {error}
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}

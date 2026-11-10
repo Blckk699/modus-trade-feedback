@@ -2,9 +2,16 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginScreen, useAuth } from '../auth';
 import type { ReactNode } from 'react';
 import { AppealPage } from '../pages/AppealPage';
+import { DigestPage } from '../pages/DigestPage';
+import { MeetingPage } from '../meetings/MeetingPage';
+import { MeetingsPage } from '../meetings/MeetingsPage';
+import { DiscussionPage } from '../discussions/DiscussionPage';
+import { FeedPage } from '../discussions/FeedPage';
 import { MyAppealsPage } from '../pages/MyAppealsPage';
 import { NewAppealPage } from '../pages/NewAppealPage';
+import { QueuePage } from '../pages/QueuePage';
 import { SectionPage } from '../pages/SectionPage';
+import { SettingsPage } from '../settings/SettingsPage';
 import { MiniAppShell } from '../telegram/MiniAppShell';
 import { Layout } from './Layout';
 import { buildNav, startPath, type NavId } from './navigation';
@@ -13,6 +20,11 @@ import { UnreadProvider } from './unread';
 /** Готовые разделы. Остальные показывают заголовок, пока их не наполнят тикеты W-03…W-08. */
 const PAGES: Partial<Record<NavId, ReactNode>> = {
   my: <MyAppealsPage />,
+  feed: <FeedPage />,
+  queue: <QueuePage />,
+  digest: <DigestPage />,
+  meetings: <MeetingsPage />,
+  settings: <SettingsPage />,
 };
 
 const SECTIONS: Record<NavId, { title: string; lead: string }> = {
@@ -56,6 +68,10 @@ function AuthGate() {
           ))}
           {state.me.permissions.can_create_appeal && <Route path="/my/new" element={<NewAppealPage />} />}
           <Route path="/appeals/:id" element={<AppealPage />} />
+          <Route path="/discussions/:id" element={<DiscussionPage />} />
+          {state.me.permissions.can_upload_meetings && <Route path="/meetings/:id" element={<MeetingPage />} />}
+          {/* Ссылки из уведомлений бота (Notification.path) ведут на /analytics, у веба сводка — /digest. */}
+          <Route path="/analytics" element={<Navigate to="/digest" replace />} />
           <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
         </Route>
       </Routes>

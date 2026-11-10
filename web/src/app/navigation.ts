@@ -12,7 +12,7 @@ export interface NavItem {
 
 const ITEMS: Record<NavId, NavItem> = {
   my: { id: 'my', path: '/my', label: 'Мои обращения', short: 'Мои' },
-  feed: { id: 'feed', path: '/feed', label: 'Лента реализованного', short: 'Лента' },
+  feed: { id: 'feed', path: '/feed', label: 'Обсуждения и лента', short: 'Лента' },
   queue: { id: 'queue', path: '/queue', label: 'Обработка', short: 'Обработка' },
   digest: { id: 'digest', path: '/digest', label: 'Сводка', short: 'Сводка' },
   meetings: { id: 'meetings', path: '/meetings', label: 'Совещания', short: 'Совещания' },

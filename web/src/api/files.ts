@@ -18,6 +18,19 @@ export function uploadAttachment(appealId: number, file: File): Promise<Schemas[
   );
 }
 
+/** Загрузить аудиозапись совещания (multipart). Ответ 202 со status=processing. */
+export function uploadMeeting(file: File, title: string): Promise<Schemas['Meeting']> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  if (title) form.append('title', title);
+  return unwrap(
+    api.POST('/api/v1/meetings', {
+      body: form as unknown as { file: string; title?: string },
+      bodySerializer: (b) => b as unknown as FormData,
+    }),
+  );
+}
+
 /** Скачать вложение: download_url требует токен, поэтому качаем через fetch и сохраняем как файл. */
 export async function downloadAttachment(att: Schemas['Attachment']): Promise<void> {
   const url = att.download_url.startsWith('http') ? att.download_url : `${config.apiBaseUrl}${att.download_url}`;
