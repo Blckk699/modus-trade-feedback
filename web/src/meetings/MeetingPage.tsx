@@ -23,12 +23,18 @@ export function MeetingPage() {
   );
 
   // Пока идёт обработка — опрашиваем GET /meetings/{id}, как велит контракт.
+  // Сбой одного опроса не ломает экран: оставляем последние данные и пробуем снова на следующем тике.
   const processing = meeting.state.status === 'ready' && meeting.state.data.status === 'processing';
+  const { set } = meeting;
   useEffect(() => {
     if (!processing) return;
-    const t = window.setInterval(meeting.reload, POLL_MS);
+    const t = window.setInterval(() => {
+      unwrap(api.GET('/api/v1/meetings/{meeting_id}', { params: { path: { meeting_id: id } } }))
+        .then(set)
+        .catch(() => {});
+    }, POLL_MS);
     return () => window.clearInterval(t);
-  }, [processing, meeting.reload]);
+  }, [processing, id, set]);
 
   const s = meeting.state;
   return (
@@ -38,9 +44,16 @@ export function MeetingPage() {
       </Link>
       {s.status === 'loading' && <p className="muted">Загружаем…</p>}
       {s.status === 'error' && (
-        <p className="error-text">
-          {s.error instanceof ApiError && s.error.status === 404 ? 'Совещание не найдено.' : s.message}
-        </p>
+        <div className="notice">
+          <p className="error-text">
+            {s.error instanceof ApiError && s.error.status === 404 ? 'Совещание не найдено.' : s.message}
+          </p>
+          {!(s.error instanceof ApiError && s.error.status === 404) && (
+            <button type="button" className="btn btn--ghost" onClick={meeting.reload}>
+              Повторить
+            </button>
+          )}
+        </div>
       )}
       {s.status === 'ready' && <MeetingView meeting={s.data} onChange={meeting.set} />}
     </section>
