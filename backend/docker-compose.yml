@@ -27,8 +27,11 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql://modus:modus@db:5432/modus
+      # Файл аккаунтов сида (реальные Telegram ID за ролями) — вне репозитория, монтируется только на чтение.
+      SEED_ACCOUNTS_FILE: /run/modus/seed-accounts.json
     volumes:
       - appdata:/app/data
+      - ${SEED_ACCOUNTS_DIR:-${HOME}/.config/modus-trade}:/run/modus:ro
     depends_on:
       db:
         condition: service_healthy

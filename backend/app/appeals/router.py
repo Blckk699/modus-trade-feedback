@@ -108,7 +108,7 @@ class ReassignIn(BaseModel):
 async def reassign_appeal(
     appeal_id: int, body: ReassignIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
 ) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     now = clock.now()
     await service.reassign(session, appeal, user, body.assignee_id, body.reason, now, settings.tz)
     return await appeal_out(session, appeal, user, now)
@@ -156,7 +156,7 @@ async def upload_attachment(
     clock: ClockDep,
     settings: SettingsDep,
 ) -> AttachmentOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     directory = await Directory.load(session)
     extras = await Extras.load(session, user, [appeal])
     if AppealAction.UPLOAD_ATTACHMENT not in policy.allowed_actions(user, facts(appeal, directory, extras)):

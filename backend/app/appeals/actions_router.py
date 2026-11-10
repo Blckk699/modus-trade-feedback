@@ -61,35 +61,35 @@ class MessageOut(BaseModel):
 async def take(
     appeal_id: int, user: CurrentUserDep, session: SessionDep, clock: ClockDep, body: Annotated[CommentIn | None, Body()] = None
 ) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.take(session, appeal, user, clock.now(), body.comment if body else None)
     return await appeal_out(session, appeal, user, clock.now())
 
 
 @router.post("/appeals/{appeal_id}/request-info", response_model=AppealOut, summary="Уточняющий вопрос автору")
 async def request_info(appeal_id: int, body: QuestionIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.request_info(session, appeal, user, clock.now(), body.question)
     return await appeal_out(session, appeal, user, clock.now())
 
 
 @router.post("/appeals/{appeal_id}/start-work", response_model=AppealOut, summary="Принять решение — в работу")
 async def start_work(appeal_id: int, body: DecisionIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.start_work(session, appeal, user, clock.now(), body.decision)
     return await appeal_out(session, appeal, user, clock.now())
 
 
 @router.post("/appeals/{appeal_id}/reject", response_model=AppealOut, summary="Отклонить с причиной")
 async def reject(appeal_id: int, body: ReasonIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.reject(session, appeal, user, clock.now(), body.reason)
     return await appeal_out(session, appeal, user, clock.now())
 
 
 @router.post("/appeals/{appeal_id}/implement", response_model=AppealOut, summary="Зафиксировать результат")
 async def implement(appeal_id: int, body: ImplementIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.implement(session, appeal, user, clock.now(), body.result, body.public_summary, body.public_result)
     return await appeal_out(session, appeal, user, clock.now())
 
@@ -98,7 +98,7 @@ async def implement(appeal_id: int, body: ImplementIn, user: CurrentUserDep, ses
 async def accept_feedback(
     appeal_id: int, user: CurrentUserDep, session: SessionDep, clock: ClockDep, body: Annotated[CommentIn | None, Body()] = None
 ) -> AppealOut:
-    appeal = await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.accept_feedback(session, appeal, user, clock.now(), body.comment if body else None)
     return await appeal_out(session, appeal, user, clock.now())
 
@@ -114,7 +114,7 @@ async def list_messages(appeal_id: int, user: CurrentUserDep, session: SessionDe
 
 @router.post("/appeals/{appeal_id}/messages", response_model=MessageOut, status_code=201, summary="Написать в переписку")
 async def post_message(appeal_id: int, body: MessageIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> MessageOut:
-    appeal = await service.get_visible(session, appeal_id, user, full=False)
+    appeal = await service.get_visible(session, appeal_id, user, full=False, lock=True)
     await lifecycle.ensure_can_read_messages(session, appeal, user)
     message = await lifecycle.post_message(session, appeal, user, clock.now(), body.text)
     await session.flush()
