@@ -42,6 +42,7 @@ class Api:
             timeout=timeout,
             transport=transport,
         )
+        self._dictionaries: dict[str, Any] | None = None
 
     async def close(self) -> None:
         await self._http.aclose()
@@ -75,6 +76,22 @@ class Api:
 
     async def digest(self, telegram_id: int) -> dict[str, Any]:
         return await self.request("GET", "/api/v1/analytics/digest", telegram_id=telegram_id)
+
+    async def draft_from_text(self, telegram_id: int, text: str, forwarded_from: str | None) -> dict[str, Any]:
+        body = {"text": text, "forwarded_from": forwarded_from}
+        return await self.request("POST", "/api/v1/drafts/text", telegram_id=telegram_id, json=body)
+
+    async def create_appeal(self, telegram_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        return await self.request("POST", "/api/v1/appeals", telegram_id=telegram_id, json=body)
+
+    async def categories(self, telegram_id: int) -> list[dict[str, Any]]:
+        return await self.request("GET", "/api/v1/categories", telegram_id=telegram_id)
+
+    async def dictionaries(self) -> dict[str, Any]:
+        """Подписи перечислений. Справочник не меняется, поэтому читается один раз."""
+        if self._dictionaries is None:
+            self._dictionaries = await self.request("GET", "/api/v1/dictionaries")
+        return self._dictionaries
 
 
 def _error_from(response: httpx.Response) -> ApiError:

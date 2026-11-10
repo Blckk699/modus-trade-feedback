@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 
-from app import handlers, texts
+from app import drafts, handlers, texts
 from app.api import Api
 from app.config import Settings
 from app.middleware import IdentifyUser
@@ -29,6 +29,8 @@ def build_dispatcher(api: Api, settings: Settings) -> Dispatcher:
     dp.message.outer_middleware(identify)
     dp.callback_query.outer_middleware(identify)
     dp.include_router(handlers.build_router())
+    dp.include_router(drafts.build_router())
+    dp.include_router(handlers.build_fallback_router())
     return dp
 
 
