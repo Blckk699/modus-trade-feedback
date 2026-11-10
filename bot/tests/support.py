@@ -108,6 +108,17 @@ class BotHarness:
         )
         await self._feed_message(user_id, text=text, forward_origin=origin)
 
+    async def send_reply(self, text: str, to: Any, user_id: int = 100000004) -> None:
+        """Ответ свайпом на сообщение бота (SendMessage из журнала фейка)."""
+        replied = Message(
+            message_id=self.telegram.message_id_of(to),
+            date=datetime.now(),
+            chat=Chat(id=user_id, type="private"),
+            text=to.text,
+            reply_markup=to.reply_markup,
+        )
+        await self._feed_message(user_id, text=text, reply_to_message=replied)
+
     async def _feed_message(self, user_id: int, **fields: Any) -> None:
         message = Message(
             message_id=next(self._update_ids),

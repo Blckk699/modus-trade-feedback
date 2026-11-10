@@ -9,7 +9,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import MenuButtonWebApp, Message, WebAppInfo
 
-from app import keyboards, texts
+from app import formatting, keyboards, texts
 from app.api import Api, ApiError
 from app.config import Settings
 
@@ -29,7 +29,8 @@ async def start(message: Message, bot: Bot, state: FSMContext, me: dict[str, Any
     )
 
 
-async def login_code(message: Message, api: Api) -> None:
+async def login_code(message: Message, state: FSMContext, api: Api) -> None:
+    await state.set_state(None)  # кнопка меню прерывает правку черновика или ответ на вопрос
     try:
         code = await api.issue_login_code(message.from_user.id)
     except ApiError as exc:
@@ -43,17 +44,27 @@ async def submit_hint(message: Message, state: FSMContext) -> None:
     await message.answer(texts.SUBMIT_HINT)
 
 
-async def my_appeals(message: Message, me: dict[str, Any], settings: Settings) -> None:
-    if not settings.mini_app_url:
-        await message.answer(texts.MINI_APP_NOT_CONFIGURED, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
+async def my_appeals(message: Message, state: FSMContext, api: Api, me: dict[str, Any], settings: Settings) -> None:
+    await state.set_state(None)
+    try:
+        page = await api.my_appeals(message.from_user.id)
+        dictionaries = await api.dictionaries()
+    except ApiError as exc:
+        await message.answer(html.escape(exc.message))
         return
-    await message.answer(
-        texts.MY_APPEALS,
-        reply_markup=keyboards.open_mini_app(texts.MY_APPEALS_BUTTON, settings.mini_app_url),
+    markup = (
+        keyboards.open_mini_app(texts.MY_APPEALS_BUTTON, settings.mini_app_link("/my"))
+        if settings.mini_app_url
+        else None
     )
+    if not page["items"]:
+        await message.answer(texts.MY_APPEALS_EMPTY, reply_markup=markup)
+        return
+    await message.answer(formatting.my_appeals(page, dictionaries), reply_markup=markup)
 
 
-async def digest(message: Message, api: Api) -> None:
+async def digest(message: Message, state: FSMContext, api: Api) -> None:
+    await state.set_state(None)
     try:
         data = await api.digest(message.from_user.id)
     except ApiError as exc:

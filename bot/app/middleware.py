@@ -35,7 +35,7 @@ class IdentifyUser(BaseMiddleware):
             data["me"] = await self.api.me(user.id)
         except ApiError as exc:
             if exc.code in ACCESS_DENIED_CODES:
-                await _reply(event, html.escape(exc.message), remove_keyboard=True)
+                await _reply(event, exc.message, remove_keyboard=True)
             else:
                 log.warning("GET /me failed for update: %s", exc)
                 await _reply(event, texts.API_UNAVAILABLE)
@@ -46,6 +46,6 @@ class IdentifyUser(BaseMiddleware):
 async def _reply(event: TelegramObject, text: str, remove_keyboard: bool = False) -> None:
     markup = ReplyKeyboardRemove() if remove_keyboard else None
     if isinstance(event, Message):
-        await event.answer(text, reply_markup=markup)
-    elif isinstance(event, CallbackQuery):
-        await event.answer(text, show_alert=True)
+        await event.answer(html.escape(text), reply_markup=markup)
+    elif isinstance(event, CallbackQuery):  # alert — простой текст, без HTML
+        await event.answer(text[:200], show_alert=True)

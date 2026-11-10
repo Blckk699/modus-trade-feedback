@@ -40,6 +40,13 @@ uv run python -m scripts.smoke_mock http://127.0.0.1:4011
 «Поправить суть», «Отменить» → `POST /api/v1/appeals` с `source=bot`. Черновик хранится в памяти бота (FSM aiogram)
 и после перезапуска теряется. При `503 ai_unavailable` бот предлагает форму в Mini App.
 
+Уведомления: фоновая задача раз в `NOTIFICATIONS_POLL_SECONDS` забирает `GET /api/v1/bot/notifications/pending`
+(только `X-Service-Key`), отправляет `text` получателю и подтверждает `ack` с `telegram_message_id`. При сбое бот
+отправляет `fail`, и бэкенд повторит уведомление позже. Если пользователь заблокировал бота — `fail` с `permanent=true`.
+Кнопки уведомления: `open_*` открывают Mini App (`<MINI_APP_URL>/appeals/{id}`), «Ответить» ждёт ответ следующим
+сообщением, причём ответить можно и свайпом на вопрос (`POST /appeals/{id}/messages`). «Показать имя» и «Скрыть» вызывают
+`POST /discussions/{id}/name-consent`.
+
 ## Устройство
 
 ```
@@ -51,12 +58,13 @@ app/
   middleware.py     IdentifyUser: GET /me перед каждым обновлением, отказ постороннему
   handlers.py       меню: /start, код входа, мои обращения, сводка; fallback последним
   drafts.py         подача текстом и пересылкой: черновик → правка кнопками → POST /appeals
-  formatting.py     карточка черновика и созданного обращения
+  formatting.py     карточка черновика, созданное обращение, список «Мои обращения»
+  notifications.py  очередь уведомлений (deliver_pending, poll_forever), ответ на вопрос, согласие на имя
   keyboards.py      клавиатуры по Me.permissions
   texts.py          тексты и подписи кнопок
   fake_telegram.py  фейк Bot API для тестов и прогона на моке
 ```
 
-Кнопки меню: «Подать обращение», «Мои обращения» (если задан `MINI_APP_URL`), «Сводка» (если
+Кнопки меню: «Подать обращение», «Мои обращения» (номера и статусы, `GET /appeals?scope=mine`), «Сводка» (если
 `permissions.analytics_scope` не `none`), «Код входа». Название «Код входа» упоминает экран входа
 мобильного приложения — не переименовывать без `modus-flutter`.

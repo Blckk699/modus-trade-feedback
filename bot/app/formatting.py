@@ -58,3 +58,17 @@ def appeal_created(appeal: dict[str, Any]) -> str:
     if appeal.get("first_response_due_at"):
         lines.append(f"<b>Срок первого ответа:</b> {due_text(appeal['first_response_due_at'])}")
     return "\n".join(lines)
+
+
+def my_appeals(page: dict[str, Any], dictionaries: dict[str, Any]) -> str:
+    e = html.escape
+    lines = ["<b>Мои обращения</b>", ""]
+    for item in page["items"]:
+        status = label(dictionaries, "statuses", item["status"])
+        lines.append(f"<b>{e(item['number'])}</b> · {e(status)}")
+        if item.get("summary"):
+            lines.append(e(item["summary"]))
+        lines.append("")
+    if page["total"] > len(page["items"]):
+        lines.append(f"Показаны последние {len(page['items'])} из {page['total']}. Все — в приложении.")
+    return "\n".join(lines).rstrip()
