@@ -5,5 +5,40 @@
 
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
+from app.models.appeals import (
+    Appeal,
+    AppealParticipant,
+    Attachment,
+    BitrixTask,
+    DuplicateSuggestion,
+    HistoryEvent,
+    Message,
+)
+from app.models.discussions import Discussion, DiscussionComment, DiscussionVote
+from app.models.meetings import Meeting, MeetingDraft
+from app.models.notifications import Notification
+from app.models.org import Category, DeadlineRule, Department, SystemSetting, User
 
-__all__ = ["Base", "Job", "PeriodicTask"]
+__all__ = [
+    "Appeal",
+    "AppealParticipant",
+    "Attachment",
+    "Base",
+    "BitrixTask",
+    "Category",
+    "DeadlineRule",
+    "Department",
+    "Discussion",
+    "DiscussionComment",
+    "DiscussionVote",
+    "DuplicateSuggestion",
+    "HistoryEvent",
+    "Job",
+    "Meeting",
+    "MeetingDraft",
+    "Message",
+    "Notification",
+    "PeriodicTask",
+    "SystemSetting",
+    "User",
+]

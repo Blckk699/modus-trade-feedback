@@ -50,7 +50,9 @@ app/
   api/            router.py (префикс /api/v1), deps.py (зависимости), health.py
   adapters/       Claude, ElevenLabs Scribe, Telegram, Битрикс24 + fakes.py для тестов
   jobs/           очередь задач в Postgres, расписания, воркер
-  models/         импорт всех моделей для Alembic
+  domain/         перечисления домена и рабочие дни
+  models/         модели всех сущностей схемы данных; __init__ импортирует их для Alembic
+  seed/           демо-данные и команды init / reset
 migrations/       Alembic
 tests/            conftest.py (фикстуры), support.py (TimeMachine)
 ```
@@ -59,6 +61,30 @@ tests/            conftest.py (фикстуры), support.py (TimeMachine)
 Подключение: роутер — строка в `app/api/router.py`, модели — импорт в `app/models/__init__.py`,
 затем миграция: `uv run python scripts/dev.py alembic revision --autogenerate -m "appeals"`
 (тест `test_migrations.py` упадёт, если модели и миграции разошлись).
+
+## Демо-данные
+
+Компания из датасета организаторов: 8 подразделений с руководителями, собственник, администратор,
+сотрудники, 18 категорий с ответственными и заместителями, сроки по приоритетам (1/3/5 рабочих дней)
+и 20 обращений A-001…A-020 с исходными типом, категорией, приоритетом, статусом и текстом.
+Данные — `app/seed/data.py`, загрузка — `app/seed/loader.py`.
+
+```bash
+uv run python -m app.seed init      # загрузить, только если база пустая (так делает контейнер при старте)
+uv run python -m app.seed reset     # стереть данные приложения и загрузить демо заново — перед показом
+uv run python scripts/dev.py python -m app.seed reset   # то же для локальной базы из scripts/dev.py
+docker compose exec api python -m app.seed reset         # то же в docker
+```
+
+- Даты отсчитываются от момента загрузки в рабочих днях: в любой день минимум три обращения
+  просрочены (A-001, A-007, A-011), у остальных открытых есть время первого ответа.
+- `reset` очищает все таблицы приложения (кроме расписания периодических задач), идентификаторы
+  снова начинаются с 1 — повторный запуск не плодит дубли.
+- **Реальные Telegram-аккаунты** задаются файлом вне репозитория: `--accounts <файл>`, переменная
+  `SEED_ACCOUNTS_FILE` или `~/.config/modus-trade/seed-accounts.json`. Формат — в `app/seed/accounts.py`,
+  ключи — `key` демо-пользователей из `app/seed/data.py` (`owner`, `admin`, `head_procurement`,
+  `employee_procurement`, …). Без файла сид всё равно загружается и печатает, под какими ролями никто
+  не сможет войти. Telegram ID сид не печатает.
 
 ## Соглашения API
 
