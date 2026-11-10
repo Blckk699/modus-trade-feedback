@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../navigation/sections.dart';
 import '../appeals/my_appeals_screen.dart';
+import '../analytics/digest_screen.dart';
 import '../appeals/queue_screen.dart';
 import '../discussions/feed_screen.dart';
 import 'profile_screen.dart';
@@ -104,6 +105,7 @@ class _HomeShellState extends State<HomeShell> {
         Section.myAppeals => const MyAppealsScreen(),
         Section.processing => const QueueScreen(),
         Section.feed => const FeedScreen(),
+        Section.analytics => const DigestScreen(),
         Section.profile => const ProfileScreen(),
         _ => SectionScreen(section: section),
       };
