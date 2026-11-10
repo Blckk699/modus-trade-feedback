@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
-import { ApiError, errorMessage } from '../api/errors';
+import { errorMessage } from '../api/errors';
+import { fieldErrors } from '../api/fieldErrors';
 import { uploadAttachment } from '../api/files';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
@@ -15,13 +16,6 @@ type Appeal = Schemas['Appeal'];
 interface Created {
   appeal: Appeal;
   failedFiles: { name: string; message: string }[];
-}
-
-/** Ошибки полей из 422 validation_error: details.fields[{field, message}]. */
-function fieldErrors(e: unknown): Record<string, string> {
-  if (!(e instanceof ApiError) || e.code !== 'validation_error') return {};
-  const fields = (e.details?.fields as { field: string; message: string }[] | undefined) ?? [];
-  return Object.fromEntries(fields.map((f) => [f.field.replace(/^body\./, ''), f.message]));
 }
 
 export function NewAppealPage() {
