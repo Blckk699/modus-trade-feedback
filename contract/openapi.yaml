@@ -177,7 +177,11 @@ paths:
     post:
       tags: [auth]
       summary: Вход в мобильное приложение по одноразовому коду из бота
-      description: Код обменивается на сессию один раз и истекает через `ttl_seconds` после выдачи.
+      description: |
+        Код обменивается на сессию один раз и истекает через `ttl_seconds` после выдачи.
+        Защита от перебора: после 5 неудачных попыток с одного адреса за 15 минут — `429 too_many_requests`
+        (адрес клиента берётся из `X-Forwarded-For` только от доверенного прокси). При массовом переборе
+        со многих адресов активные коды сжигаются — пользователь запрашивает новый в боте.
       operationId: loginWithCode
       security: []
       requestBody:
@@ -206,6 +210,17 @@ paths:
           $ref: '#/components/responses/LoginForbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Слишком много неудачных попыток с этого адреса (`too_many_requests`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: too_many_requests
+                  message: Слишком много неудачных попыток. Подождите и попробуйте снова.
+                  details: null
   /api/v1/auth/login-codes:
     post:
       tags: [auth, bot]
@@ -2789,6 +2804,7 @@ components:
         `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
         `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
         `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
+        `too_many_requests` 429 ·
         `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
       enum:
         - unauthorized
@@ -2807,6 +2823,7 @@ components:
         - validation_error
         - audio_empty
         - audio_too_long
+        - too_many_requests
         - bitrix_unavailable
         - ai_unavailable
         - internal_error

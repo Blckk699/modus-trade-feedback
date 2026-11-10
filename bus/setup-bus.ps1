@@ -3,7 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File bus\setup-bus.ps1 <путь к файлу токена>
 # Токен не печатается. Он попадает только в два локальных файла, которые игнорирует git:
 #   .mcp.json                     — MCP-сервер шины `bus`
-#   .claude\settings.local.json   — хуки: уведомления о почте, запрет завершать ход с непрочитанной почтой, счётчик агентов
+#   .claude\settings.local.json   — хуки через bus/hook.sh (токен в командах хуков не пишется)
 # Хуки Claude Code на Windows выполняются в Git Bash, поэтому команды в них написаны для bash.
 param([Parameter(Mandatory = $true)][string]$TokenFile)
 $ErrorActionPreference = "Stop"
@@ -30,22 +30,21 @@ if (Test-Path ".claude\settings.local.json") {
   Write-Host "Старые .claude\settings.local.json сохранены в .claude\settings.local.json.bak"
 }
 
-$Auth = "-H 'Authorization: Bearer $Tok'"
-$Json = "-H 'Content-Type: application/json' --data-binary @-"
+# Хуки вызывают bus/hook.sh: он сам читает токен из .mcp.json, поэтому в командах хуков токена нет.
+$H = 'sh "${CLAUDE_PROJECT_DIR:-.}/bus/hook.sh"'
 function Cmd([string]$c) { @{ type = "command"; command = $c } }
-$Usage = "curl -s -m 5 -X POST $Auth $Json '$Bus/api/hook/usage' >/dev/null || true"
 
 $Mcp = @{ mcpServers = @{ bus = @{ type = "http"; url = "$Bus/mcp"; headers = @{ Authorization = "Bearer $Tok" } } } }
 $Settings = [ordered]@{
   enabledMcpjsonServers = @("bus")
   hooks = [ordered]@{
-    SessionStart     = @(@{ hooks = @(Cmd $Usage) })
-    SessionEnd       = @(@{ hooks = @(Cmd $Usage) })
-    SubagentStop     = @(@{ hooks = @(Cmd $Usage) })
-    PreToolUse       = @(@{ matcher = "Agent|Task"; hooks = @(Cmd $Usage) })
-    UserPromptSubmit = @(@{ hooks = @(Cmd "curl -s -m 5 $Auth '$Bus/api/hook/post?event=UserPromptSubmit' || true") })
-    PostToolUse      = @(@{ matcher = "*"; hooks = @(Cmd "curl -s -m 5 $Auth '$Bus/api/hook/post?event=PostToolUse' || true") })
-    Stop             = @(@{ hooks = @(Cmd "curl -s -m 10 -X POST $Auth $Json '$Bus/api/hook/stop' || true") })
+    SessionStart     = @(@{ hooks = @(Cmd "$H usage") })
+    SessionEnd       = @(@{ hooks = @(Cmd "$H usage") })
+    SubagentStop     = @(@{ hooks = @(Cmd "$H usage") })
+    PreToolUse       = @(@{ matcher = "Agent|Task"; hooks = @(Cmd "$H usage") })
+    UserPromptSubmit = @(@{ hooks = @(Cmd "$H post UserPromptSubmit") })
+    PostToolUse      = @(@{ matcher = "*"; hooks = @(Cmd "$H post PostToolUse") })
+    Stop             = @(@{ hooks = @(Cmd "$H stop") })
   }
 }
 

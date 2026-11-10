@@ -90,6 +90,12 @@ class FileTooLarge(AppError):
     message = "Файл слишком большой."
 
 
+class TooManyRequests(AppError):
+    status_code = 429
+    code = "too_many_requests"
+    message = "Слишком много неудачных попыток. Подождите и попробуйте снова."
+
+
 class Forbidden(AppError):
     status_code = 403
     code = "forbidden"

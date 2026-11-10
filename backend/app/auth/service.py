@@ -6,12 +6,12 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import AuthSession, LoginCode
+from app.auth.models import AuthSession, LoginAttempt, LoginCode
 from app.config import Settings
-from app.errors import InvalidLoginCode, Unauthorized, UserDisabled, UserNotRegistered
+from app.errors import InvalidLoginCode, TooManyRequests, Unauthorized, UserDisabled, UserNotRegistered
 from app.models import User
 
 
@@ -96,6 +96,29 @@ async def issue_login_code(session: AsyncSession, user: User, now: datetime, set
     session.add(LoginCode(code_hash=_sha256(code), user_id=user.id, created_at=now, expires_at=expires_at))
     await session.flush()
     return code, expires_at
+
+
+async def check_code_attempts(session: AsyncSession, ip: str, now: datetime, settings: Settings) -> None:
+    """С одного IP не больше N неудачных попыток за окно — дальше 429."""
+    since = now - timedelta(seconds=settings.login_code_failure_window_seconds)
+    failures = await session.scalar(
+        select(func.count()).select_from(LoginAttempt).where(LoginAttempt.ip == ip, LoginAttempt.created_at > since)
+    )
+    if (failures or 0) >= settings.login_code_max_failures_per_ip:
+        raise TooManyRequests()
+
+
+async def record_code_failure(session: AsyncSession, ip: str, now: datetime, settings: Settings) -> None:
+    """Учитывает неудачу. Если неудач по всем IP за время жизни кода слишком много — перебор идёт
+    распределённо, и все активные коды сжигаются: пользователи запросят новый в боте."""
+    session.add(LoginAttempt(ip=ip, created_at=now))
+    await session.flush()
+    since = now - timedelta(seconds=settings.login_code_ttl_seconds)
+    total = await session.scalar(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.created_at > since))
+    if (total or 0) >= settings.login_code_burn_after_failures:
+        await session.execute(
+            update(LoginCode).where(LoginCode.used_at.is_(None), LoginCode.expires_at > now).values(used_at=now)
+        )
 
 
 async def redeem_login_code(session: AsyncSession, code: str, now: datetime) -> User:

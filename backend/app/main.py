@@ -12,6 +12,7 @@ import logging
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app import models as _models  # noqa: F401 — все модели видны метаданным
 from app.api.router import api_router
@@ -69,5 +70,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.state.jobs = jobs
 
     install_error_handlers(app)
+    # X-Forwarded-For / -Proto учитываются только от доверенного прокси (Caddy), иначе адрес клиента
+    # для лимита попыток входа можно подделать заголовком.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.trusted_proxies)
     app.include_router(api_router)
     return app
