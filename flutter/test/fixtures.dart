@@ -121,6 +121,8 @@ http.Response json(Object body, [int status = 200]) => http.Response.bytes(
       headers: {'content-type': 'application/json; charset=utf-8'},
     );
 
+http.Response http204() => http.Response('', 204);
+
 /// Фейковый сервер: маршрут `МЕТОД /путь` → ответ. Запоминает запросы.
 class FakeServer {
   FakeServer(this.routes);
@@ -157,6 +159,11 @@ Map<String, dynamic> appealJson({
   List<Map<String, dynamic>> attachments = const [],
   bool hasUnread = false,
   Map<String, dynamic>? assigneeJson = assignee,
+  int participantsCount = 1,
+  Map<String, dynamic>? mergedInto,
+  String? closedReason,
+  Map<String, dynamic>? bitrixTask,
+  String access = 'full',
 }) =>
     {
       'id': id,
@@ -173,9 +180,9 @@ Map<String, dynamic> appealJson({
       'first_response_due_at': assigneeJson == null ? null : '2026-11-13T10:15:00+05:00',
       'due_state': assigneeJson == null ? 'no_deadline' : dueState,
       'escalation_level': 0,
-      'participants_count': 1,
-      'merged_into': null,
-      'access': 'full',
+      'participants_count': participantsCount,
+      'merged_into': mergedInto,
+      'access': access,
       'has_unread': hasUnread,
       'created_at': '2026-11-10T10:15:00+05:00',
       'updated_at': '2026-11-10T10:15:00+05:00',
@@ -188,8 +195,8 @@ Map<String, dynamic> appealJson({
       'public_summary': null,
       'public_result': null,
       'forwarded_from': null,
-      'closed_reason': null,
-      'bitrix_task': null,
+      'closed_reason': closedReason,
+      'bitrix_task': bitrixTask,
       'discussion': null,
       'attachments': attachments,
       'viewer_relations': ['author'],
