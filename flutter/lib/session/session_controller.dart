@@ -123,6 +123,14 @@ class SessionController extends ChangeNotifier {
 
   String statusLabel(AppealStatus status) => statusCodeLabel(status.toJson());
 
+  /// Подпись действия из справочника, например «Взять на рассмотрение».
+  String actionLabel(AppealAction action) {
+    for (final item in _dictionaries?.actions ?? const <DictionariesActionsInner>[]) {
+      if (item.code == action.toJson()) return item.label;
+    }
+    return action.toJson();
+  }
+
   /// Для истории событий: там статус приходит строкой.
   String statusCodeLabel(String code) {
     for (final item in _dictionaries?.statuses ?? const <DictionariesStatusesInner>[]) {

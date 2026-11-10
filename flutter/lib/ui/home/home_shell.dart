@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app.dart';
 import '../../navigation/sections.dart';
 import '../appeals/my_appeals_screen.dart';
+import '../appeals/queue_screen.dart';
 import 'profile_screen.dart';
 import 'section_screen.dart';
 import 'unread_scope.dart';
@@ -100,6 +101,7 @@ class _HomeShellState extends State<HomeShell> {
 
   Widget _screenFor(Section section) => switch (section) {
         Section.myAppeals => const MyAppealsScreen(),
+        Section.processing => const QueueScreen(),
         Section.profile => const ProfileScreen(),
         _ => SectionScreen(section: section),
       };
