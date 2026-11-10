@@ -83,7 +83,10 @@ class DraftsApi {
   ///
   /// * [MultipartFile] file (required):
   ///   ogg/opus из Telegram, mp3, m4a, wav
-  Future<Response> draftFromVoiceWithHttpInfo(MultipartFile file, { Future<void>? abortTrigger, }) async {
+  ///
+  /// * [int] durationSeconds:
+  ///   Длительность в секундах, если клиент её знает (Telegram `voice.duration`); больше 300 — `422 audio_too_long`
+  Future<Response> draftFromVoiceWithHttpInfo(MultipartFile file, { int? durationSeconds, Future<void>? abortTrigger, }) async {
     // ignore: prefer_const_declarations
     final path = r'/api/v1/drafts/voice';
 
@@ -102,6 +105,10 @@ class DraftsApi {
       hasFields = true;
       mp.fields[r'file'] = file.field;
       mp.files.add(file);
+    }
+    if (durationSeconds != null) {
+      hasFields = true;
+      mp.fields[r'duration_seconds'] = parameterToString(durationSeconds);
     }
     if (hasFields) {
       postBody = mp;
@@ -127,8 +134,11 @@ class DraftsApi {
   ///
   /// * [MultipartFile] file (required):
   ///   ogg/opus из Telegram, mp3, m4a, wav
-  Future<AppealDraft?> draftFromVoice(MultipartFile file, { Future<void>? abortTrigger, }) async {
-    final response = await draftFromVoiceWithHttpInfo(file, abortTrigger: abortTrigger,);
+  ///
+  /// * [int] durationSeconds:
+  ///   Длительность в секундах, если клиент её знает (Telegram `voice.duration`); больше 300 — `422 audio_too_long`
+  Future<AppealDraft?> draftFromVoice(MultipartFile file, { int? durationSeconds, Future<void>? abortTrigger, }) async {
+    final response = await draftFromVoiceWithHttpInfo(file, durationSeconds: durationSeconds, abortTrigger: abortTrigger,);
     if (response.statusCode >= HttpStatus.badRequest) {
       throw ApiException(response.statusCode, await _decodeBodyBytes(response));
     }
