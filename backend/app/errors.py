@@ -119,6 +119,11 @@ class InvalidTransition(Conflict):
     message = "Такой переход статуса недопустим"
 
 
+class VotingClosed(Conflict):
+    code = "voting_closed"
+    message = "Обсуждение завершено."
+
+
 class ExternalServiceError(AppError):
     """Внешний сервис (Claude, ElevenLabs, Telegram, Битрикс24) не ответил или ответил ошибкой."""
 

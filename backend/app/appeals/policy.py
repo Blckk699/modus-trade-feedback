@@ -65,6 +65,11 @@ def can_reassign(rel: list[ViewerRelation]) -> bool:
     return any(r in rel for r in (ViewerRelation.DEPARTMENT_HEAD, ViewerRelation.ADMIN, ViewerRelation.OWNER))
 
 
+def can_close_discussion(rel: list[ViewerRelation]) -> bool:
+    """Итог обсуждения фиксирует руководитель подразделения обращения или собственник, не ответственный."""
+    return any(r in rel for r in (ViewerRelation.DEPARTMENT_HEAD, ViewerRelation.OWNER))
+
+
 def can_read_messages(rel: list[ViewerRelation]) -> bool:
     """Приватная переписка: автор, ответственный, руководитель, собственник. Не администратор, не участник."""
     return ViewerRelation.AUTHOR in rel or can_process(rel)
