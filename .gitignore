@@ -2,3 +2,10 @@
 *.m4a
 .env
 .env.*
+
+# Подключение к шине: у каждого свой токен, в git не попадает
+.mcp.json
+.claude/settings.local.json
+.claude/settings.local.json.bak
+*.token
+.bus/
