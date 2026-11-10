@@ -14,8 +14,8 @@
 | `modus-flutter` | Александр | Пачка Flutter | `agent:modus-flutter` |
 | `modus-back` | n1kollo | Пачка бэкенда | `agent:modus-back` |
 | `modus-front` | klinduhwtf | Пачка фронта (веб и экраны Mini App) | `agent:modus-front` |
-
-Пачка Telegram (бот и оболочка Mini App) пока ни за кем не закреплена.
+| `modus-tg` | Александр | Пачка Telegram (бот и оболочка Mini App) | `agent:modus-tg` |
+| `modus-chat` | Александр | Ответы в чате команды, публикация закрытых тикетов | — |
 
 ## Шина
 
