@@ -40,7 +40,8 @@ def relations(user: User, appeal: AppealFacts) -> list[ViewerRelation]:
         out.append(ViewerRelation.AUTHOR)
     elif appeal.is_participant:
         out.append(ViewerRelation.PARTICIPANT)
-    if appeal.assignee_id == user.id:
+    # Администратор не ответственный, даже если остался им в закрытых обращениях до смены роли.
+    if appeal.assignee_id == user.id and user.role != Role.ADMIN:
         out.append(ViewerRelation.ASSIGNEE)
     if appeal.viewer_heads_department:
         out.append(ViewerRelation.DEPARTMENT_HEAD)
