@@ -1,0 +1,21 @@
+# Блок для общего Caddy проекта qazmap (/opt/qazmap/infra/Caddyfile.prod).
+# Включать только после того, как modus.systm.kz резолвится на сервер, иначе Caddy упрётся в лимиты выдачи сертификатов.
+modus.systm.kz {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 25MB
+	}
+	handle /api/* {
+		reverse_proxy modus-api:8000 {
+			header_down -Server
+		}
+	}
+	handle {
+		reverse_proxy modus-web:80 {
+			header_down -Server
+		}
+	}
+}
