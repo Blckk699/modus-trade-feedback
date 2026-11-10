@@ -449,8 +449,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             FutureBuilder<List<Department>>(
               future: _departments,
               builder: (context, s) => DropdownButtonFormField<int?>(
-                key: const Key('digest-department'),
-                initialValue: _department,
+                // Пока список грузится, выбранного пункта ещё нет — без значения, затем поле пересоздаётся.
+                key: Key('digest-department-${s.hasData}'),
+                initialValue: s.hasData ? _department : null,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Подразделение', border: OutlineInputBorder()),
                 items: [
@@ -465,8 +466,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           FutureBuilder<List<Category>>(
             future: _categories,
             builder: (context, s) => DropdownButtonFormField<int?>(
-              key: const Key('digest-category'),
-              initialValue: _category,
+              // Пока список грузится, выбранного пункта ещё нет — без значения, затем поле пересоздаётся.
+              key: Key('digest-category-${s.hasData}'),
+              initialValue: s.hasData ? _category : null,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Категория', border: OutlineInputBorder()),
               items: [

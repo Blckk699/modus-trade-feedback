@@ -109,7 +109,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('digest-filters')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('digest-department')));
+    await tester.tap(find.byKey(const Key('digest-department-true')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Бухгалтерия').last);
     await tester.pumpAndSettle();
@@ -132,7 +132,7 @@ void main() {
     expect(find.text('Ещё нет ответов'), findsOneWidget);
     await tester.tap(find.byKey(const Key('digest-filters')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('digest-department')), findsNothing);
+    expect(find.byKey(const Key('digest-department-true')), findsNothing);
     expect(server.requests.any((r) => r.url.path == '/api/v1/departments'), isFalse);
   });
 }
