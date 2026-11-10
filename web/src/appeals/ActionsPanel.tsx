@@ -179,7 +179,7 @@ function ReassignForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal) 
   const [reason, setReason] = useState('');
   const candidates =
     users.state.status === 'ready'
-      ? users.state.data.filter((u) => !u.is_disabled && u.id !== appeal.assignee?.id)
+      ? users.state.data.filter((u) => !u.is_disabled && u.role !== 'admin' && u.id !== appeal.assignee?.id)
       : [];
   return (
     <ActionForm

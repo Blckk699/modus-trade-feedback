@@ -47,12 +47,19 @@ export function AppealPage() {
   return <AppealCard appeal={s.data} onChanged={appeal.reload} onUpdated={appeal.set} />;
 }
 
-/** Назад туда, откуда пришли: в очередь или в свои обращения. */
+const BACK: Record<string, { path: string; label: string }> = {
+  '/my': { path: '/my', label: 'Мои обращения' },
+  '/queue': { path: '/queue', label: 'Обработка' },
+  '/digest': { path: '/digest', label: 'Сводка' },
+};
+
+/** Назад туда, откуда пришли: в очередь, сводку или свои обращения. */
 function BackLink() {
   const from = (useLocation().state as { from?: string } | null)?.from;
+  const back = BACK[from ?? ''] ?? BACK['/my'];
   return (
-    <Link to={from === '/queue' ? '/queue' : '/my'} className="back-link">
-      {from === '/queue' ? '← Обработка' : '← Мои обращения'}
+    <Link to={back.path} className="back-link">
+      ← {back.label}
     </Link>
   );
 }
