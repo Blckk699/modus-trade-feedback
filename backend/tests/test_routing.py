@@ -12,7 +12,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy import update
 
-from app.models import DeadlineRule, User
+from app.models import Category, DeadlineRule, User
 from tests.support import TZ
 
 FORM = {"type": "problem", "category_id": 1, "priority": "medium", "text": "В заявке нет назначения оборудования."}
@@ -159,3 +159,32 @@ async def test_reassign_validation(app, client, login_as) -> None:
     assert (await reassign(client, owner, 1, 13)).status_code == 422, "отключённому не назначить"
     final = await reassign(client, owner, 17, 3)
     assert (final.status_code, final.json()["error"]["code"]) == (409, "invalid_transition")
+
+
+# --- правки по ревью ---------------------------------------------------------------------------------
+
+
+async def test_admin_cannot_be_assignee(app, client, login_as) -> None:
+    """Администратор не видит статусы и переписку по матрице — ответственным его не назначить."""
+    response = await reassign(client, await login_as("owner"), 1, 2, "Пусть разберётся администратор")
+    assert (response.status_code, response.json()["error"]["code"]) == (422, "validation_error")
+    assert response.json()["error"]["details"]["fields"][0]["field"] == "assignee_id"
+
+    # Если администратор оказался ответственным или заместителем категории, правило его пропускает.
+    async with app.state.sessionmaker() as session, session.begin():
+        await session.execute(update(Category).where(Category.id == 1).values(responsible_id=2, deputy_id=None))
+    appeal = await create(client, await login_as("employee_sales"))
+    assert appeal["assignee"] is None, "в очередь нераспределённых, а не администратору"
+
+
+async def test_reassigning_answered_appeal_keeps_its_deadline(client, login_as, time_machine) -> None:
+    """A-002 уже на рассмотрении: первый ответ дан, срок не сбрасывается, история без нового срока."""
+    owner = await login_as("owner")
+    before = (await client.get("/api/v1/appeals/2", headers=owner)).json()
+    await time_machine.advance(days=2)
+    after = (await reassign(client, owner, 2, 13, "Нужна оценка IT")).json()
+    assert after["assignee"]["full_name"] == "Даурен Исаев"
+    assert after["first_response_due_at"] == before["first_response_due_at"]
+    assert after["first_response_at"] == before["first_response_at"] and after["due_state"] == "answered"
+    history = (await client.get("/api/v1/appeals/2/history", headers=owner)).json()
+    assert history[-1]["kind"] == "reassigned"

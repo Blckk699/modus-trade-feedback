@@ -59,6 +59,7 @@ async def list_appeals(
         q=q,
         now=now,
         tz=settings.tz,
+        headed_ids=set((await session.execute(policy.headed_departments(user))).scalars()),
     )
     total = await session.scalar(service.count_query(query))
     rows = (

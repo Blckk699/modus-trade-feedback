@@ -57,15 +57,22 @@ async def user_out(session: AsyncSession, user: User, *, show_telegram_id: bool)
     )
 
 
-def permissions_for(role: Role, *, has_assignments: bool) -> Permissions:
+def permissions_for(role: Role, *, has_assignments: bool, heads_department: bool) -> Permissions:
+    """Зона руководителя — подразделения, где он записан руководителем (`Department.head_id`)."""
+    if role == Role.OWNER:
+        analytics = "company"
+    elif heads_department:
+        analytics = "department"
+    else:
+        analytics = "none"
     return Permissions(
         can_create_appeal=True,
         # Ответственный — не роль, а назначение: очередь есть у закреплённых за категорией или обращением,
         # а руководитель и собственник могут выполнить любое действие ответственного в своей зоне.
-        can_process_appeals=has_assignments or role in (Role.HEAD, Role.OWNER),
-        can_view_department=role == Role.HEAD,
+        can_process_appeals=has_assignments or heads_department or role == Role.OWNER,
+        can_view_department=heads_department,
         can_view_all_appeals=role in (Role.ADMIN, Role.OWNER),
-        analytics_scope={Role.HEAD: "department", Role.OWNER: "company"}.get(role, "none"),
+        analytics_scope=analytics,
         can_upload_meetings=role in (Role.HEAD, Role.OWNER),
         can_manage_settings=role == Role.ADMIN,
         can_view_unassigned=role in (Role.ADMIN, Role.OWNER),
@@ -87,11 +94,14 @@ async def build_me(session: AsyncSession, user: User) -> MeOut:
         .select_from(Appeal)
         .where(Appeal.assignee_id == user.id, Appeal.status.notin_([s.value for s in FINAL_STATUSES]))
     )
+    heads = await session.scalar(select(func.count()).select_from(Department).where(Department.head_id == user.id))
     base = await user_out(session, user, show_telegram_id=True)
     return MeOut(
         **base.model_dump(),
         responsible_for=responsible,
         deputy_for=deputy,
         assigned_open_count=assigned_open or 0,
-        permissions=permissions_for(Role(user.role), has_assignments=bool(categories or assigned_open)),
+        permissions=permissions_for(
+            Role(user.role), has_assignments=bool(categories or assigned_open), heads_department=bool(heads)
+        ),
     )

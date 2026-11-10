@@ -93,10 +93,10 @@ async def reassign(
             details={"action": "reassign", "status": appeal.status, "allowed_actions": []},
         )
     assignee = await session.get(User, assignee_id)
-    if assignee is None or assignee.is_disabled:
+    if not routing.can_be_assignee(assignee):
         raise ValidationFailed(
-            "Такого сотрудника нет или доступ отключён",
-            details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника"}]},
+            "Ответственным может быть действующий сотрудник, кроме администратора",
+            details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника, не администратора"}]},
         )
     if assignee.id == appeal.assignee_id:
         raise ValidationFailed(
@@ -143,6 +143,7 @@ def list_query(
     q: str | None,
     now: datetime,
     tz: tzinfo,
+    headed_ids: set[int],
 ) -> Select:
     query = select(Appeal).where(policy.visible_filter(user))
     if scope == "mine":
@@ -153,9 +154,9 @@ def list_query(
     elif scope == "assigned":
         query = query.where(Appeal.assignee_id == user.id)
     elif scope == "department":
-        if user.role != Role.HEAD or user.department_id is None:
+        if not headed_ids:
             raise Forbidden("Обращения подразделения видит его руководитель")
-        department_id = user.department_id
+        query = query.where(Appeal.category_id.in_(select(Category.id).where(Category.department_id.in_(headed_ids))))
     elif scope == "unassigned":
         if user.role not in (Role.ADMIN, Role.OWNER):
             raise Forbidden("Очередь нераспределённых доступна администратору")
@@ -190,7 +191,10 @@ def list_query(
 
     if q and q.strip():
         pattern = f"%{q.strip()}%"
-        query = query.where(or_(Appeal.number.ilike(pattern), Appeal.summary.ilike(pattern), Appeal.text.ilike(pattern)))
+        # По тексту ищем только среди обращений, видимых полностью: участник склеенного повтора
+        # не должен находить основное обращение по словам скрытого от него текста.
+        in_text = and_(Appeal.text.ilike(pattern), policy.full_visible_filter(user))
+        query = query.where(or_(Appeal.number.ilike(pattern), Appeal.summary.ilike(pattern), in_text))
     return query
 
 

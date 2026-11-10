@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.appeals.history import record
 from app.domain.business_days import add_business_days
-from app.domain.enums import AppealType, HistoryKind
+from app.domain.enums import AppealType, HistoryKind, Role
 from app.models import Appeal, Category, DeadlineRule, User
 
 DEFAULT_RULES = {"high": 1, "medium": 3, "low": 5}
@@ -28,8 +28,15 @@ class Route:
     reason: str
 
 
+def can_be_assignee(user: User | None) -> bool:
+    """Ответственным может быть любой действующий сотрудник, кроме администратора: иначе он получал бы
+    статусы и приватную переписку, которых по матрице доступа не видит. B-14 проверяет это же правило
+    для ответственного и заместителя категории."""
+    return user is not None and not user.is_disabled and user.role != Role.ADMIN
+
+
 def _available(user: User | None) -> bool:
-    return user is not None and not user.is_absent and not user.is_disabled
+    return can_be_assignee(user) and not user.is_absent
 
 
 async def choose_assignee(session: AsyncSession, category_id: int | None) -> Route:
@@ -65,11 +72,14 @@ async def assign(
     reason: str,
     kind: HistoryKind,
 ) -> None:
-    """Назначает ответственного и заново отсчитывает срок первого ответа; всё пишет в историю."""
+    """Назначает ответственного и, если первого ответа ещё не было, заново отсчитывает срок; всё пишет
+    в историю. У уже отвеченного обращения срок и время первого ответа не трогаются."""
     old = await session.get(User, appeal.assignee_id) if appeal.assignee_id else None
     appeal.assignee_id = assignee.id if assignee else None
-    appeal.first_response_due_at = await first_response_deadline(session, appeal, now, tz) if assignee else None
-    appeal.escalation_level = 0
+    restart_deadline = appeal.first_response_at is None
+    if restart_deadline:
+        appeal.first_response_due_at = await first_response_deadline(session, appeal, now, tz) if assignee else None
+        appeal.escalation_level = 0
     record(
         session,
         appeal,
@@ -81,7 +91,7 @@ async def assign(
         new_value=assignee.full_name if assignee else None,
         comment=reason,
     )
-    if appeal.first_response_due_at is not None:
+    if restart_deadline and appeal.first_response_due_at is not None:
         record(
             session,
             appeal,

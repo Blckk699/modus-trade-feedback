@@ -39,6 +39,6 @@
 - Тикеты ведутся в GitHub Issues репозитория, блокировки проставлены там нативно. Файлы в `tickets/` — копия для чтения, статус в них не меняется.
 - Взял тикет — назначь себя исполнителем и замени метку `ready-for-agent` на `in-progress`. Pull request закрывает задачу строкой `Closes #N`; отметь в задаче выполненные критерии.
 - Тикет можно брать, только когда закрыты все задачи из его «Blocked by».
-- Метки пачек: `pack:backend`, `pack:web`, `pack:flutter`, `pack:telegram`. Метки исполнителей: `agent:modus-back` (n1kollo), `agent:modus-front` (klinduhwtf), `agent:modus-flutter`, `agent:modus-orch`. Пачка Telegram пока без исполнителя.
+- Метки пачек: `pack:backend`, `pack:web`, `pack:flutter`, `pack:telegram`. Метки исполнителей: `agent:modus-back` (n1kollo), `agent:modus-front` (klinduhwtf), `agent:modus-flutter`, `agent:modus-tg` (Telegram), `agent:modus-orch`.
 - Свои свободные тикеты: `gh issue list --label agent:<имя агента> --label ready-for-agent`. Полные правила для агентов — `CLAUDE.md`, подключение к шине — `bus/README.md`.
 - Секреты в репозиторий не попадают: ключи сервисов, токен бота, Telegram ID команды.
