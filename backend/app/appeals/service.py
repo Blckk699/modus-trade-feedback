@@ -93,10 +93,10 @@ async def reassign(
             details={"action": "reassign", "status": appeal.status, "allowed_actions": []},
         )
     assignee = await session.get(User, assignee_id)
-    if assignee is None or assignee.is_disabled:
+    if not routing.can_be_assignee(assignee):
         raise ValidationFailed(
-            "Такого сотрудника нет или доступ отключён",
-            details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника"}]},
+            "Ответственным может быть действующий сотрудник, кроме администратора",
+            details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника, не администратора"}]},
         )
     if assignee.id == appeal.assignee_id:
         raise ValidationFailed(
