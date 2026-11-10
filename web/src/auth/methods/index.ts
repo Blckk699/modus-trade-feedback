@@ -1,10 +1,10 @@
 import type { AuthMethod } from '../types';
 import { devLoginMethod } from './devLogin';
+import { miniAppMethod } from './miniApp';
 import { telegramWidgetMethod } from './telegramWidget';
 
 /**
  * Способы входа по порядку. Сначала пробуются autoLogin, затем экран входа показывает LoginButton.
- * Вход Mini App (T-06) добавляется сюда первым элементом: файл methods/miniApp.ts с autoLogin
- * по Telegram.WebApp.initData → POST /api/v1/auth/telegram/mini-app. Экраны править не нужно.
+ * Вход Mini App (T-06) первым: внутри Telegram пользователь входит по initData без экрана входа.
  */
-export const authMethods: AuthMethod[] = [telegramWidgetMethod, devLoginMethod];
+export const authMethods: AuthMethod[] = [miniAppMethod, telegramWidgetMethod, devLoginMethod];

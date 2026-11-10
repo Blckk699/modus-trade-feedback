@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginScreen, useAuth } from '../auth';
 import { SectionPage } from '../pages/SectionPage';
+import { MiniAppShell } from '../telegram/MiniAppShell';
 import { Layout } from './Layout';
 import { buildNav, startPath, type NavId } from './navigation';
 
@@ -51,6 +52,7 @@ function AuthGate() {
 export function App() {
   return (
     <BrowserRouter>
+      <MiniAppShell />
       <AuthGate />
     </BrowserRouter>
   );
