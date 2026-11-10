@@ -16,7 +16,10 @@ from app.appeals.views import Directory, Extras, facts
 from app.config import Settings
 from app.domain.enums import FINAL_STATUSES, AppealSource, AppealStatus, AppealType, HistoryKind, Role
 from app.errors import FileTooLarge, Forbidden, InvalidTransition, NotFound, ValidationFailed
+from app.jobs.runner import enqueue
 from app.models import Appeal, Attachment, Category, User
+
+FIND_DUPLICATES_JOB = "duplicates.find"
 
 SOURCE_LABELS = {AppealSource.FORM: "через форму", AppealSource.BOT: "через бота", AppealSource.MEETING: "на совещании"}
 
@@ -74,6 +77,8 @@ async def create_appeal(
     await session.flush()
     record(session, appeal, HistoryKind.CREATED, now, author.id, comment=f"Подано {SOURCE_LABELS[source]}")
     await routing.route_new_appeal(session, appeal, now, tz)
+    if type != AppealType.PRAISE:
+        await enqueue(session, FIND_DUPLICATES_JOB, {"appeal_id": appeal.id}, run_at=now, dedup_key=f"duplicates:{appeal.id}")
     return appeal
 
 

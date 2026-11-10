@@ -210,6 +210,16 @@ async def name_consent_request(session: AsyncSession, appeal: Appeal, discussion
     )
 
 
+async def appeal_merged(session: AsyncSession, duplicate: Appeal, main: Appeal, recipients: list[int], actor_id: int, now: datetime) -> None:
+    """Автору повтора и его участникам: дальше статусы основного. О чужом обращении — только номер (история 19)."""
+    text = (
+        f"Ваше обращение {_title(duplicate)} присоединено к обращению <b>{escape(main.number)}</b>: "
+        "это та же проблема. Дальше вы будете получать его статусы."
+    )
+    for uid in _recipients(recipients, actor_id):
+        add(session, uid, NotificationKind.APPEAL_MERGED, text, now, appeal=main)
+
+
 async def discussion_closed(session: AsyncSession, appeal: Appeal, discussion_id: int, outcome: str, actor_id: int, now: datetime) -> None:
     """Автору: итог обсуждения его обращения."""
     if appeal.author_id == actor_id:

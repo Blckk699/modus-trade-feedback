@@ -96,7 +96,7 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
     add(AppealAction.REJECT, process and status == AppealStatus.IN_REVIEW)
     add(AppealAction.IMPLEMENT, process and status == AppealStatus.IN_PROGRESS)
     add(AppealAction.ACCEPT_FEEDBACK, process and status == AppealStatus.NEW and praise)
-    add(AppealAction.MERGE, process and status in (AppealStatus.NEW, AppealStatus.IN_REVIEW))
+    add(AppealAction.MERGE, process and status in (AppealStatus.NEW, AppealStatus.IN_REVIEW) and not praise)
     add(AppealAction.REASSIGN, can_reassign(rel) and status in NOT_FINAL)
     add(AppealAction.PUBLISH_DISCUSSION, process and status != AppealStatus.CLOSED and not appeal.has_discussion)
     add(
@@ -121,6 +121,14 @@ def full_visible_filter(user: User) -> ColumnElement[bool]:
         return true()
     own_categories = select(Category.id).where(Category.department_id.in_(headed_departments(user)))
     return or_(Appeal.author_id == user.id, Appeal.assignee_id == user.id, Appeal.category_id.in_(own_categories))
+
+
+def suggestion_zone_filter(user: User) -> ColumnElement[bool]:
+    """Где показывать подсказки о повторах: назначенные пользователю, его подразделение, для собственника — всё."""
+    if user.role == Role.OWNER:
+        return true()
+    own_categories = select(Category.id).where(Category.department_id.in_(headed_departments(user)))
+    return or_(Appeal.assignee_id == user.id, Appeal.category_id.in_(own_categories))
 
 
 def visible_filter(user: User) -> ColumnElement[bool]:
