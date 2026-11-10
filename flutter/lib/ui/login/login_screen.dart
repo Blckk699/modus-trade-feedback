@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text('Вход по коду из бота', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
             const _Step(n: 1, text: 'Откройте бот компании в Telegram.'),
-            const _Step(n: 2, text: 'Нажмите в меню бота «Код входа».'),
+            const _Step(n: 2, text: 'Нажмите в меню бота «Код входа» или отправьте команду /code.'),
             const _Step(n: 3, text: 'Введите шесть цифр из сообщения. Код действует несколько минут и подходит один раз.'),
             const SizedBox(height: 16),
             TextField(
