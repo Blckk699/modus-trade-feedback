@@ -1,0 +1,85 @@
+"""Клиент API бэкенда. Бот действует от имени пользователя: X-Service-Key + X-Telegram-Id."""
+
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
+UNAVAILABLE_MESSAGE = "Сервис временно недоступен. Попробуйте ещё раз через минуту."
+
+
+class ApiError(Exception):
+    """Ошибка API в формате контракта: ветвиться по `code`, показывать `message`."""
+
+    def __init__(self, status: int, code: str, message: str, details: Any = None):
+        super().__init__(f"{status} {code}: {message}")
+        self.status = status
+        self.code = code
+        self.message = message
+        self.details = details
+
+
+@dataclass(frozen=True)
+class LoginCode:
+    code: str
+    expires_at: str
+    ttl_seconds: int
+
+
+class Api:
+    """Тонкий клиент над httpx. Транспорт подменяется в тестах."""
+
+    def __init__(
+        self,
+        base_url: str,
+        service_key: str,
+        timeout: float = 15.0,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ):
+        self._http = httpx.AsyncClient(
+            base_url=base_url.rstrip("/"),
+            headers={"X-Service-Key": service_key, "Accept": "application/json"},
+            timeout=timeout,
+            transport=transport,
+        )
+
+    async def close(self) -> None:
+        await self._http.aclose()
+
+    async def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        telegram_id: int | None = None,
+        json: Any = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        headers = {"X-Telegram-Id": str(telegram_id)} if telegram_id is not None else {}
+        try:
+            response = await self._http.request(method, path, headers=headers, json=json, params=params)
+        except httpx.HTTPError as exc:
+            raise ApiError(0, "unavailable", UNAVAILABLE_MESSAGE) from exc
+        if response.is_success:
+            return response.json() if response.content else None
+        raise _error_from(response)
+
+    # ---- пользовательские маршруты от имени пользователя
+
+    async def me(self, telegram_id: int) -> dict[str, Any]:
+        return await self.request("GET", "/api/v1/me", telegram_id=telegram_id)
+
+    async def issue_login_code(self, telegram_id: int) -> LoginCode:
+        data = await self.request("POST", "/api/v1/auth/login-codes", telegram_id=telegram_id)
+        return LoginCode(code=data["code"], expires_at=data["expires_at"], ttl_seconds=data["ttl_seconds"])
+
+    async def digest(self, telegram_id: int) -> dict[str, Any]:
+        return await self.request("GET", "/api/v1/analytics/digest", telegram_id=telegram_id)
+
+
+def _error_from(response: httpx.Response) -> ApiError:
+    try:
+        error = response.json()["error"]
+        return ApiError(response.status_code, error["code"], error["message"], error.get("details"))
+    except (ValueError, KeyError, TypeError):
+        return ApiError(response.status_code, "internal_error", UNAVAILABLE_MESSAGE)
