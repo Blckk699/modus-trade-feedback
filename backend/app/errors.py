@@ -84,6 +84,12 @@ class DevLoginDisabled(AppError):
     message = "Dev-вход выключен."
 
 
+class FileTooLarge(AppError):
+    status_code = 413
+    code = "file_too_large"
+    message = "Файл слишком большой."
+
+
 class TooManyRequests(AppError):
     status_code = 429
     code = "too_many_requests"

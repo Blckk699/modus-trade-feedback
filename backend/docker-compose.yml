@@ -30,6 +30,7 @@ services:
       # Файл аккаунтов сида (реальные Telegram ID за ролями) — вне репозитория, монтируется только на чтение.
       SEED_ACCOUNTS_FILE: /run/modus/seed-accounts.json
     volumes:
+      - appdata:/app/data
       - ${SEED_ACCOUNTS_DIR:-${HOME}/.config/modus-trade}:/run/modus:ro
     depends_on:
       db:
@@ -41,3 +42,4 @@ services:
 
 volumes:
   pgdata:
+  appdata:

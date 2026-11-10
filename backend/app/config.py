@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # Как часто проверять сроки и эскалацию (B-07).
     escalation_interval_minutes: int = 10
 
+    # Вложения: каталог файлов (в docker — volume) и предельный размер файла.
+    attachments_dir: str = "data/attachments"
+    attachment_max_bytes: int = 20 * 1024 * 1024
+
     # Вход (B-03): срок жизни сессии, одноразового кода из бота и данных Telegram (initData, Login Widget).
     session_ttl_days: int = 30
     login_code_ttl_seconds: int = 300

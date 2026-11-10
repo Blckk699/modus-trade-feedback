@@ -70,6 +70,39 @@ class HistoryKind(StrEnum):
     FIELD_CHANGED = "field_changed"
 
 
+class AppealAction(StrEnum):
+    TAKE = "take"
+    REQUEST_INFO = "request_info"
+    REPLY_CLARIFICATION = "reply_clarification"
+    START_WORK = "start_work"
+    REJECT = "reject"
+    IMPLEMENT = "implement"
+    ACCEPT_FEEDBACK = "accept_feedback"
+    MERGE = "merge"
+    REASSIGN = "reassign"
+    PUBLISH_DISCUSSION = "publish_discussion"
+    CREATE_BITRIX_TASK = "create_bitrix_task"
+    SEND_MESSAGE = "send_message"
+    UPLOAD_ATTACHMENT = "upload_attachment"
+
+
+class ViewerRelation(StrEnum):
+    AUTHOR = "author"
+    PARTICIPANT = "participant"
+    ASSIGNEE = "assignee"
+    DEPARTMENT_HEAD = "department_head"
+    OWNER = "owner"
+    ADMIN = "admin"
+
+
+class DueState(StrEnum):
+    ON_TIME = "on_time"
+    DUE_SOON = "due_soon"
+    OVERDUE = "overdue"
+    ANSWERED = "answered"
+    NO_DEADLINE = "no_deadline"
+
+
 class DiscussionStatus(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
