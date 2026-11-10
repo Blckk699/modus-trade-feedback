@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
-import { byName, changes, fieldErrors, idOrNull, type Department, type User } from './shared';
+import { assignable, byName, changes, fieldErrors, idOrNull, type Department, type User } from './shared';
 
 function loadAll() {
   return Promise.all([unwrap(api.GET('/api/v1/departments')), unwrap(api.GET('/api/v1/users'))]);
@@ -94,8 +94,8 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
-  // Руководителем обычно назначают роль «руководитель»; остальные — ниже, если нужно временно.
-  const candidates = [...users].sort((a, b) => Number(b.role === 'head') - Number(a.role === 'head') || byName(a, b));
+  // Действующие сотрудники, кроме администратора (иначе бэкенд ответит 422); роль «руководитель» — первой.
+  const candidates = assignable(users).sort((a, b) => Number(b.role === 'head') - Number(a.role === 'head') || byName(a, b));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
