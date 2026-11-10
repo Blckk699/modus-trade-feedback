@@ -106,11 +106,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Просрочено').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-category')));
+    await tester.tap(find.byKey(const Key('filter-category-true')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Межотдельное взаимодействие').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-department')));
+    await tester.tap(find.byKey(const Key('filter-department-true')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Бухгалтерия').last);
     await tester.pumpAndSettle();
@@ -137,7 +137,8 @@ void main() {
     expect(find.text('Обращений нет.'), findsOneWidget);
     await tester.tap(find.byKey(const Key('queue-filters')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('filter-department')), findsNothing);
+    expect(find.byKey(const Key('filter-department-false')), findsNothing);
+    expect(find.byKey(const Key('filter-department-true')), findsNothing);
   });
 
   /// Карточка ответственного с заданными allowed_actions; действие возвращает обновлённое обращение.
