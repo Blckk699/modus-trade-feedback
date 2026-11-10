@@ -3,6 +3,8 @@ import { LoginScreen, useAuth } from '../auth';
 import type { ReactNode } from 'react';
 import { AppealPage } from '../pages/AppealPage';
 import { DigestPage } from '../pages/DigestPage';
+import { MeetingPage } from '../meetings/MeetingPage';
+import { MeetingsPage } from '../meetings/MeetingsPage';
 import { DiscussionPage } from '../discussions/DiscussionPage';
 import { FeedPage } from '../discussions/FeedPage';
 import { MyAppealsPage } from '../pages/MyAppealsPage';
@@ -21,6 +23,7 @@ const PAGES: Partial<Record<NavId, ReactNode>> = {
   feed: <FeedPage />,
   queue: <QueuePage />,
   digest: <DigestPage />,
+  meetings: <MeetingsPage />,
   settings: <SettingsPage />,
 };
 
@@ -66,6 +69,7 @@ function AuthGate() {
           {state.me.permissions.can_create_appeal && <Route path="/my/new" element={<NewAppealPage />} />}
           <Route path="/appeals/:id" element={<AppealPage />} />
           <Route path="/discussions/:id" element={<DiscussionPage />} />
+          {state.me.permissions.can_upload_meetings && <Route path="/meetings/:id" element={<MeetingPage />} />}
           {/* Ссылки из уведомлений бота (Notification.path) ведут на /analytics, у веба сводка — /digest. */}
           <Route path="/analytics" element={<Navigate to="/digest" replace />} />
           <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
