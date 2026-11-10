@@ -118,6 +118,14 @@ def full_visible_filter(user: User) -> ColumnElement[bool]:
     return or_(Appeal.author_id == user.id, Appeal.assignee_id == user.id, Appeal.category_id.in_(own_categories))
 
 
+def suggestion_zone_filter(user: User) -> ColumnElement[bool]:
+    """Где показывать подсказки о повторах: назначенные пользователю, его подразделение, для собственника — всё."""
+    if user.role == Role.OWNER:
+        return true()
+    own_categories = select(Category.id).where(Category.department_id.in_(headed_departments(user)))
+    return or_(Appeal.assignee_id == user.id, Appeal.category_id.in_(own_categories))
+
+
 def visible_filter(user: User) -> ColumnElement[bool]:
     """Условие SQL «пользователь видит обращение» — то же правило, что `relations`, для списков."""
     if user.role in (Role.ADMIN, Role.OWNER):
