@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter
 
+from app.admin import router as admin
 from app.api import health
 from app.appeals import actions_router as appeal_actions
 from app.appeals import router as appeals
@@ -21,3 +22,4 @@ api_router.include_router(appeals.router)
 api_router.include_router(appeal_actions.router)
 api_router.include_router(directory.router)
 api_router.include_router(notifications.router)
+api_router.include_router(admin.router)
