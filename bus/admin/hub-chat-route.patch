@@ -1,0 +1,95 @@
+# Патч шины systm.kz/bus: маршрут чата команды задаётся настройкой chat_route {agent, orch, room, max} в мете шины.
+# Применён на сервере 10.11.2026 к /opt/syst-m/bus/hub.py (копии до правки: hub.py.bak-modus-chat, hub.py.bak-modus-chat2).
+--- hub.py.orig
++++ hub.py
+@@ -271,7 +271,7 @@
+         con.execute("INSERT OR IGNORE INTO deliveries(msg_id, agent) VALUES(?,?)", (mid, r))
+     event(con, sender, "sent_" + mtype, "%d recipient(s)" % len(recipients), room)
+     con.commit()
+-    if sender == "chat-agent" and to == "team-chat" and mtype in ("answer", "question"):
++    if to == "team-chat" and mtype in ("answer", "question") and sender == chat_route(con)["agent"]:
+         SPAWN(chat_agent_reply, sender, mtype, subject, body, refs)
+     with NEW_MAIL:
+         NEW_MAIL.notify_all()
+@@ -576,10 +576,18 @@
+ 
+ 
+ CHAT_AGENT = "chat-agent"     # a Claude session that answers the team chat (Alexander: "a separate agent chat, like the designers")
++
++
++def chat_route(con):
++    """Which project answers the team chat. meta chat_route = {agent, orch, room, max}; default = team syst-m.
++    A project route (room set) hands every question to its chat agent even while it is offline, without the syst-m snapshot."""
++    r = meta_get(con, "chat_route", None) or {}
++    return {"agent": r.get("agent") or CHAT_AGENT, "orch": r.get("orch") or "orchestrator",
++            "room": r.get("room"), "max": int(r.get("max") or 1000)}
+ 
+ 
+ def chat_agent_alive(con):
+-    r = con.execute("SELECT last_seen FROM agents WHERE name=?", (CHAT_AGENT,)).fetchone()
++    r = con.execute("SELECT last_seen FROM agents WHERE name=?", (chat_route(con)["agent"],)).fetchone()
+     return bool(r and r["last_seen"] and now() - r["last_seen"] < 900)
+ 
+ 
+@@ -603,12 +611,13 @@
+     chat_id, msg_id = int(m.group(1)), int(m.group(2))
+     con = db()
+     try:
++        route = chat_route(con)
+         if mtype == "question":
+             alex = meta_get(con, "team_chats", {}).get("alexander")
+             if alex:
+                 ask_alexander(con, alex, chat_id, subject[:60], body[:300], body[:200], tg_api)   # subject = asker's name
+             return
+-        tg_api("sendMessage", {"chat_id": chat_id, "text": body[:1000], "reply_to_message_id": msg_id,
++        tg_api("sendMessage", {"chat_id": chat_id, "text": body[:route["max"]], "reply_to_message_id": msg_id,
+                                "allow_sending_without_reply": True})
+     finally:
+         con.close()
+@@ -618,14 +627,22 @@
+     con = db()
+     try:
+         alex = meta_get(con, "team_chats", {}).get("alexander")
+-        if alex and user_id == alex.get("user_id"):     # Alexander's word is a command: straight to the orchestrator, no model, no approval
+-            send(con, "team-chat", "orchestrator", "task", ("Александр из чата: " + question)[:200], question[:2000])
++        route = chat_route(con)
++        is_alex = bool(alex and user_id == alex.get("user_id"))
++        if is_alex and not route["room"]:     # Alexander's word is a command: straight to the orchestrator, no model, no approval
++            send(con, "team-chat", route["orch"], "task", ("Александр из чата: " + question)[:200], question[:2000], room=route["room"])
+             return api("sendMessage", {"chat_id": chat_id, "text": "Принял, передал оркестратору."})
+         api("sendChatAction", {"chat_id": chat_id, "action": "typing"})
+         snap = meta_get(con, "team_snapshot", None)
++        if route["room"]:       # project route: its chat agent answers from its own context; queued even while it is offline
++            who = "%s (Александр)" % name if is_alex else name   # project route: Alexander is answered like everyone, marked
++            send(con, "team-chat", route["agent"], "task", ("Чат, %s: %s" % (who, question))[:200],
++                 "Вопрос от %s в чате команды:\n%s" % (who, question[:1500]),
++                 refs=["chat:%d:%d" % (chat_id, msg_id)], room=route["room"])
++            return
+         if chat_agent_alive(con):
+             ctx = team_context(snap) if snap else "Снимка команды нет."
+-            send(con, "team-chat", CHAT_AGENT, "task", ("Чат, %s: %s" % (name, question))[:200],
++            send(con, "team-chat", route["agent"], "task", ("Чат, %s: %s" % (name, question))[:200],
+                  "Вопрос от %s в чате команды:\n%s\n\nСнимок команды:\n%s" % (name, question[:1500], ctx),
+                  refs=["chat:%d:%d" % (chat_id, msg_id)])
+             return
+@@ -671,8 +688,9 @@
+     api("editMessageText", {"chat_id": m["chat"]["id"], "message_id": m["message_id"], "reply_markup": {"inline_keyboard": []},
+                             "text": m.get("text", "") + "\n\n" + ("Да ✓" if yes else "Нет ✗")})
+     if yes:
+-        send(con, "team-chat", "orchestrator", "question", ("Одобрено Александром: " + ask["request"])[:200],
+-             "Вопрос в чате команды от %s: %s\nЧто утвердить: %s" % (ask["name"], ask["question"], ask["request"]))
++        route = chat_route(con)
++        send(con, "team-chat", route["orch"], "question", ("Одобрено Александром: " + ask["request"])[:200],
++             "Вопрос в чате команды от %s: %s\nЧто утвердить: %s" % (ask["name"], ask["question"], ask["request"]), room=route["room"])
+ 
+ 
+ def handle_update(con, upd, api=tg_api):
+@@ -748,7 +766,7 @@
+     if not text:
+         return 400, {"error": "text required"}
+     team = to == "team"
+-    if team and not (is_admin or agent in ("orchestrator", CHAT_AGENT)):
++    if team and not (is_admin or agent in ("orchestrator", CHAT_AGENT) or agent in (chat_route(con)["agent"], chat_route(con)["orch"])):
+         return 403, {"error": "team chat: orchestrator and chat-agent only"}
+     if team:
+         chat_id, key, out, who = meta_get(con, "team_chat", None), "team", "рой systm: " + text, "team"
