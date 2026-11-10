@@ -10,12 +10,12 @@ from fastapi import UploadFile
 from sqlalchemy import Select, and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.appeals import policy
+from app.appeals import policy, routing
 from app.appeals.history import record
 from app.appeals.views import Directory, Extras, facts
 from app.config import Settings
-from app.domain.enums import FINAL_STATUSES, AppealSource, AppealType, HistoryKind, Role
-from app.errors import FileTooLarge, Forbidden, NotFound, ValidationFailed
+from app.domain.enums import FINAL_STATUSES, AppealSource, AppealStatus, AppealType, HistoryKind, Role
+from app.errors import FileTooLarge, Forbidden, InvalidTransition, NotFound, ValidationFailed
 from app.models import Appeal, Attachment, Category, User
 
 SOURCE_LABELS = {AppealSource.FORM: "через форму", AppealSource.BOT: "через бота", AppealSource.MEETING: "на совещании"}
@@ -42,8 +42,9 @@ async def create_appeal(
     source: AppealSource,
     forwarded_from: str | None,
     now: datetime,
+    tz: tzinfo,
 ) -> Appeal:
-    """Регистрирует обращение в статусе «Новое». Маршрутизация (ответственный и срок) — в B-05."""
+    """Регистрирует обращение в статусе «Новое» и сразу маршрутизирует: ответственный и срок."""
     if category_id is not None:
         category = await session.get(Category, category_id)
         if category is None or not category.is_active:
@@ -72,7 +73,38 @@ async def create_appeal(
     session.add(appeal)
     await session.flush()
     record(session, appeal, HistoryKind.CREATED, now, author.id, comment=f"Подано {SOURCE_LABELS[source]}")
+    await routing.route_new_appeal(session, appeal, now, tz)
     return appeal
+
+
+async def reassign(
+    session: AsyncSession, appeal: Appeal, actor: User, assignee_id: int, reason: str, now: datetime, tz: tzinfo
+) -> None:
+    """Переназначение с причиной: руководитель (в своём подразделении), администратор, собственник.
+    Срок первого ответа отсчитывается заново."""
+    directory = await Directory.load(session)
+    extras = await Extras.load(session, actor, [appeal])
+    rel = policy.relations(actor, facts(appeal, directory, extras))
+    if not policy.can_reassign(rel):
+        raise Forbidden("Переназначить ответственного могут руководитель, администратор и собственник")
+    if AppealStatus(appeal.status).is_final:
+        raise InvalidTransition(
+            "Завершённое обращение не переназначается",
+            details={"action": "reassign", "status": appeal.status, "allowed_actions": []},
+        )
+    assignee = await session.get(User, assignee_id)
+    if assignee is None or assignee.is_disabled:
+        raise ValidationFailed(
+            "Такого сотрудника нет или доступ отключён",
+            details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника"}]},
+        )
+    if assignee.id == appeal.assignee_id:
+        raise ValidationFailed(
+            "Этот сотрудник уже ответственный",
+            details={"fields": [{"field": "assignee_id", "message": "Выберите другого сотрудника"}]},
+        )
+    kind = HistoryKind.REASSIGNED if appeal.assignee_id else HistoryKind.ASSIGNED
+    await routing.assign(session, appeal, assignee, now, tz, actor_id=actor.id, reason=reason.strip(), kind=kind)
 
 
 async def get_visible(session: AsyncSession, appeal_id: int, user: User, *, full: bool = True) -> Appeal:

@@ -191,8 +191,9 @@ async def test_history_records_every_change_with_author_and_time(client, login_a
         f"/api/v1/appeals/{appeal['id']}/attachments", headers=headers, files={"file": ("скан.pdf", b"%PDF-1", "application/pdf")}
     )
     history = (await client.get(f"/api/v1/appeals/{appeal['id']}/history", headers=headers)).json()
-    assert [e["kind"] for e in history] == ["created", "attachment_added"]
-    assert all(e["actor"]["full_name"] == "Сергей Ким" and e["created_at"] for e in history)
+    assert [e["kind"] for e in history] == ["created", "assigned", "deadline_set", "attachment_added"]
+    assert all(e["created_at"] for e in history)
+    assert [e["actor"] and e["actor"]["full_name"] for e in history] == ["Сергей Ким", None, None, "Сергей Ким"]
 
     seeded = (await client.get("/api/v1/appeals/17/history", headers=await login_as("owner"))).json()
     assert [e["kind"] for e in seeded][-1] == "status_changed"

@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Query, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
@@ -70,7 +71,9 @@ async def list_appeals(
 
 
 @router.post("/appeals", response_model=AppealOut, status_code=201, summary="Создать обращение")
-async def create_appeal(body: AppealCreate, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
+async def create_appeal(
+    body: AppealCreate, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> AppealOut:
     now = clock.now()
     appeal = await service.create_appeal(
         session,
@@ -84,6 +87,7 @@ async def create_appeal(body: AppealCreate, user: CurrentUserDep, session: Sessi
         source=AppealSource(body.source),
         forwarded_from=body.forwarded_from,
         now=now,
+        tz=settings.tz,
     )
     return await appeal_out(session, appeal, user, now)
 
@@ -92,6 +96,21 @@ async def create_appeal(body: AppealCreate, user: CurrentUserDep, session: Sessi
 async def get_appeal(appeal_id: int, user: CurrentUserDep, session: SessionDep, clock: ClockDep) -> AppealOut:
     appeal = await service.get_visible(session, appeal_id, user, full=False)
     return await appeal_out(session, appeal, user, clock.now())
+
+
+class ReassignIn(BaseModel):
+    assignee_id: int
+    reason: str = Field(min_length=1, max_length=2000, pattern=r"\S")
+
+
+@router.post("/appeals/{appeal_id}/reassign", response_model=AppealOut, summary="Переназначить ответственного")
+async def reassign_appeal(
+    appeal_id: int, body: ReassignIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> AppealOut:
+    appeal = await service.get_visible(session, appeal_id, user)
+    now = clock.now()
+    await service.reassign(session, appeal, user, body.assignee_id, body.reason, now, settings.tz)
+    return await appeal_out(session, appeal, user, now)
 
 
 @router.get("/appeals/{appeal_id}/history", response_model=list[HistoryEventOut], summary="История обращения")
