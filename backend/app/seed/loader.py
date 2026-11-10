@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.seed import data
 from app.seed.accounts import Account
+from app.seed.showcase import add_showcase
 
 ROLE_LABELS = {
     Role.OWNER: "Собственник",
@@ -78,10 +79,18 @@ async def is_empty(session: AsyncSession) -> bool:
     return (await session.scalar(select(func.count()).select_from(User))) == 0
 
 
-async def reset_demo(session: AsyncSession, now: datetime, tz: tzinfo, accounts: dict[str, Account]) -> SeedReport:
-    """Стирает данные приложения и загружает демо-компанию. Коммит — за вызывающим."""
+async def reset_demo(
+    session: AsyncSession, now: datetime, tz: tzinfo, accounts: dict[str, Account], *, showcase: bool = False
+) -> SeedReport:
+    """Стирает данные приложения и загружает демо-компанию. Коммит — за вызывающим.
+
+    `showcase` добавляет витрину для показа (`app.seed.showcase`): обсуждение, склейку, совещание.
+    """
     await wipe(session)
-    return await load_demo(session, now, tz, accounts)
+    report = await load_demo(session, now, tz, accounts)
+    if showcase:
+        await add_showcase(session, now, tz)
+    return report
 
 
 async def load_demo(session: AsyncSession, now: datetime, tz: tzinfo, accounts: dict[str, Account]) -> SeedReport:

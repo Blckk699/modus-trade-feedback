@@ -38,7 +38,7 @@ async def run(command: str, accounts_path: Path) -> int:
             if command == "init" and not await is_empty(session):
                 print("В базе уже есть данные — пропускаю. Для сброса: python -m app.seed reset")
                 return 0
-            report = await reset_demo(session, SystemClock().now(), settings.tz, accounts)
+            report = await reset_demo(session, SystemClock().now(), settings.tz, accounts, showcase=True)
     finally:
         await engine.dispose()
 
