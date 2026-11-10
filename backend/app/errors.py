@@ -54,6 +54,36 @@ class Unauthorized(AppError):
     message = "Требуется вход в систему"
 
 
+class UserNotRegistered(AppError):
+    status_code = 403
+    code = "user_not_registered"
+    message = "Вас нет в списке сотрудников. Обратитесь к администратору."
+
+
+class UserDisabled(AppError):
+    status_code = 403
+    code = "user_disabled"
+    message = "Доступ отключён. Обратитесь к администратору."
+
+
+class InvalidTelegramAuth(AppError):
+    status_code = 401
+    code = "invalid_telegram_auth"
+    message = "Не удалось подтвердить вход через Telegram."
+
+
+class InvalidLoginCode(AppError):
+    status_code = 401
+    code = "invalid_login_code"
+    message = "Код неверный или истёк. Запросите новый код в боте."
+
+
+class DevLoginDisabled(AppError):
+    status_code = 403
+    code = "dev_login_disabled"
+    message = "Dev-вход выключен."
+
+
 class Forbidden(AppError):
     status_code = 403
     code = "forbidden"
@@ -116,11 +146,14 @@ async def _app_error(_: Request, exc: AppError) -> JSONResponse:
 
 
 async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-    errors = [
-        {"loc": list(err.get("loc", [])), "message": err.get("msg", ""), "type": err.get("type", "")}
-        for err in exc.errors()
-    ]
-    return _response(422, ValidationFailed.code, ValidationFailed.message, {"errors": errors})
+    # Формат контракта: {"fields": [{"field": "reason", "message": "..."}]}. `field` — путь без "body".
+    fields = []
+    for err in exc.errors():
+        loc = [str(part) for part in err.get("loc", [])]
+        if loc and loc[0] == "body":
+            loc = loc[1:]
+        fields.append({"field": ".".join(loc) or None, "message": err.get("msg", ""), "type": err.get("type", "")})
+    return _response(422, ValidationFailed.code, ValidationFailed.message, {"fields": fields})
 
 
 async def _http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:

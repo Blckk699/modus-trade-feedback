@@ -66,7 +66,7 @@ async def test_validation_errors_use_validation_error_code(app: FastAPI, client:
     assert response.status_code == 422
     error = response.json()["error"]
     assert error["code"] == "validation_error"
-    assert error["details"]["errors"][0]["loc"] == ["path", "number"]
+    assert error["details"]["fields"][0]["field"] == "path.number"
 
 
 async def test_unexpected_errors_do_not_leak_internals(app: FastAPI) -> None:

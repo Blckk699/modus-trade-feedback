@@ -20,11 +20,13 @@ from app.adapters.bitrix import Bitrix24Gateway
 from app.adapters.claude import ClaudeClient
 from app.adapters.speech import SpeechToText
 from app.adapters.telegram import TelegramGateway
+from app.auth.service import ensure_can_login, user_by_telegram_id, user_by_token
 from app.clock import Clock
 from app.config import Settings
 from app.container import Services
 from app.db import session_scope
-from app.errors import Unauthorized
+from app.errors import Forbidden, Unauthorized
+from app.models import User
 
 
 def get_settings(request: Request) -> Settings:
@@ -105,6 +107,24 @@ def get_credentials(
 
 CredentialsDep = Annotated[Credentials, Depends(get_credentials)]
 
-# Зависимость `current_user` появляется в B-03: по `CredentialsDep` она найдёт пользователя
-# (по сессии или по Telegram ID для бота), проверит, что доступ не отключён, и вернёт его.
-# Маршруты будут объявлять её так:  user: CurrentUserDep
+
+async def get_current_user(credentials: CredentialsDep, session: SessionDep, clock: ClockDep) -> User:
+    """Пользователь запроса: по токену сессии или, для бота, по `X-Telegram-Id`.
+
+    Бот получает ровно права этого пользователя. Незаведённый — 403 `user_not_registered`,
+    отключённый — 403 `user_disabled`, нет или истекла сессия — 401.
+    """
+    if credentials.kind == "service":
+        return ensure_can_login(await user_by_telegram_id(session, credentials.telegram_id))
+    return await user_by_token(session, credentials.token, clock.now())
+
+
+def require_service(credentials: CredentialsDep) -> Credentials:
+    """Маршрут только для бота (`X-Service-Key` + `X-Telegram-Id`)."""
+    if credentials.kind != "service":
+        raise Forbidden("Это действие доступно только боту")
+    return credentials
+
+
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+ServiceCredentialsDep = Annotated[Credentials, Depends(require_service)]

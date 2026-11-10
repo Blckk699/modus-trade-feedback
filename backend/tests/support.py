@@ -47,3 +47,16 @@ class TimeMachine:
 
     async def travel_to(self, moment: datetime) -> int:
         return await self.advance(moment - self.clock.now())
+
+
+# Telegram ID демо-пользователей в тестах: 100000000 + порядковый номер в app/seed/data.py.
+def telegram_id_of(seed_key: str) -> int:
+    from app.seed import data
+
+    keys = [u.key for u in data.USERS]
+    return 100_000_001 + keys.index(seed_key)
+
+
+def bot_headers(telegram_id: int, service_key: str = "test-service-key") -> dict[str, str]:
+    """Заголовки бота, действующего от имени пользователя с этим Telegram ID."""
+    return {"X-Service-Key": service_key, "X-Telegram-Id": str(telegram_id)}
