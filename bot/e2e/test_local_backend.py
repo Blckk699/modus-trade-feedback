@@ -3,10 +3,9 @@
 Фейки только на границе: Telegram (сессия aiogram), Claude и ElevenLabs внутри бэкенда.
 """
 
-import json
 import re
+from datetime import datetime, timedelta, timezone
 
-import httpx
 import pytest
 
 from app import texts
@@ -14,6 +13,10 @@ from app.notifications import deliver_pending
 
 EMPLOYEE = "Айгерим Нурланова"  # сотрудник закупок
 STRANGER = 555_000_555
+
+
+def in_days(days: int) -> str:
+    return (datetime.now(timezone(timedelta(hours=5))) + timedelta(days=days)).isoformat(timespec="seconds")
 
 
 def as_user(telegram_id: int) -> dict[str, str]:
@@ -156,3 +159,31 @@ async def test_digest_command(bot, backend, people):
         pytest.skip("сводки в бэкенде ещё нет (B-13)")
     await bot.send_text("/digest", user_id=owner)
     assert bot.telegram.sent()[-1].text == probe.json()["text"]
+
+
+async def test_name_consent_buttons_reach_discussion(bot, backend, people):
+    author = people[EMPLOYEE]
+    number = await submit_text(bot, author, "Публиковать обзор завершённых улучшений раз в квартал")
+    appeal = await appeal_by_number(backend, author, number)
+    responsible = people[appeal["assignee"]["full_name"]]
+    await drain(bot)
+
+    # Ответственный выносит обращение на общее обсуждение (как в вебе).
+    created = await backend.post(
+        f"/api/v1/appeals/{appeal['id']}/discussion",
+        headers=as_user(responsible),
+        json={"public_text": "Публиковать раз в квартал обзор улучшений?", "deadline": in_days(7)},
+    )
+    if created.status_code == 404:
+        pytest.skip("обсуждений в бэкенде ещё нет (B-11)")
+    assert created.status_code == 201, created.text
+    discussion = created.json()
+
+    delivered = await drain(bot)
+    [request] = [m for m in delivered if m.chat_id == author and "Показывать ваше имя" in m.text]
+    await bot.press(request, "Показать имя", user_id=author)
+    assert bot.telegram.sent()[-1].text == texts.NAME_SHOWN
+
+    after = (await backend.get(f"/api/v1/discussions/{discussion['id']}", headers=as_user(author))).json()
+    assert after["author_name_consent"] == "shown"
+    assert after["author_display"] == EMPLOYEE
