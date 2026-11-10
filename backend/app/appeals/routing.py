@@ -18,6 +18,7 @@ from app.appeals.history import record
 from app.domain.business_days import add_business_days
 from app.domain.enums import AppealType, HistoryKind
 from app.models import Appeal, Category, DeadlineRule, User
+from app.notifications import service as notify
 
 DEFAULT_RULES = {"high": 1, "medium": 3, "low": 5}
 
@@ -81,6 +82,8 @@ async def assign(
         new_value=assignee.full_name if assignee else None,
         comment=reason,
     )
+    if assignee is not None:
+        await notify.appeal_assigned(session, appeal, assignee.id, actor_id, now, tz)
     if appeal.first_response_due_at is not None:
         record(
             session,
@@ -96,3 +99,5 @@ async def assign(
 async def route_new_appeal(session: AsyncSession, appeal: Appeal, now: datetime, tz: tzinfo) -> None:
     route = await choose_assignee(session, appeal.category_id)
     await assign(session, appeal, route.assignee, now, tz, actor_id=None, reason=route.reason, kind=HistoryKind.ASSIGNED)
+    if appeal.source != "bot":  # бот сам отвечает автору номером и сроком — без дубля
+        await notify.appeal_created(session, appeal, now, tz)

@@ -126,5 +126,13 @@ def require_service(credentials: CredentialsDep) -> Credentials:
     return credentials
 
 
+def require_bot_key(settings: SettingsDep, x_service_key: Annotated[str | None, Header()] = None) -> None:
+    """Служебные маршруты бота `/bot/*`: только `X-Service-Key`, без пользователя."""
+    expected = settings.bot_service_key
+    if not x_service_key or not expected or not hmac.compare_digest(x_service_key.encode(), expected.encode()):
+        raise Unauthorized("Неверный сервисный ключ")
+
+
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+BotKeyDep = Annotated[None, Depends(require_bot_key)]
 ServiceCredentialsDep = Annotated[Credentials, Depends(require_service)]
