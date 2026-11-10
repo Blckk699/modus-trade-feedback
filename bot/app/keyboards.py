@@ -11,6 +11,7 @@ from aiogram.types import (
 )
 
 from app import texts
+from app.config import Settings
 
 
 def can_see_digest(me: dict[str, Any]) -> bool:
@@ -29,3 +30,9 @@ def main_menu(me: dict[str, Any], mini_app_url: str | None) -> ReplyKeyboardMark
 def open_mini_app(text: str, url: str) -> InlineKeyboardMarkup:
     # Inline-кнопка, а не кнопка клавиатуры: только так Mini App получает initData для автовхода.
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=text, web_app=WebAppInfo(url=url))]])
+
+
+def open_analytics(settings: Settings) -> InlineKeyboardMarkup | None:
+    """Кнопка из сводки на экран аналитики в Mini App (маршрут контракта /analytics)."""
+    url = settings.mini_app_link("/analytics")
+    return open_mini_app(texts.BTN_OPEN_ANALYTICS, url) if url else None
