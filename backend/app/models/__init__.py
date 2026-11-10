@@ -3,6 +3,7 @@
 Новая модель — добавьте её импорт сюда.
 """
 
+from app.auth.models import AuthSession, LoginAttempt, LoginCode
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
 from app.models.appeals import (
@@ -23,6 +24,7 @@ __all__ = [
     "Appeal",
     "AppealParticipant",
     "Attachment",
+    "AuthSession",
     "Base",
     "BitrixTask",
     "Category",
@@ -34,6 +36,8 @@ __all__ = [
     "DuplicateSuggestion",
     "HistoryEvent",
     "Job",
+    "LoginAttempt",
+    "LoginCode",
     "Meeting",
     "MeetingDraft",
     "Message",

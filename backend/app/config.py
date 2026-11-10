@@ -62,6 +62,20 @@ class Settings(BaseSettings):
     # Как часто проверять сроки и эскалацию (B-07).
     escalation_interval_minutes: int = 10
 
+    # Вход (B-03): срок жизни сессии, одноразового кода из бота и данных Telegram (initData, Login Widget).
+    session_ttl_days: int = 30
+    login_code_ttl_seconds: int = 300
+    # initData Mini App живёт, пока открыто приложение; данные виджета — только что подписаны.
+    telegram_auth_max_age_seconds: int = 86400
+    telegram_widget_max_age_seconds: int = 600
+    # Защита кода из бота от перебора: неудачные попытки с одного IP за окно -> 429;
+    # столько неудач по всем IP за время жизни кода -> все активные коды сжигаются.
+    login_code_max_failures_per_ip: int = 5
+    login_code_failure_window_seconds: int = 900
+    login_code_burn_after_failures: int = 30
+    # Кому верить в X-Forwarded-For (Caddy). Через запятую, можно подсети.
+    trusted_proxies: str = "127.0.0.1,::1"
+
     # Фоновый воркер внутри процесса API. В тестах выключен: задачи гоняются вручную.
     jobs_worker_enabled: bool = True
     jobs_poll_seconds: float = 5.0
