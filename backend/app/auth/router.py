@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Response
+from fastapi import APIRouter, Body, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -21,7 +21,7 @@ from app.api.schemas import UserBrief
 from app.auth import service
 from app.auth.me import MeOut, build_me, user_brief
 from app.auth.telegram import verify_login_widget, verify_mini_app
-from app.errors import DevLoginDisabled, Forbidden, NotFound
+from app.errors import DevLoginDisabled, Forbidden, InvalidLoginCode, NotFound
 from app.models import User
 
 router = APIRouter(tags=["auth"])
@@ -79,15 +79,27 @@ async def login_mini_app(body: MiniAppLoginIn, session: SessionDep, clock: Clock
 
 @router.post("/auth/telegram/widget", response_model=SessionOut, summary="Вход через Telegram Login в вебе")
 async def login_widget(body: WidgetLoginIn, session: SessionDep, clock: ClockDep, settings: SettingsDep) -> SessionOut:
-    max_age = timedelta(seconds=settings.telegram_auth_max_age_seconds)
+    max_age = timedelta(seconds=settings.telegram_widget_max_age_seconds)
     telegram_id = verify_login_widget(body.model_dump(), settings.telegram_bot_token, clock.now(), max_age)
     user = service.ensure_can_login(await service.user_by_telegram_id(session, telegram_id))
     return await _session_for(session, user, "widget", clock, settings)
 
 
 @router.post("/auth/code", response_model=SessionOut, summary="Вход по одноразовому коду из бота")
-async def login_code(body: CodeLoginIn, session: SessionDep, clock: ClockDep, settings: SettingsDep) -> SessionOut:
-    user = await service.redeem_login_code(session, body.code, clock.now())
+async def login_code(
+    body: CodeLoginIn, request: Request, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> SessionOut:
+    # Адрес клиента: X-Forwarded-For учитывается только от доверенного прокси (см. create_app).
+    ip = request.client.host if request.client else "unknown"
+    now = clock.now()
+    await service.check_code_attempts(session, ip, now, settings)
+    try:
+        user = await service.redeem_login_code(session, body.code, now)
+    except InvalidLoginCode:
+        # Транзакция запроса откатится вместе с ошибкой — неудачу пишем отдельной.
+        async with request.app.state.sessionmaker() as failures, failures.begin():
+            await service.record_code_failure(failures, ip, now, settings)
+        raise
     return await _session_for(session, user, "code", clock, settings)
 
 

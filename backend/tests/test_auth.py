@@ -220,3 +220,62 @@ async def test_me_lists_assignments(client, login_as) -> None:
     assert [c["name"] for c in body["responsible_for"]] == ["Интеграции и IT", "Коммуникации"]
     assert body["assigned_open_count"] == 2  # A-007 и A-012
     assert body["telegram_id"] == telegram_id_of("employee_it"), "свой Telegram ID пользователь видит"
+
+
+# --- защита кода из бота от перебора ---------------------------------------------------------------
+
+
+def client_from(app: FastAPI, ip: str) -> httpx.AsyncClient:
+    """Клиент с другим адресом подключения (как если бы запрос пришёл не через Caddy)."""
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=(ip, 40000)), base_url="http://testserver")
+
+
+async def guess(client: httpx.AsyncClient, code: str, forwarded_for: str | None = None) -> httpx.Response:
+    headers = {"X-Forwarded-For": forwarded_for} if forwarded_for else {}
+    return await client.post("/api/v1/auth/code", json={"code": code}, headers=headers)
+
+
+async def test_too_many_wrong_codes_from_one_ip_get_429(client, demo) -> None:
+    """За доверенным прокси (127.0.0.1) адрес клиента берётся из X-Forwarded-For."""
+    code = await issue_code(client, EMPLOYEE)
+    wrong = "000000" if code != "000000" else "111111"
+    for _ in range(5):
+        assert (await guess(client, wrong, "203.0.113.5")).status_code == 401
+    blocked = await guess(client, code, "203.0.113.5")
+    assert (blocked.status_code, blocked.json()["error"]["code"]) == (429, "too_many_requests")
+    assert (await guess(client, code, "203.0.113.6")).status_code == 200, "другой адрес не заблокирован"
+
+
+async def test_forwarded_for_from_untrusted_peer_is_ignored(app, client, demo) -> None:
+    code = await issue_code(client, EMPLOYEE)
+    wrong = "000000" if code != "000000" else "111111"
+    async with client_from(app, "198.51.100.7") as outsider:
+        for i in range(5):
+            assert (await guess(outsider, wrong, f"10.0.0.{i}")).status_code == 401
+        assert (await guess(outsider, code, "10.0.0.99")).status_code == 429, "подмена X-Forwarded-For не помогает"
+
+
+async def test_distributed_guessing_burns_active_codes(app, client, demo) -> None:
+    app.state.settings.login_code_burn_after_failures = 3
+    code = await issue_code(client, EMPLOYEE)
+    wrong = "000000" if code != "000000" else "111111"
+    for i in range(3):
+        await guess(client, wrong, f"203.0.113.{i}")
+    burned = await guess(client, code, "203.0.113.50")
+    assert (burned.status_code, burned.json()["error"]["code"]) == (401, "invalid_login_code")
+    fresh = await issue_code(client, EMPLOYEE)
+    assert (await guess(client, fresh, "203.0.113.51")).status_code == 200, "новый код из бота работает"
+
+
+# --- подпись и срок виджета -------------------------------------------------------------------------
+
+
+async def test_widget_rejects_wrong_hash_and_old_data(client, demo, time_machine) -> None:
+    tid = telegram_id_of("owner")
+    wrong_hash = {**widget(tid, now_ts(time_machine)), "hash": "0" * 64}
+    stale = widget(tid, now_ts(time_machine) - 11 * 60)
+    fresh_enough = widget(tid, now_ts(time_machine) - 9 * 60)
+    for body in (wrong_hash, stale, widget(tid, now_ts(time_machine), token="999:OTHER")):
+        response = await client.post("/api/v1/auth/telegram/widget", json=body)
+        assert (response.status_code, response.json()["error"]["code"]) == (401, "invalid_telegram_auth")
+    assert (await client.post("/api/v1/auth/telegram/widget", json=fresh_enough)).status_code == 200

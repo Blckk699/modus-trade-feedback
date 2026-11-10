@@ -25,6 +25,17 @@ class AuthSession(Base):
     revoked_at: Mapped[datetime | None]
 
 
+class LoginAttempt(Base):
+    """Неудачная попытка входа по коду: по ним ограничивается перебор."""
+
+    __tablename__ = "login_attempts"
+    __table_args__ = (Index("ix_login_attempts_ip_created_at", "ip", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ip: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime]
+
+
 class LoginCode(Base):
     """Одноразовый код для входа в мобильное приложение. Хранится хешем, обменивается один раз."""
 
