@@ -7,7 +7,7 @@ import 'package:modus_api/api.dart';
 enum Section {
   myAppeals('Мои обращения', 'Обращения', Icons.inbox_outlined, Icons.inbox),
   processing('Обработка', 'Обработка', Icons.assignment_outlined, Icons.assignment),
-  feed('Обсуждения и реализованное', 'Лента', Icons.forum_outlined, Icons.forum),
+  feed('Лента реализованного', 'Лента', Icons.forum_outlined, Icons.forum),
   analytics('Сводка', 'Сводка', Icons.insights_outlined, Icons.insights),
   meetings('Совещания', 'Совещания', Icons.groups_outlined, Icons.groups),
   settings('Настройки', 'Настройки', Icons.tune_outlined, Icons.tune),
@@ -21,13 +21,15 @@ enum Section {
   final IconData selectedIcon;
 }
 
-/// Разделы, доступные пользователю, в порядке показа.
+/// Разделы, доступные пользователю, в порядке показа. Повторяет `buildNav` из
+/// `web/src/app/navigation.ts`; профиль — только в мобильном приложении.
 List<Section> sectionsFor(Me me) {
   final p = me.permissions;
   return [
     if (p.canCreateAppeal) Section.myAppeals,
-    if (p.canProcessAppeals) Section.processing,
     Section.feed,
+    if (p.canProcessAppeals || p.canViewDepartment || p.canViewAllAppeals || p.canViewUnassigned)
+      Section.processing,
     if (p.analyticsScope != PermissionsAnalyticsScopeEnum.none) Section.analytics,
     if (p.canUploadMeetings) Section.meetings,
     if (p.canManageSettings) Section.settings,
@@ -35,14 +37,15 @@ List<Section> sectionsFor(Me me) {
   ];
 }
 
-/// Стартовый экран роли: собственник и руководитель — сводка, администратор — настройки,
-/// у кого есть открытые назначенные обращения — обработка, остальные — свои обращения.
+/// Стартовый экран роли, как `startPath` в вебе: собственник и руководитель — сводка,
+/// администратор — настройки (если раздела нет — обработка, затем свои обращения),
+/// остальные — свои обращения.
 Section startSectionFor(Me me) {
   final available = sectionsFor(me);
   final preferred = switch (me.role) {
-    Role.owner || Role.head => Section.analytics,
-    Role.admin => Section.settings,
-    _ => me.assignedOpenCount > 0 ? Section.processing : Section.myAppeals,
+    Role.owner || Role.head => const [Section.analytics, Section.processing, Section.myAppeals],
+    Role.admin => const [Section.settings, Section.processing, Section.myAppeals],
+    _ => const [Section.myAppeals],
   };
-  return available.contains(preferred) ? preferred : available.first;
+  return preferred.firstWhere(available.contains, orElse: () => available.first);
 }

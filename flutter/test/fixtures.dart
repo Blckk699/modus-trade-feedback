@@ -57,7 +57,7 @@ const ownerPermissions = {
 
 const adminPermissions = {
   'can_create_appeal': true,
-  'can_process_appeals': true,
+  'can_process_appeals': false,
   'can_view_department': true,
   'can_view_all_appeals': true,
   'analytics_scope': 'company',

@@ -6,6 +6,7 @@ import 'fixtures.dart';
 
 Me me(Map<String, dynamic> json) => Me.fromJson(json)!;
 
+// Те же случаи, что в web/src/app/navigation.test.ts, плюс профиль в конце.
 void main() {
   test('сотрудник видит свои обращения, ленту и профиль', () {
     final user = me(meJson(permissions: plainEmployeePermissions));
@@ -13,19 +14,18 @@ void main() {
     expect(startSectionFor(user), Section.myAppeals);
   });
 
-  test('сотрудник-ответственный видит обработку и начинает с неё, если есть открытые', () {
+  test('сотрудник-ответственный видит обработку, но начинает со своих обращений', () {
     final user = me(meJson(assignedOpenCount: 2));
-    expect(sectionsFor(user), [Section.myAppeals, Section.processing, Section.feed, Section.profile]);
-    expect(startSectionFor(user), Section.processing);
-    expect(startSectionFor(me(meJson())), Section.myAppeals);
+    expect(sectionsFor(user), [Section.myAppeals, Section.feed, Section.processing, Section.profile]);
+    expect(startSectionFor(user), Section.myAppeals);
   });
 
   test('собственник видит обработку, сводку и совещания и начинает со сводки', () {
     final user = me(meJson(id: 1, role: 'owner', permissions: ownerPermissions));
     expect(sectionsFor(user), [
       Section.myAppeals,
-      Section.processing,
       Section.feed,
+      Section.processing,
       Section.analytics,
       Section.meetings,
       Section.profile,
@@ -33,14 +33,18 @@ void main() {
     expect(startSectionFor(user), Section.analytics);
   });
 
-  test('администратор видит настройки и начинает с них', () {
+  test('администратор без can_process_appeals видит обработку (нераспределённые) и начинает с настроек', () {
     final user = me(meJson(id: 2, role: 'admin', permissions: adminPermissions));
-    expect(sectionsFor(user), contains(Section.settings));
+    expect(user.permissions.canProcessAppeals, isFalse);
+    expect(sectionsFor(user), containsAll([Section.processing, Section.settings]));
     expect(startSectionFor(user), Section.settings);
   });
 
-  test('стартовый раздел роли без права падает на первый доступный', () {
-    final user = me(meJson(id: 3, role: 'head', permissions: plainEmployeePermissions));
-    expect(startSectionFor(user), Section.myAppeals);
+  test('руководитель без сводки начинает с обработки', () {
+    final user = me(meJson(id: 3, role: 'head', permissions: {
+      ...plainEmployeePermissions,
+      'can_view_department': true,
+    }));
+    expect(startSectionFor(user), Section.processing);
   });
 }
