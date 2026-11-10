@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from aiogram.types import CallbackQuery, Chat, Message, MessageEntity, MessageOriginChat, Update, User
+from aiogram.types import CallbackQuery, Chat, Message, MessageEntity, MessageOriginChat, Update, User, Voice
 
 from app.api import Api
 from app.config import Settings
@@ -107,6 +107,14 @@ class BotHarness:
             type="chat", date=datetime.now(), sender_chat=Chat(id=-100500, type="supergroup", title=chat_title)
         )
         await self._feed_message(user_id, text=text, forward_origin=origin)
+
+    async def send_voice(self, content: bytes, duration: int, user_id: int = 100000004) -> None:
+        file_id = f"voice{next(self._update_ids)}"
+        self.telegram.files[file_id] = content
+        voice = Voice(
+            file_id=file_id, file_unique_id=file_id, duration=duration, mime_type="audio/ogg", file_size=len(content)
+        )
+        await self._feed_message(user_id, voice=voice)
 
     async def send_reply(self, text: str, to: Any, user_id: int = 100000004) -> None:
         """Ответ свайпом на сообщение бота (SendMessage из журнала фейка)."""

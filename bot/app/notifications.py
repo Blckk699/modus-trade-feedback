@@ -97,12 +97,18 @@ async def deliver(bot: Bot, api: Api, settings: Settings, notification: dict[str
     """Отправить одно уведомление и отчитаться бэкенду. True — доставлено."""
     nid = notification["id"]
     chat_id = notification["recipient"]["telegram_id"]
+    markup = notification_keyboard(notification, settings)
     try:
-        sent = await bot.send_message(
-            chat_id=chat_id,
-            text=notification["text"],
-            reply_markup=notification_keyboard(notification, settings),
-        )
+        try:
+            sent = await bot.send_message(chat_id=chat_id, text=notification["text"], reply_markup=markup)
+        except TelegramBadRequest as exc:
+            if "can't parse entities" not in str(exc).lower():
+                raise
+            # Неэкранированный «<» в тексте: иначе уведомление вечно уходило бы в fail. Шлём простым текстом.
+            log.warning("notification %s: bad HTML, sending as plain text: %s", nid, exc)
+            sent = await bot.send_message(
+                chat_id=chat_id, text=notification["text"], reply_markup=markup, parse_mode=None
+            )
     except TelegramForbiddenError as exc:  # бот заблокирован или пользователь не начинал диалог
         await _fail(api, nid, str(exc), permanent=True)
         return False
