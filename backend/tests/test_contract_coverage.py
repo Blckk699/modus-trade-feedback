@@ -20,17 +20,6 @@ NOT_YET_IMPLEMENTED: set[tuple[str, str]] = {
     ("get", "/api/v1/appeals/{}/similar"),
     ("post", "/api/v1/duplicate-suggestions/{}/dismiss"),
     ("post", "/api/v1/appeals/{}/merge"),
-    # B-11
-    ("post", "/api/v1/appeals/{}/discussion"),
-    ("get", "/api/v1/discussions"),
-    ("get", "/api/v1/discussions/{}"),
-    ("put", "/api/v1/discussions/{}/vote"),
-    ("delete", "/api/v1/discussions/{}/vote"),
-    ("get", "/api/v1/discussions/{}/comments"),
-    ("post", "/api/v1/discussions/{}/comments"),
-    ("post", "/api/v1/discussions/{}/name-consent"),
-    ("post", "/api/v1/discussions/{}/close"),
-    ("get", "/api/v1/feed/implemented"),
     # B-12
     ("get", "/api/v1/meetings"),
     ("post", "/api/v1/meetings"),
