@@ -172,7 +172,9 @@ async def new_voice_draft(
         async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
             content = await bot.download(audio.file_id)
             filename, content_type = _audio_name(message)
-            draft = await api.draft_from_voice(message.from_user.id, filename, content.read(), content_type)
+            draft = await api.draft_from_voice(
+                message.from_user.id, filename, content.read(), content_type, duration_seconds=audio.duration
+            )
     except ApiError as exc:
         await _drop_status(bot, status)
         await _draft_failed(message, exc, settings)

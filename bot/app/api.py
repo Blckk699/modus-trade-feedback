@@ -56,11 +56,12 @@ class Api:
         json: Any = None,
         params: dict[str, Any] | None = None,
         files: dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
     ) -> Any:
         headers = {"X-Telegram-Id": str(telegram_id)} if telegram_id is not None else {}
         try:
             response = await self._http.request(
-                method, path, headers=headers, json=json, params=params, files=files
+                method, path, headers=headers, json=json, params=params, files=files, data=data
             )
         except httpx.HTTPError as exc:
             raise ApiError(0, "unavailable", UNAVAILABLE_MESSAGE) from exc
@@ -85,10 +86,17 @@ class Api:
         return await self.request("POST", "/api/v1/drafts/text", telegram_id=telegram_id, json=body)
 
     async def draft_from_voice(
-        self, telegram_id: int, filename: str, content: bytes, content_type: str
+        self,
+        telegram_id: int,
+        filename: str,
+        content: bytes,
+        content_type: str,
+        duration_seconds: int | None = None,
     ) -> dict[str, Any]:
         files = {"file": (filename, content, content_type)}
-        return await self.request("POST", "/api/v1/drafts/voice", telegram_id=telegram_id, files=files)
+        # Длительность из Telegram: по ней бэкенд отсекает аудио длиннее 5 минут (audio_too_long).
+        data = {"duration_seconds": str(duration_seconds)} if duration_seconds is not None else None
+        return await self.request("POST", "/api/v1/drafts/voice", telegram_id=telegram_id, files=files, data=data)
 
     async def create_appeal(self, telegram_id: int, body: dict[str, Any]) -> dict[str, Any]:
         return await self.request("POST", "/api/v1/appeals", telegram_id=telegram_id, json=body)

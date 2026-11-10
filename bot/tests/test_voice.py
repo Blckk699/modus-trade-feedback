@@ -38,6 +38,7 @@ async def test_voice_is_sent_for_transcription_and_shows_draft_with_transcript(h
     assert request.headers["Content-Type"].startswith("multipart/form-data")
     assert b'name="file"; filename="voice.ogg"' in request.content
     assert b"OggS-fake-audio" in request.content
+    assert b'name="duration_seconds"\r\n\r\n12\r\n' in request.content
 
     status, card = harness.telegram.sent()
     assert status.text == texts.VOICE_PROCESSING  # индикатор, пока идёт расшифровка
