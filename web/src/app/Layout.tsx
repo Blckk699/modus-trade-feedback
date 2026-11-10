@@ -33,7 +33,7 @@ export function Layout() {
         )}
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn theme-toggle"
           onClick={theme.next}
           title={themeLabel[theme.choice]}
           aria-label={themeLabel[theme.choice]}
