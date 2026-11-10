@@ -52,6 +52,14 @@ class SessionController extends ChangeNotifier {
       _set(SessionStatus.signedOut);
       return;
     }
+    // Токен выдан другим сервером (например, сборку переключили с мока на реальный адрес) —
+    // он здесь не действует, входим заново. На iOS токен в Keychain переживает переустановку,
+    // а настройки — нет: токен без записанного сервера тоже считаем чужим.
+    final tokenServer = await store.readTokenServer();
+    if (tokenServer != api.baseUrl) {
+      await _clear();
+      return;
+    }
     api.token = token;
     await refreshMe();
   }
@@ -158,6 +166,7 @@ class SessionController extends ChangeNotifier {
     }
     api.token = session.accessToken;
     await store.writeToken(session.accessToken);
+    await store.writeTokenServer(api.baseUrl);
     _me = session.user;
     _offlineError = null;
     await _loadDictionaries();
@@ -176,6 +185,7 @@ class SessionController extends ChangeNotifier {
   Future<void> _clear() async {
     api.token = null;
     await store.writeToken(null);
+    await store.writeTokenServer(null);
     _me = null;
     _set(SessionStatus.signedOut);
   }
