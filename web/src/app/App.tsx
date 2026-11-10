@@ -7,6 +7,7 @@ import { MyAppealsPage } from '../pages/MyAppealsPage';
 import { NewAppealPage } from '../pages/NewAppealPage';
 import { QueuePage } from '../pages/QueuePage';
 import { SectionPage } from '../pages/SectionPage';
+import { SettingsPage } from '../settings/SettingsPage';
 import { MiniAppShell } from '../telegram/MiniAppShell';
 import { Layout } from './Layout';
 import { buildNav, startPath, type NavId } from './navigation';
@@ -17,6 +18,7 @@ const PAGES: Partial<Record<NavId, ReactNode>> = {
   my: <MyAppealsPage />,
   queue: <QueuePage />,
   digest: <DigestPage />,
+  settings: <SettingsPage />,
 };
 
 const SECTIONS: Record<NavId, { title: string; lead: string }> = {
