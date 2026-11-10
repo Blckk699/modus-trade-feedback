@@ -3,6 +3,7 @@ import { useAuth, useMe } from '../auth';
 import { useDictionaries } from './dictionaries';
 import { buildNav } from './navigation';
 import { themeLabel, useTheme } from './theme';
+import { useUnread } from './unread';
 
 const themeIcon = { system: '◐', light: '☀', dark: '☾' } as const;
 
@@ -12,6 +13,7 @@ export function Layout() {
   const dict = useDictionaries();
   const theme = useTheme();
   const nav = buildNav(me);
+  const unread = useUnread();
 
   return (
     <div className="shell">
@@ -24,6 +26,11 @@ export function Layout() {
             {me.department ? ` · ${me.department.name}` : ''}
           </span>
         </div>
+        {unread.count > 0 && (
+          <span className="unread" title="Непрочитанные уведомления" aria-label={`Непрочитанных: ${unread.count}`}>
+            {unread.count > 99 ? '99+' : unread.count}
+          </span>
+        )}
         <button
           type="button"
           className="icon-btn"
