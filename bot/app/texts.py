@@ -40,8 +40,9 @@ def greeting(first_name: str, has_mini_app: bool) -> str:
         "",
         f"«{BTN_LOGIN_CODE}» — одноразовый код для входа в мобильное приложение «{APP_NAME}».",
     ]
+    lines.append(f"«{BTN_MY_APPEALS}» — номера и статусы ваших обращений.")
     if has_mini_app:
-        lines.append(f"«{BTN_MY_APPEALS}» и кнопка «{BTN_OPEN_APP}» открывают приложение прямо в Telegram.")
+        lines.append(f"Кнопка «{BTN_OPEN_APP}» открывает приложение прямо в Telegram.")
     return "\n".join(lines)
 
 
@@ -50,7 +51,6 @@ SUBMIT_HINT = (
     "или перешлите сообщение из рабочего чата. Я подготовлю черновик обращения, вы проверите и отправите."
 )
 
-MY_APPEALS = "Ваши обращения, их статусы и ответы — в приложении."
 MY_APPEALS_BUTTON = "Открыть мои обращения"
 
 
@@ -63,7 +63,6 @@ def login_code(code: str, ttl_seconds: int) -> str:
 
 
 USE_MENU = "Выберите действие в меню ниже."
-MINI_APP_NOT_CONFIGURED = "Приложение в Telegram пока не подключено. Обращения можно подавать прямо здесь, в чате."
 
 # ---- черновик обращения (T-02)
 BTN_DRAFT_SEND = "✅ Отправить"
@@ -85,3 +84,17 @@ DRAFT_CANCELLED = "Черновик отменён."
 NEED_TEXT = "Пришлите обращение текстом или перешлите текстовое сообщение."
 CANNOT_CREATE = "Подача обращений вам недоступна."
 FORM_ELSEWHERE = "Форма есть в веб-версии и в мобильном приложении «Модус Трейд»."
+
+# ---- уведомления (T-04)
+BTN_OPEN_APPEAL = "Открыть обращение"
+NAME_SHOWN = "Готово: в обсуждении будет указано ваше имя."
+NAME_HIDDEN = "Готово: в обсуждении будет указано только подразделение."
+MY_APPEALS_EMPTY = "У вас пока нет обращений. Опишите проблему или предложение одним сообщением."
+
+
+def ask_clarification(number: str) -> str:
+    return f"Напишите ответ по обращению <b>{number}</b> одним сообщением — он попадёт в переписку с ответственным."
+
+
+def clarification_sent(number: str) -> str:
+    return f"Ответ по обращению <b>{number}</b> отправлен ответственному."

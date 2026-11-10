@@ -23,6 +23,7 @@ async def test_start_greets_employee_and_shows_menu(harness):
     [reply] = harness.telegram.sent()
     assert "Здравствуйте, Айгерим!" in reply.text
     assert buttons(reply.reply_markup) == [texts.BTN_SUBMIT, texts.BTN_MY_APPEALS, texts.BTN_LOGIN_CODE]
+    assert harness.backend.calls("GET", "/api/v1/appeals") == []
 
 
 async def test_digest_button_only_for_those_with_analytics(harness):
@@ -97,14 +98,38 @@ async def test_start_sets_chat_menu_button_to_mini_app(harness):
     assert menu.menu_button.web_app.url == MINI_APP_URL
 
 
-async def test_my_appeals_opens_mini_app_with_inline_button(harness):
+async def test_my_appeals_lists_numbers_and_statuses(harness):
     harness.backend.on("GET", "/api/v1/me", 200, employee(USER))
+    harness.backend.on("GET", "/api/v1/dictionaries", 200, {"statuses": [{"code": "new", "label": "Новое"}, {"code": "in_review", "label": "На рассмотрении"}]})
+    harness.backend.on("GET", "/api/v1/appeals", 200, {
+        "items": [
+            {"id": 21, "number": "A-021", "status": "new", "summary": "Нет назначения в заявках"},
+            {"id": 5, "number": "A-005", "status": "in_review", "summary": None},
+        ],
+        "total": 12, "page": 1, "page_size": 10,
+    })
 
     await harness.send_text(texts.BTN_MY_APPEALS)
 
+    [request] = harness.backend.calls("GET", "/api/v1/appeals")
+    assert request.url.params["scope"] == "mine"
     [reply] = harness.telegram.sent()
+    assert "<b>A-021</b> · Новое" in reply.text
+    assert "Нет назначения в заявках" in reply.text
+    assert "<b>A-005</b> · На рассмотрении" in reply.text
+    assert "2 из 12" in reply.text
     [[button]] = reply.reply_markup.inline_keyboard
-    assert button.web_app.url == MINI_APP_URL
+    assert button.web_app.url == MINI_APP_URL + "/my"
+
+
+async def test_my_appeals_empty(harness):
+    harness.backend.on("GET", "/api/v1/me", 200, employee(USER))
+    harness.backend.on("GET", "/api/v1/dictionaries", 200, {"statuses": []})
+    harness.backend.on("GET", "/api/v1/appeals", 200, {"items": [], "total": 0, "page": 1, "page_size": 10})
+
+    await harness.send_text("/appeals")
+
+    assert harness.telegram.sent()[0].text == texts.MY_APPEALS_EMPTY
 
 
 async def test_without_mini_app_url_no_mini_app_buttons(harness_without_mini_app):
@@ -114,7 +139,7 @@ async def test_without_mini_app_url_no_mini_app_buttons(harness_without_mini_app
     await h.send_text("/start")
 
     [reply] = h.telegram.sent()
-    assert texts.BTN_MY_APPEALS not in buttons(reply.reply_markup)
+    assert "Открыть" not in reply.text
     assert not [c for c in h.telegram.calls if isinstance(c, SetChatMenuButton)]
 
 
