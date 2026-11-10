@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'session/session_controller.dart';
 import 'ui/home/home_shell.dart';
+import 'ui/home/unread_scope.dart';
 import 'ui/login/login_screen.dart';
 import 'ui/offline_screen.dart';
 
@@ -38,6 +39,7 @@ class ModusApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.light),
         darkTheme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.dark),
+        builder: (context, child) => UnreadHost(child: child!),
         home: const _Root(),
       ),
     );

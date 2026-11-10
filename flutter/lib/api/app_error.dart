@@ -8,12 +8,15 @@ import 'package:modus_api/api.dart';
 /// Ошибка API в формате контракта: `{"error": {"code", "message", "details"}}`.
 /// `message` показываем пользователю как есть, ветвимся только по `code`.
 class AppError implements Exception {
-  const AppError({required this.code, required this.message, this.status});
+  const AppError({required this.code, required this.message, this.status, this.fields = const {}});
 
   /// Код из `ErrorCode` контракта или `network`, если сервер недоступен.
   final String code;
   final String message;
   final int? status;
+
+  /// Ошибки полей из `422 validation_error`: `details.fields[{field, message}]`, ключ без `body.`.
+  final Map<String, String> fields;
 
   static const network = 'network';
 
@@ -33,7 +36,7 @@ class AppError implements Exception {
       if (error.innerException != null) return networkError;
       final parsed = _parseBody(error.message);
       if (parsed != null) {
-        return AppError(code: parsed.$1, message: parsed.$2, status: error.code);
+        return AppError(code: parsed.$1, message: parsed.$2, status: error.code, fields: parsed.$3);
       }
       return AppError(
         code: 'internal_error',
@@ -47,13 +50,23 @@ class AppError implements Exception {
     );
   }
 
-  static (String, String)? _parseBody(String? body) {
+  static (String, String, Map<String, String>)? _parseBody(String? body) {
     if (body == null || body.isEmpty) return null;
     try {
       final json = jsonDecode(body);
       final error = json is Map ? json['error'] : null;
       if (error is Map && error['code'] is String && error['message'] is String) {
-        return (error['code'] as String, error['message'] as String);
+        final fields = <String, String>{};
+        final details = error['details'];
+        final list = details is Map ? details['fields'] : null;
+        if (list is List) {
+          for (final f in list) {
+            if (f is Map && f['field'] is String && f['message'] is String) {
+              fields[(f['field'] as String).replaceFirst(RegExp(r'^body\.'), '')] = f['message'] as String;
+            }
+          }
+        }
+        return (error['code'] as String, error['message'] as String, fields);
       }
     } on FormatException {
       return null;

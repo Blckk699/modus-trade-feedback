@@ -117,6 +117,20 @@ class SessionController extends ChangeNotifier {
   /// Подпись роли из справочника, например «Руководитель подразделения».
   String roleLabel(Role role) => _label(_dictionaries?.roles, role.toJson());
 
+  String typeLabel(AppealType type) => _label(_dictionaries?.appealTypes, type.toJson());
+
+  String priorityLabel(Priority priority) => _label(_dictionaries?.priorities, priority.toJson());
+
+  String statusLabel(AppealStatus status) => statusCodeLabel(status.toJson());
+
+  /// Для истории событий: там статус приходит строкой.
+  String statusCodeLabel(String code) {
+    for (final item in _dictionaries?.statuses ?? const <DictionariesStatusesInner>[]) {
+      if (item.code == code) return item.label;
+    }
+    return code;
+  }
+
   String _label(List<LabeledCode>? items, String code) {
     for (final item in items ?? const <LabeledCode>[]) {
       if (item.code == code) return item.label;
