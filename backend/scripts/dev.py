@@ -34,6 +34,10 @@ def main(argv: list[str]) -> int:
     code = subprocess.call(["alembic", "upgrade", "head"], env=env, cwd=BACKEND)
     if code:
         return code
+    # Демо-данные в пустую базу; сброс к исходному состоянию: scripts/dev.py python -m app.seed reset
+    code = subprocess.call([sys.executable, "-m", "app.seed", "init"], env=env, cwd=BACKEND)
+    if code:
+        return code
     try:
         return subprocess.call(
             ["uvicorn", "--factory", "app.main:create_app", "--reload", "--host", "127.0.0.1", "--port", "8000"],

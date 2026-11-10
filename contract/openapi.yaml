@@ -5202,45 +5202,6 @@ components:
             open_count: 2
             overdue_count: 0
             avg_first_response_hours: 6.5
-    NotificationStatusExample:
-      value:
-        id: 901
-        kind: status_changed
-        text: "Обращение <b>A-017</b> отклонено.\nПричина: сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса."
-        appeal: {id: 17, number: A-017, summary: Зона для коротких перерывов рядом с рабочими помещениями, status: rejected, type: suggestion}
-        path: /appeals/17
-        buttons:
-          - {type: open_appeal, text: Открыть обращение, appeal_id: 17, discussion_id: null}
-        is_read: false
-        created_at: '2026-10-29T16:00:00+05:00'
-    BotNotificationClarificationExample:
-      value:
-        id: 905
-        kind: clarification_requested
-        text: "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?"
-        appeal: {id: 5, number: A-005, summary: 'Не видно, на каком этапе пакет документов', status: awaiting_info, type: problem}
-        path: /appeals/5
-        buttons:
-          - {type: reply_clarification, text: Ответить, appeal_id: 5, discussion_id: null}
-          - {type: open_appeal, text: Открыть обращение, appeal_id: 5, discussion_id: null}
-        is_read: false
-        created_at: '2026-11-09T12:40:00+05:00'
-        recipient: {user_id: 6, telegram_id: 100000006}
-        attempts: 0
-    BotNotificationConsentExample:
-      value:
-        id: 906
-        kind: name_consent_request
-        text: "Ваше обращение <b>A-020</b> вынесено на общее обсуждение.\nПоказывать ваше имя? Без согласия будет указано только подразделение."
-        appeal: {id: 20, number: A-020, summary: Публиковать обзор завершённых внутренних улучшений, status: in_review, type: suggestion}
-        path: /discussions/12
-        buttons:
-          - {type: name_consent_show, text: Показать имя, appeal_id: 20, discussion_id: 12}
-          - {type: name_consent_hide, text: Скрыть, appeal_id: 20, discussion_id: 12}
-        is_read: false
-        created_at: '2026-11-10T13:00:00+05:00'
-        recipient: {user_id: 4, telegram_id: 100000004}
-        attempts: 0
     DepartmentsExample:
       value:
         - {id: 1, name: Закупки, head: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}}
