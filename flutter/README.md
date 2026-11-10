@@ -20,6 +20,17 @@ flutter run --dart-define=API_BASE_URL=https://<адрес сервера>
 
 Адрес — хост без `/api/v1`. При смене сервера сессия закрывается.
 
+## Сборки для демо
+
+```bash
+flutter/tool/build_demo.sh                 # сервер https://modus.systm.kz
+flutter/tool/build_demo.sh https://другой  # другой адрес
+```
+
+- **Android**: подписанный release APK `build/app/outputs/flutter-apk/app-release.apk`. Ключ подписи хранится вне репозитория, Gradle берёт его из `android/key.properties` (файл в `.gitignore`: `storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Без этого файла APK подписывается отладочным ключом.
+- **iOS**: сборка для симулятора `build/ios/iphonesimulator/Runner.app` (release для симулятора Flutter не собирает).
+- Адрес сервера зашивается при сборке (`API_BASE_URL`), в приложении его можно поменять на экране «Сервер». Токен, выданный другим сервером, при запуске сбрасывается.
+
 ## Клиент API
 
 `packages/modus_api` сгенерирован из `contract/openapi.yaml` генератором `openapi-generator` (`dart`).

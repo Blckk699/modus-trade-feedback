@@ -21,7 +21,7 @@ Future<SessionController> signedIn(FakeServer server) async {
   server.routes['GET /api/v1/dictionaries'] = (_) => json(dictionariesJson);
   final session = SessionController(
     api: ApiService(baseUrl: 'http://mock.test', httpClient: server.client),
-    store: MemorySessionStore(serverUrl: 'http://mock.test', token: 'token'),
+    store: MemorySessionStore(serverUrl: 'http://mock.test', token: 'token', tokenServer: 'http://mock.test'),
   );
   await session.restore();
   return session;
