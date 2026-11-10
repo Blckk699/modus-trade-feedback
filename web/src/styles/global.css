@@ -1044,3 +1044,68 @@ textarea.input {
   align-items: baseline;
   gap: 6px 10px;
 }
+
+/* ---------- обсуждения и лента (W-05) */
+.field--narrow {
+  max-width: 240px;
+}
+
+.discussion {
+  display: grid;
+  gap: 14px;
+}
+
+.vote-score {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vote-score__bar {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: block;
+}
+
+.vote-score__for {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-right: 2px solid var(--surface);
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.feed__item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.feed__pair {
+  display: grid;
+  gap: 2px 0;
+  margin: 0;
+}
+
+.feed__pair dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.feed__pair dd {
+  margin: 0 0 6px;
+}
