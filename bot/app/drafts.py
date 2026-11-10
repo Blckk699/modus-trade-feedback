@@ -10,6 +10,7 @@ import secrets
 from typing import Any
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
@@ -25,6 +26,8 @@ from aiogram.types import (
     MessageOriginUser,
 )
 
+from aiogram.utils.chat_action import ChatActionSender
+
 from app import formatting, keyboards, texts
 from app.api import Api, ApiError
 from app.config import Settings
@@ -34,6 +37,9 @@ log = logging.getLogger(__name__)
 DRAFT_KEY = "draft"
 CARD_KEY = "card_message_id"
 VERSION_KEY = "draft_version"
+
+MAX_VOICE_SECONDS = 5 * 60  # как у бэкенда (422 audio_too_long)
+MAX_TELEGRAM_DOWNLOAD = 20 * 1024 * 1024  # Bot API отдаёт ботам файлы до 20 МБ
 
 EDITABLE_TEXT_FIELDS = {"text": texts.ASK_NEW_TEXT, "summary": texts.ASK_NEW_SUMMARY}
 
@@ -137,18 +143,71 @@ async def new_draft(message: Message, bot: Bot, state: FSMContext, api: Api, me:
         await message.answer(texts.NEED_TEXT)
         return
     origin = forwarded_from(message)
-    await bot.send_chat_action(message.chat.id, "typing")
     try:
-        draft = await api.draft_from_text(message.from_user.id, text, origin)
+        async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+            draft = await api.draft_from_text(message.from_user.id, text, origin)
     except ApiError as exc:
-        markup = _ai_unavailable_markup(settings) if exc.code == "ai_unavailable" else None
-        message_text = html.escape(exc.message)
-        if exc.code == "ai_unavailable" and markup is None:
-            message_text += "\n\n" + texts.FORM_ELSEWHERE
-        await message.answer(message_text, reply_markup=markup)
+        await _draft_failed(message, exc, settings)
         return
     draft["forwarded_from"] = origin
     await _show_card(message, bot, state, api, draft)
+
+
+async def new_voice_draft(
+    message: Message, bot: Bot, state: FSMContext, api: Api, me: dict[str, Any], settings: Settings
+) -> None:
+    """T-03: голосовое → POST /drafts/voice (расшифровка + черновик) → та же карточка, что для текста."""
+    if not me.get("permissions", {}).get("can_create_appeal", False):
+        await message.answer(texts.CANNOT_CREATE)
+        return
+    audio = message.voice or message.audio
+    if audio.duration and audio.duration > MAX_VOICE_SECONDS:
+        await message.answer(texts.VOICE_TOO_LONG)
+        return
+    if audio.file_size and audio.file_size > MAX_TELEGRAM_DOWNLOAD:
+        await message.answer(texts.VOICE_FILE_TOO_BIG)
+        return
+    status = await message.answer(texts.VOICE_PROCESSING)
+    try:
+        async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+            content = await bot.download(audio.file_id)
+            filename, content_type = _audio_name(message)
+            draft = await api.draft_from_voice(message.from_user.id, filename, content.read(), content_type)
+    except ApiError as exc:
+        await _drop_status(bot, status)
+        await _draft_failed(message, exc, settings)
+        return
+    except TelegramAPIError:
+        log.warning("voice download failed", exc_info=True)
+        await _drop_status(bot, status)
+        await message.answer(texts.VOICE_DOWNLOAD_FAILED)
+        return
+    await _drop_status(bot, status)
+    draft["forwarded_from"] = forwarded_from(message)
+    await _show_card(message, bot, state, api, draft)
+
+
+def _audio_name(message: Message) -> tuple[str, str]:
+    if message.voice:
+        return "voice.ogg", message.voice.mime_type or "audio/ogg"
+    audio = message.audio
+    return audio.file_name or "audio", audio.mime_type or "application/octet-stream"
+
+
+async def _drop_status(bot: Bot, status: Message) -> None:
+    try:
+        await bot.delete_message(chat_id=status.chat.id, message_id=status.message_id)
+    except TelegramAPIError:
+        log.debug("status message not deleted", exc_info=True)
+
+
+async def _draft_failed(message: Message, exc: ApiError, settings: Settings) -> None:
+    """Ошибка разбора: текст из API; при недоступном AI — кнопка формы в Mini App."""
+    markup = _ai_unavailable_markup(settings) if exc.code == "ai_unavailable" else None
+    message_text = html.escape(exc.message)
+    if exc.code == "ai_unavailable" and markup is None:
+        message_text += "\n\n" + texts.FORM_ELSEWHERE
+    await message.answer(message_text, reply_markup=markup)
 
 
 async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api) -> None:
@@ -267,6 +326,7 @@ async def _send(callback: CallbackQuery, state: FSMContext, api: Api, draft: dic
 def build_router() -> Router:
     router = Router(name="drafts")
     router.message.register(edited_field, StateFilter(DraftEdit.text, DraftEdit.summary), F.text)
+    router.message.register(new_voice_draft, F.voice | F.audio)
     router.message.register(new_draft, F.text | F.caption, ~F.text.startswith("/"))
     router.callback_query.register(on_draft_button, DraftCb.filter())
     return router

@@ -55,10 +55,13 @@ class Api:
         telegram_id: int | None = None,
         json: Any = None,
         params: dict[str, Any] | None = None,
+        files: dict[str, Any] | None = None,
     ) -> Any:
         headers = {"X-Telegram-Id": str(telegram_id)} if telegram_id is not None else {}
         try:
-            response = await self._http.request(method, path, headers=headers, json=json, params=params)
+            response = await self._http.request(
+                method, path, headers=headers, json=json, params=params, files=files
+            )
         except httpx.HTTPError as exc:
             raise ApiError(0, "unavailable", UNAVAILABLE_MESSAGE) from exc
         if response.is_success:
@@ -80,6 +83,12 @@ class Api:
     async def draft_from_text(self, telegram_id: int, text: str, forwarded_from: str | None) -> dict[str, Any]:
         body = {"text": text, "forwarded_from": forwarded_from}
         return await self.request("POST", "/api/v1/drafts/text", telegram_id=telegram_id, json=body)
+
+    async def draft_from_voice(
+        self, telegram_id: int, filename: str, content: bytes, content_type: str
+    ) -> dict[str, Any]:
+        files = {"file": (filename, content, content_type)}
+        return await self.request("POST", "/api/v1/drafts/voice", telegram_id=telegram_id, files=files)
 
     async def create_appeal(self, telegram_id: int, body: dict[str, Any]) -> dict[str, Any]:
         return await self.request("POST", "/api/v1/appeals", telegram_id=telegram_id, json=body)

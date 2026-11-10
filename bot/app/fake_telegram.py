@@ -6,8 +6,8 @@ from typing import Any
 
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import SendMessage, TelegramMethod
-from aiogram.types import Chat, InlineKeyboardMarkup, Message
+from aiogram.methods import GetFile, SendMessage, TelegramMethod
+from aiogram.types import Chat, File, InlineKeyboardMarkup, Message
 
 
 class FakeTelegram(BaseSession):
@@ -20,11 +20,16 @@ class FakeTelegram(BaseSession):
         self._message_ids: dict[int, int] = {}  # id(SendMessage) → message_id
         # chat_id → фабрика исключения: так тест изображает заблокированного пользователя или сбой сети
         self.errors: dict[int, Any] = {}
+        self.files: dict[str, bytes] = {}  # file_id → содержимое для getFile и скачивания
 
     async def make_request(self, bot: Bot, method: TelegramMethod, timeout: int | None = None) -> Any:
         self.calls.append(method)
+        if isinstance(method, GetFile):
+            return File(file_id=method.file_id, file_unique_id=method.file_id, file_path=f"files/{method.file_id}")
         if isinstance(method, SendMessage) and method.chat_id in self.errors:
-            raise self.errors[method.chat_id](method)
+            error = self.errors[method.chat_id](method)
+            if error is not None:
+                raise error
         if isinstance(method, SendMessage):
             message_id = next(self._ids)
             self._message_ids[id(method)] = message_id
@@ -40,8 +45,8 @@ class FakeTelegram(BaseSession):
     async def close(self) -> None:
         pass
 
-    async def stream_content(self, *args, **kwargs):  # pragma: no cover
-        yield b""
+    async def stream_content(self, url: str, *args, **kwargs):
+        yield self.files[url.rsplit("/", 1)[-1]]
 
     def sent(self) -> list[SendMessage]:
         return [c for c in self.calls if isinstance(c, SendMessage)]
