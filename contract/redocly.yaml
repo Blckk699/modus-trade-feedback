@@ -1,0 +1,10 @@
+extends:
+  - recommended
+rules:
+  # Примеры проверяет scripts/check_examples.py: Redocly неверно трактует nullable рядом с allOf (OpenAPI 3.0).
+  no-invalid-media-type-examples: off
+  # Мок и локальный бэкенд живут на localhost — это намеренно.
+  no-server-example.com: off
+  info-license: off
+  operation-4xx-response: off
+  no-unused-components: off
