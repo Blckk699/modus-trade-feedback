@@ -56,6 +56,8 @@ function AuthGate() {
           ))}
           {state.me.permissions.can_create_appeal && <Route path="/my/new" element={<NewAppealPage />} />}
           <Route path="/appeals/:id" element={<AppealPage />} />
+          {/* Ссылки из уведомлений бота (Notification.path) ведут на /analytics, у веба сводка — /digest. */}
+          <Route path="/analytics" element={<Navigate to="/digest" replace />} />
           <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
         </Route>
       </Routes>

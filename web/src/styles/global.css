@@ -802,3 +802,8 @@ textarea.input {
     max-width: 100%;
   }
 }
+
+/* В Mini App цвета задаёт Telegram (src/telegram), переключатель темы там не нужен. */
+[data-telegram] .theme-toggle {
+  display: none;
+}
