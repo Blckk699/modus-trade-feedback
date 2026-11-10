@@ -95,13 +95,16 @@ class Extras:
     merged_into: dict[int, Appeal]
     discussions: dict[int, Discussion]
     bitrix: dict[int, BitrixTask]
+    # Подразделения, которыми руководит пользователь (Department.head_id).
+    headed: set[int]
 
     @classmethod
     async def load(cls, session: AsyncSession, user: User, appeals: Iterable[Appeal]) -> Extras:
         appeals = list(appeals)
         ids = [a.id for a in appeals]
+        headed = set((await session.execute(select(Department.id).where(Department.head_id == user.id))).scalars())
         if not ids:
-            return cls({}, set(), set(), {}, {}, {})
+            return cls({}, set(), set(), {}, {}, {}, headed)
         counts = dict(
             (
                 await session.execute(
@@ -137,7 +140,7 @@ class Extras:
         bitrix = {
             b.appeal_id: b for b in (await session.execute(select(BitrixTask).where(BitrixTask.appeal_id.in_(ids)))).scalars()
         }
-        return cls({k: v for k, v in counts.items()}, mine, unread, merged, discussions, bitrix)
+        return cls({k: v for k, v in counts.items()}, mine, unread, merged, discussions, bitrix, headed)
 
 
 def facts(appeal: Appeal, directory: Directory, extras: Extras) -> policy.AppealFacts:
@@ -148,6 +151,7 @@ def facts(appeal: Appeal, directory: Directory, extras: Extras) -> policy.Appeal
         status=AppealStatus(appeal.status),
         type=AppealType(appeal.type),
         is_participant=appeal.id in extras.my_participation,
+        viewer_heads_department=directory.appeal_department_id(appeal) in extras.headed,
         has_discussion=appeal.id in extras.discussions,
         has_bitrix_task=appeal.id in extras.bitrix,
     )

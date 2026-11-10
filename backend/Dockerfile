@@ -23,4 +23,4 @@ EXPOSE 8000
 
 # При каждом старте: миграции, демо-данные в пустую базу (непустую не трогает), затем API.
 # Файл аккаунтов с Telegram ID — через SEED_ACCOUNTS_FILE и volume, в образ он не попадает.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.seed init && exec uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "alembic upgrade head && python -m app.seed init && exec uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8000 --no-proxy-headers"]

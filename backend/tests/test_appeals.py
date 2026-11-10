@@ -10,8 +10,9 @@ from __future__ import annotations
 import httpx
 import pytest
 from fastapi import FastAPI
+from sqlalchemy import update
 
-from app.models import AppealParticipant
+from app.models import AppealParticipant, Department
 from tests.support import bot_headers, telegram_id_of
 
 FORM = {
@@ -252,3 +253,43 @@ async def test_dictionaries_for_form(client, login_as) -> None:
     assert all(u["telegram_id"] is None for u in users), "чужой Telegram ID скрыт"
     admin_view = (await client.get("/api/v1/users", headers=await login_as("admin"), params={"department_id": 1})).json()
     assert all(u["telegram_id"] for u in admin_view)
+
+
+# --- правки по ревью ---------------------------------------------------------------------------------
+
+
+async def test_participant_search_does_not_match_hidden_text(app: FastAPI, client, login_as, clock) -> None:
+    """Участник повтора находит основное обращение по номеру и сути, но не по скрытому тексту."""
+    async with app.state.sessionmaker() as session, session.begin():
+        session.add(AppealParticipant(appeal_id=3, user_id=8, added_at=clock.now()))
+    participant = await login_as("employee_sales")
+    assert "A-003" not in await numbers(client, participant, q="спецификации"), "слово только в тексте A-003"
+    assert "A-003" in await numbers(client, participant, q="обозначения")
+    assert "A-003" in await numbers(client, participant, q="A-003")
+    assert "A-003" in await numbers(client, await login_as("owner"), q="спецификации")
+
+
+@pytest.mark.parametrize("who", ["head_design", "owner"])
+async def test_head_and_owner_can_attach_files(app, client, login_as, tmp_path, who) -> None:
+    """A-003: ответственный — Алия Сапарова, руководитель подразделения — Нурлан Беков."""
+    app.state.settings.attachments_dir = str(tmp_path)
+    response = await client.post("/api/v1/appeals/3/attachments", headers=await login_as(who), files={"file": ("план.pdf", b"%PDF")})
+    assert response.status_code == 201, response.text
+    card = (await client.get("/api/v1/appeals/3", headers=await login_as(who))).json()
+    assert "upload_attachment" in card["allowed_actions"]
+
+
+async def test_head_zone_follows_department_head_not_role(app, client, login_as) -> None:
+    """Зона руководителя — подразделения, где он записан руководителем (Department.head_id)."""
+    async with app.state.sessionmaker() as session, session.begin():
+        await session.execute(update(Department).where(Department.id == 4).values(head_id=7))  # Проектирование -> Тимур Абенов
+
+    new_head = await login_as("head_sales")
+    assert "A-003" in await numbers(client, new_head)
+    assert "A-003" in await numbers(client, new_head, scope="department")
+
+    former = await login_as("head_design")
+    assert await numbers(client, former) == ["A-014"], "осталось только то, где он ответственный"
+    assert (await client.get("/api/v1/appeals", headers=former, params={"scope": "department"})).status_code == 403
+    me = (await client.get("/api/v1/me", headers=former)).json()
+    assert me["permissions"]["can_view_department"] is False and me["permissions"]["analytics_scope"] == "none"
