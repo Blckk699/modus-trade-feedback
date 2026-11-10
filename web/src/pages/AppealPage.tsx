@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { ApiError } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { useUnread } from '../app/unread';
+import { ActionsPanel } from '../appeals/ActionsPanel';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { HistorySection } from '../appeals/HistorySection';
@@ -43,18 +44,26 @@ export function AppealPage() {
     );
   }
 
-  return <AppealCard appeal={s.data} onChanged={appeal.reload} />;
+  return <AppealCard appeal={s.data} onChanged={appeal.reload} onUpdated={appeal.set} />;
 }
 
+/** Назад туда, откуда пришли: в очередь или в свои обращения. */
 function BackLink() {
+  const from = (useLocation().state as { from?: string } | null)?.from;
   return (
-    <Link to="/my" className="back-link">
-      ← Мои обращения
+    <Link to={from === '/queue' ? '/queue' : '/my'} className="back-link">
+      {from === '/queue' ? '← Обработка' : '← Мои обращения'}
     </Link>
   );
 }
 
-function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () => void }) {
+interface CardProps {
+  appeal: Appeal;
+  onChanged: () => void;
+  onUpdated: (a: Appeal) => void;
+}
+
+function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const dict = useDictionaries();
   const participant = a.access === 'participant';
 
@@ -81,6 +90,8 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
 
       <Outcome appeal={a} />
 
+      <ActionsPanel appeal={a} onUpdated={onUpdated} />
+
       <dl className="facts">
         <dt>Тип</dt>
         <dd>{dict.typeLabel(a.type)}</dd>
@@ -88,6 +99,15 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
         <dd>{a.category?.name ?? 'Не указана'}</dd>
         <dt>Приоритет</dt>
         <dd>{dict.priorityLabel(a.priority)}</dd>
+        {a.author && !a.viewer_relations.includes('author') && (
+          <>
+            <dt>Автор</dt>
+            <dd>
+              {a.author.full_name}
+              {a.author.department ? ` · ${a.author.department.name}` : ''}
+            </dd>
+          </>
+        )}
         <dt>Ответственный</dt>
         <dd>{a.assignee?.full_name ?? 'Назначит администратор'}</dd>
         <dt>Срок первого ответа</dt>

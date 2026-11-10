@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { AppealPage } from '../pages/AppealPage';
 import { MyAppealsPage } from '../pages/MyAppealsPage';
 import { NewAppealPage } from '../pages/NewAppealPage';
+import { QueuePage } from '../pages/QueuePage';
 import { SectionPage } from '../pages/SectionPage';
 import { MiniAppShell } from '../telegram/MiniAppShell';
 import { Layout } from './Layout';
@@ -13,6 +14,7 @@ import { UnreadProvider } from './unread';
 /** Готовые разделы. Остальные показывают заголовок, пока их не наполнят тикеты W-03…W-08. */
 const PAGES: Partial<Record<NavId, ReactNode>> = {
   my: <MyAppealsPage />,
+  queue: <QueuePage />,
 };
 
 const SECTIONS: Record<NavId, { title: string; lead: string }> = {

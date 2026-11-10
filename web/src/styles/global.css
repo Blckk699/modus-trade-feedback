@@ -807,3 +807,61 @@ textarea.input {
 [data-telegram] .theme-toggle {
   display: none;
 }
+
+/* ---------- очередь и действия (W-03) */
+.page--wide {
+  max-width: 1100px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.appeal-row--overdue {
+  border-left: 4px solid var(--danger);
+}
+
+.btn--danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.btn--ghost.btn--danger {
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions__form {
+  display: grid;
+  gap: 10px;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+}
+
+.actions__title {
+  font-size: 15px;
+  margin: 0;
+}
+
+.appeal-row__top {
+  flex-wrap: wrap;
+}
+
+.appeal-row__number,
+.appeal-row__date {
+  white-space: nowrap;
+}
