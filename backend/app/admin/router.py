@@ -17,13 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import UserOut
+from app.appeals.policy import NOT_FINAL
 from app.appeals.routing import can_be_assignee
 from app.appeals.views import Directory
 from app.auth.service import revoke_user_sessions
 from app.directory.router import CategoryOut, DepartmentOut
 from app.domain.enums import Priority, Role
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
-from app.models import Category, DeadlineRule, Department, SystemSetting, User
+from app.models import Appeal, Category, DeadlineRule, Department, SystemSetting, User
 from app.models.org import User as UserModel
 
 TIME_RE = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -207,6 +208,12 @@ async def update_user(user_id: int, body: UserUpdate, admin: AdminDep, session: 
         ) or await session.scalar(select(func.count()).select_from(Department).where(Department.head_id == user.id))
         if held:
             raise field_error("role", "Сначала снимите сотрудника с категорий и руководства подразделением")
+        # Иначе у открытого обращения остался бы ответственный, который не может его обрабатывать.
+        assigned = await session.scalar(
+            select(func.count()).select_from(Appeal).where(Appeal.assignee_id == user.id, Appeal.status.in_(NOT_FINAL))
+        )
+        if assigned:
+            raise field_error("role", "Сначала передайте открытые обращения сотрудника другому ответственному")
     if data.get("is_disabled"):
         await revoke_user_sessions(session, user.id, clock.now())
     return _user_out(user, await Directory.load(session))

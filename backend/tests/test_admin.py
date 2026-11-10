@@ -152,3 +152,27 @@ async def test_unassigned_queue_and_manual_assignment(client, login_as) -> None:
     assert [i["number"] for i in queue["items"]] == [appeal["number"]]
     await client.post(f"/api/v1/appeals/{appeal['id']}/reassign", headers=admin, json={"assignee_id": 7, "reason": "Продажи"})
     assert (await client.get("/api/v1/appeals", headers=admin, params={"scope": "unassigned"})).json()["total"] == 0
+
+
+async def test_assignee_becoming_admin_keeps_no_appeal_access(client, login_as) -> None:
+    """Матрица доступа: администратор не ответственный и не видит приватную переписку (история 65)."""
+    admin = await login_as("admin")
+    head = await login_as("head_procurement")
+    pm_id = 17  # employee_pm: не закреплён за категориями и не руководит подразделением
+    assigned = await client.post(
+        "/api/v1/appeals/2/reassign", headers=head, json={"assignee_id": pm_id, "reason": "Нужна оценка проекта"}
+    )
+    assert assigned.status_code == 200
+
+    blocked = await admin_call(client, admin, "PATCH", f"/users/{pm_id}", {"role": "admin"})
+    assert blocked.status_code == 422
+    assert "открытые обращения" in blocked.text
+
+    rejected = await client.post("/api/v1/appeals/2/reject", headers=head, json={"reason": "Вне плана"})
+    assert rejected.json()["status"] == "rejected"
+    former = await login_as("employee_pm")
+    assert (await client.get("/api/v1/appeals/2/messages", headers=former)).status_code == 200
+
+    promoted = await admin_call(client, admin, "PATCH", f"/users/{pm_id}", {"role": "admin"})
+    assert promoted.json()["role"] == "admin"
+    assert (await client.get("/api/v1/appeals/2/messages", headers=former)).status_code == 403

@@ -1,16 +1,21 @@
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { ApiError } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { useUnread } from '../app/unread';
+import { ActionsPanel } from '../appeals/ActionsPanel';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
+import { BitrixSection } from '../appeals/BitrixSection';
+import { cardSections } from '../appeals/cardSections';
+import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
 import { MessagesSection } from '../appeals/MessagesSection';
 import { formatDateTime } from '../lib/format';
+import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 
 type Appeal = Schemas['Appeal'];
@@ -43,20 +48,35 @@ export function AppealPage() {
     );
   }
 
-  return <AppealCard appeal={s.data} onChanged={appeal.reload} />;
+  return <AppealCard appeal={s.data} onChanged={appeal.reload} onUpdated={appeal.set} />;
 }
 
+const BACK: Record<string, { path: string; label: string }> = {
+  '/my': { path: '/my', label: 'Мои обращения' },
+  '/queue': { path: '/queue', label: 'Обработка' },
+  '/digest': { path: '/digest', label: 'Сводка' },
+};
+
+/** Назад туда, откуда пришли: в очередь, сводку или свои обращения. */
 function BackLink() {
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const back = BACK[from ?? ''] ?? BACK['/my'];
   return (
-    <Link to="/my" className="back-link">
-      ← Мои обращения
+    <Link to={back.path} className="back-link">
+      ← {back.label}
     </Link>
   );
 }
 
-function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () => void }) {
+interface CardProps {
+  appeal: Appeal;
+  onChanged: () => void;
+  onUpdated: (a: Appeal) => void;
+}
+
+function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const dict = useDictionaries();
-  const participant = a.access === 'participant';
+  const show = cardSections(a);
 
   return (
     <section className="page appeal">
@@ -72,7 +92,7 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
         </div>
       </header>
 
-      {participant && (
+      {show.participantNotice && (
         <div className="notice">
           Вы видите это обращение, потому что ваше присоединили к нему как повтор. Статусы и итог приходят вам, текст
           и автор основного обращения скрыты.
@@ -81,6 +101,24 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
 
       <Outcome appeal={a} />
 
+      {show.participantsCounter && (
+        <div className="notice notice--info">
+          Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
+        </div>
+      )}
+
+      <ActionsPanel appeal={a} onUpdated={onUpdated} />
+
+      {a.discussion && (
+        <div className="notice">
+          {a.discussion.status === 'open' ? 'Вынесено на общее обсуждение. ' : 'Общее обсуждение завершено. '}
+          <Link to={`/discussions/${a.discussion.id}`}>Открыть обсуждение</Link>
+        </div>
+      )}
+
+      {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
+      {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
+
       <dl className="facts">
         <dt>Тип</dt>
         <dd>{dict.typeLabel(a.type)}</dd>
@@ -88,6 +126,15 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
         <dd>{a.category?.name ?? 'Не указана'}</dd>
         <dt>Приоритет</dt>
         <dd>{dict.priorityLabel(a.priority)}</dd>
+        {a.author && !a.viewer_relations.includes('author') && (
+          <>
+            <dt>Автор</dt>
+            <dd>
+              {a.author.full_name}
+              {a.author.department ? ` · ${a.author.department.name}` : ''}
+            </dd>
+          </>
+        )}
         <dt>Ответственный</dt>
         <dd>{a.assignee?.full_name ?? 'Назначит администратор'}</dd>
         <dt>Срок первого ответа</dt>
@@ -100,12 +147,6 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
         )}
         <dt>Подано</dt>
         <dd>{formatDateTime(a.created_at)}</dd>
-        {a.participants_count > 1 && (
-          <>
-            <dt>Сообщили о том же</dt>
-            <dd>{a.participants_count}</dd>
-          </>
-        )}
       </dl>
 
       {a.text && (
@@ -122,13 +163,9 @@ function AppealCard({ appeal: a, onChanged }: { appeal: Appeal; onChanged: () =>
         </div>
       )}
 
-      {!participant && (
-        <>
-          <MessagesSection appeal={a} onAppealChanged={onChanged} />
-          <AttachmentsSection appeal={a} />
-          <HistorySection appealId={a.id} version={a.updated_at} />
-        </>
-      )}
+      {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
+      {show.attachments && <AttachmentsSection appeal={a} />}
+      {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
     </section>
   );
 }
@@ -167,6 +204,12 @@ function Outcome({ appeal: a }: { appeal: Appeal }) {
           <>
             {': '}
             <Link to={`/appeals/${a.merged_into.id}`}>{a.merged_into.number}</Link>
+            {a.merged_into.summary ? ` · ${a.merged_into.summary}` : ''}
+            <div className="appeal-row__meta">
+              <span className="muted">Статус основного:</span>
+              <StatusBadge status={a.merged_into.status} />
+            </div>
+            <p className="muted">Статусы основного обращения будут приходить вам.</p>
           </>
         )}
       </div>

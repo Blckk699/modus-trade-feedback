@@ -73,6 +73,10 @@ export interface paths {
         /**
          * Вход в мобильное приложение по одноразовому коду из бота
          * @description Код обменивается на сессию один раз и истекает через `ttl_seconds` после выдачи.
+         *     Защита от перебора: после 5 неудачных попыток с одного адреса за 15 минут — `429 too_many_requests`
+         *     (адрес клиента берётся из `X-Forwarded-For` только от доверенного прокси). При массовом переборе
+         *     со многих адресов активные коды сжигаются — пользователь запрашивает новый в боте.
+         *
          */
         post: operations["loginWithCode"];
         delete?: never;
@@ -437,8 +441,9 @@ export interface paths {
         put?: never;
         /**
          * Переназначить ответственного с причиной
-         * @description Руководитель (в своём подразделении), администратор, собственник. Срок первого ответа
-         *     отсчитывается заново, причина пишется в историю. Этим же маршрутом администратор
+         * @description Руководитель (в своём подразделении), администратор, собственник. Если первого ответа ещё не было,
+         *     срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется. Причина пишется
+         *     в историю. Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
          *     назначает ответственного из очереди нераспределённых.
          *     Ответственному, сотруднику — `403`.
          *
@@ -521,7 +526,7 @@ export interface paths {
         put?: never;
         /**
          * Приложить файл
-         * @description Автор и ответственный. Не больше 20 МБ на файл.
+         * @description Автор, ответственный, руководитель подразделения обращения и собственник, пока обращение не завершено. Не больше 20 МБ на файл.
          */
         post: operations["uploadAttachment"];
         delete?: never;
@@ -1383,11 +1388,12 @@ export interface components {
          *     `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
          *     `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
          *     `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
+         *     `too_many_requests` 429 ·
          *     `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
          *
          * @enum {string}
          */
-        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "not_found" | "conflict" | "invalid_transition" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
+        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "not_found" | "conflict" | "invalid_transition" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
         /**
          * @description employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
          * @enum {string}
@@ -2274,6 +2280,15 @@ export interface operations {
             };
             403: components["responses"]["LoginForbidden"];
             422: components["responses"]["ValidationError"];
+            /** @description Слишком много неудачных попыток с этого адреса (`too_many_requests`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     issueLoginCode: {

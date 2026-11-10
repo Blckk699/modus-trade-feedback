@@ -802,3 +802,380 @@ textarea.input {
     max-width: 100%;
   }
 }
+
+/* В Mini App цвета задаёт Telegram (src/telegram), переключатель темы там не нужен. */
+[data-telegram] .theme-toggle {
+  display: none;
+}
+
+/* ---------- очередь и действия (W-03) */
+.page--wide {
+  max-width: 1100px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.appeal-row--overdue {
+  border-left: 4px solid var(--danger);
+}
+
+.btn--danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.btn--ghost.btn--danger {
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actions__form {
+  display: grid;
+  gap: 10px;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+}
+
+.actions__title {
+  font-size: 15px;
+  margin: 0;
+}
+
+.appeal-row__top {
+  flex-wrap: wrap;
+}
+
+.appeal-row__number,
+.appeal-row__date {
+  white-space: nowrap;
+}
+
+/* ---------- сводка (W-06) */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: grid;
+  gap: 2px;
+}
+
+.tile__label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tile__value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile__hint {
+  font-size: 13px;
+}
+
+.digest-grid {
+  display: grid;
+  align-items: start;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.block__count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.ref-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+}
+
+.ref-link {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.ref-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Полосы одной серии: один цвет акцента, скруглённый конец, значение текстом. */
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.bars__row {
+  display: grid;
+  grid-template-columns: minmax(110px, 42%) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.bars__label {
+  font-size: 14px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.bars__track {
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+}
+
+.bars__fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.bars__row:hover .bars__fill {
+  filter: brightness(1.15);
+}
+
+.bars__value {
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- повторы и Битрикс24 (W-04) */
+.notice--info {
+  background: var(--info-bg);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.block--hint {
+  border-color: var(--accent);
+}
+
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.suggestion {
+  display: grid;
+  gap: 6px;
+}
+
+.suggestion + .suggestion {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.suggestion__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+/* ---------- обсуждения и лента (W-05) */
+.field--narrow {
+  max-width: 240px;
+}
+
+.discussion {
+  display: grid;
+  gap: 14px;
+}
+
+.vote-score {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vote-score__bar {
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: block;
+}
+
+.vote-score__for {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-right: 2px solid var(--surface);
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.feed__item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.feed__pair {
+  display: grid;
+  gap: 2px 0;
+  margin: 0;
+}
+
+.feed__pair dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.feed__pair dd {
+  margin: 0 0 6px;
+}
+
+/* ---------- совещания (W-07) */
+.drafts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.draft--confirmed,
+.draft--discarded {
+  opacity: 0.8;
+}
+
+.draft--discarded .quote,
+.draft--discarded .draft__summary {
+  text-decoration: line-through;
+}
+
+.draft__summary {
+  font-size: 16px;
+  margin: 0;
+}
+
+.draft__form {
+  display: grid;
+  gap: 10px;
+}
+
+.quote {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-style: italic;
+}
+
+.transcript {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+details.block > summary {
+  cursor: pointer;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
