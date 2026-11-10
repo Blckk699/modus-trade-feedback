@@ -22,7 +22,7 @@ Future<SessionController> signedIn(FakeServer server, [Map<String, dynamic>? me]
       ]);
   final session = SessionController(
     api: ApiService(baseUrl: 'http://mock.test', httpClient: server.client),
-    store: MemorySessionStore(serverUrl: 'http://mock.test', token: 'token'),
+    store: MemorySessionStore(serverUrl: 'http://mock.test', token: 'token', tokenServer: 'http://mock.test'),
   );
   await session.restore();
   return session;

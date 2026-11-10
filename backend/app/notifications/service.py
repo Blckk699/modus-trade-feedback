@@ -208,3 +208,19 @@ async def name_consent_request(session: AsyncSession, appeal: Appeal, discussion
             {"type": "name_consent_hide", "text": "Скрыть", "appeal_id": appeal.id, "discussion_id": discussion_id},
         ],
     )
+
+
+async def discussion_closed(session: AsyncSession, appeal: Appeal, discussion_id: int, outcome: str, actor_id: int, now: datetime) -> None:
+    """Автору: итог обсуждения его обращения."""
+    if appeal.author_id == actor_id:
+        return
+    add(
+        session,
+        appeal.author_id,
+        NotificationKind.DISCUSSION_CLOSED,
+        f"Обсуждение обращения {_title(appeal)} завершено.\nИтог: {fragment(outcome)}",
+        now,
+        appeal=appeal,
+        path=f"/discussions/{discussion_id}",
+        buttons=[{"type": "open_discussion", "text": "Открыть обсуждение", "appeal_id": appeal.id, "discussion_id": discussion_id}],
+    )

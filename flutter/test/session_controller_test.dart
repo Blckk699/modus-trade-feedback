@@ -61,6 +61,7 @@ void main() {
 
   test('сессия восстанавливается при запуске: GET /me с Bearer-токеном', () async {
     store.token = 'saved-token';
+    store.tokenServer = base;
     final server = FakeServer({
       'GET /api/v1/me': (_) => json(meJson()),
       'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
@@ -75,6 +76,7 @@ void main() {
 
   test('истёкший токен при запуске — экран входа, токен удалён', () async {
     store.token = 'expired';
+    store.tokenServer = base;
     final server = FakeServer({
       'GET /api/v1/me': (_) => json(errorJson('unauthorized', 'Требуется вход.'), 401),
     });
@@ -88,6 +90,7 @@ void main() {
 
   test('нет сети при запуске — экран повтора, токен сохранён', () async {
     store.token = 'saved-token';
+    store.tokenServer = base;
     final server = FakeServer({
       'GET /api/v1/me': (_) => throw http.ClientException('Connection refused'),
     });
@@ -131,6 +134,7 @@ void main() {
 
   test('выход: POST /auth/logout, токен удалён, даже если сервер ответил ошибкой', () async {
     store.token = 'saved-token';
+    store.tokenServer = base;
     final server = FakeServer({
       'GET /api/v1/me': (_) => json(meJson()),
       'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
@@ -148,6 +152,7 @@ void main() {
 
   test('смена сервера закрывает сессию и запоминает адрес', () async {
     store.token = 'saved-token';
+    store.tokenServer = base;
     final server = FakeServer({
       'GET /api/v1/me': (_) => json(meJson()),
       'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
@@ -162,5 +167,37 @@ void main() {
     expect(session.serverUrl, 'https://other.test');
     expect(store.serverUrl, 'https://other.test');
     expect(store.token, isNull);
+  });
+
+  test('токен другого сервера при запуске сбрасывается без запроса /me', () async {
+    store.token = 'mock-token';
+    store.tokenServer = 'http://localhost:4010';
+    final server = FakeServer({});
+    final session = controller(server, store);
+
+    await session.restore();
+
+    expect(session.status, SessionStatus.signedOut);
+    expect(store.token, isNull);
+    expect(server.requests.where((r) => r.url.path == '/api/v1/me'), isEmpty);
+  });
+
+  test('токен без записанного сервера (Keychain после переустановки) сбрасывается', () async {
+    store.token = 'old-token';
+    final session = controller(FakeServer({}), store);
+    await session.restore();
+    expect(session.status, SessionStatus.signedOut);
+    expect(store.token, isNull);
+  });
+
+  test('после входа запоминается сервер токена', () async {
+    final server = FakeServer({
+      'POST /api/v1/auth/code': (_) => json(sessionJson()),
+      'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
+    });
+    final session = controller(server, store);
+    await session.restore();
+    await session.loginWithCode('482913');
+    expect(store.tokenServer, base);
   });
 }
