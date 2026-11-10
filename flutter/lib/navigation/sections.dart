@@ -7,7 +7,7 @@ import 'package:modus_api/api.dart';
 enum Section {
   myAppeals('Мои обращения', 'Обращения', Icons.inbox_outlined, Icons.inbox),
   processing('Обработка', 'Обработка', Icons.assignment_outlined, Icons.assignment),
-  feed('Лента реализованного', 'Лента', Icons.forum_outlined, Icons.forum),
+  feed('Общая лента', 'Лента', Icons.forum_outlined, Icons.forum),
   analytics('Сводка', 'Сводка', Icons.insights_outlined, Icons.insights),
   meetings('Совещания', 'Совещания', Icons.groups_outlined, Icons.groups),
   settings('Настройки', 'Настройки', Icons.tune_outlined, Icons.tune),

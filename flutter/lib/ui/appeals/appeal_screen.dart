@@ -10,6 +10,7 @@ import '../home/unread_scope.dart';
 import 'actions_panel.dart';
 import 'badges.dart';
 import 'duplicates_bitrix.dart';
+import '../discussions/discussion_screen.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
@@ -159,6 +160,8 @@ class _AppealBody extends StatelessWidget {
             tone: _Tone.info,
           ),
         ActionsPanel(appeal: a, onUpdated: onUpdated),
+        if (DiscussionRef.fromJson(a.discussion) case final discussion?)
+          _DiscussionLink(discussion: discussion),
         if (!participant) ...[
           DuplicatesSection(
             key: ValueKey('duplicates-$version'),
@@ -197,6 +200,32 @@ class _AppealBody extends StatelessWidget {
           HistorySection(key: ValueKey('history-$version'), appealId: a.id),
         ],
       ],
+    );
+  }
+}
+
+/// Ссылка на обсуждение, если обращение вынесено (автор отсюда отвечает на запрос о показе имени).
+class _DiscussionLink extends StatelessWidget {
+  const _DiscussionLink({required this.discussion});
+
+  final DiscussionRef discussion;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final open = discussion.status == DiscussionStatus.open;
+    return Padding(
+      key: const Key('discussion-link'),
+      padding: const EdgeInsets.only(top: 12),
+      child: ListTile(
+        tileColor: scheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        leading: const Icon(Icons.forum_outlined),
+        title: Text(open ? 'Вынесено на общее обсуждение' : 'Общее обсуждение завершено'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => DiscussionScreen(discussionId: discussion.id))),
+      ),
     );
   }
 }
