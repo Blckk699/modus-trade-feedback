@@ -18,6 +18,10 @@ from app.models import Appeal, Notification, User
 router = APIRouter(tags=["notifications"])
 
 MAX_RETRY_DELAY = timedelta(hours=1)
+# После стольких неудачных попыток уведомление считается недоставленным и больше не выдаётся.
+MAX_ATTEMPTS = 20
+# Неотправленное старше этого бот не получает: после привязки Telegram не придёт хвост за месяц.
+PENDING_MAX_AGE = timedelta(days=2)
 
 
 class NotificationButton(BaseModel):
@@ -160,6 +164,7 @@ async def pending(_: BotKeyDep, session: SessionDep, clock: ClockDep, limit: Ann
                 Notification.delivered_at.is_(None),
                 Notification.failed_permanently.is_(False),
                 Notification.next_attempt_at <= clock.now(),
+                Notification.created_at > clock.now() - PENDING_MAX_AGE,
                 User.telegram_id.is_not(None),
                 User.is_disabled.is_(False),
             )
@@ -204,6 +209,9 @@ async def fail(notification_id: int, _: BotKeyDep, session: SessionDep, clock: C
     if body.permanent:
         notification.failed_permanently = True
     else:
-        delay = min(timedelta(minutes=2 ** (notification.attempts - 1)), MAX_RETRY_DELAY)
+        if notification.attempts >= MAX_ATTEMPTS:
+            notification.failed_permanently = True
+        # Показатель ограничен до построения timedelta: 2**N минут переполнились бы на десятках попыток.
+        delay = min(timedelta(minutes=2 ** min(notification.attempts - 1, 6)), MAX_RETRY_DELAY)
         notification.next_attempt_at = clock.now() + delay
     return Response(status_code=204)
