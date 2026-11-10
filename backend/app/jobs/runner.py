@@ -23,11 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config import Settings
 from app.container import Services
 from app.jobs.models import Job, JobStatus, PeriodicTask
-from app.jobs.registry import JobContext, JobRegistry
+from app.jobs.registry import DEFAULT_STALE_AFTER, JobContext, JobRegistry
 
 log = logging.getLogger(__name__)
 
-STALE_RUNNING_AFTER = timedelta(minutes=30)
 MAX_JOBS_PER_TICK = 500
 
 
@@ -93,10 +92,19 @@ class JobRunner:
         return await self.run_due()
 
     async def requeue_stale(self, now: datetime) -> None:
+        """Возвращает в очередь задачи, которые висят в running дольше своего `stale_after`."""
+        custom = self.registry.stale_after
         async with self.sessionmaker() as session, session.begin():
+            stale = Job.status == JobStatus.RUNNING
+            for kind, timeout in custom.items():
+                await session.execute(
+                    update(Job)
+                    .where(stale, Job.kind == kind, Job.started_at < now - timeout)
+                    .values(status=JobStatus.PENDING, run_at=now)
+                )
             await session.execute(
                 update(Job)
-                .where(Job.status == JobStatus.RUNNING, Job.started_at < now - STALE_RUNNING_AFTER)
+                .where(stale, Job.kind.notin_(list(custom)), Job.started_at < now - DEFAULT_STALE_AFTER)
                 .values(status=JobStatus.PENDING, run_at=now)
             )
 

@@ -210,3 +210,33 @@ def test_daily_schedule_uses_system_timezone() -> None:
     assert schedule.next_after(datetime(2026, 11, 10, 3, 59, tzinfo=UTC), TZ) == datetime(2026, 11, 10, 4, 0, tzinfo=UTC)
     # Ровно в 09:00 запуск уже состоялся -> следующий завтра.
     assert schedule.next_after(datetime(2026, 11, 10, 4, 0, tzinfo=UTC), TZ) == datetime(2026, 11, 11, 4, 0, tzinfo=UTC)
+
+
+async def test_stale_running_job_is_requeued_after_its_own_timeout(
+    app: FastAPI, jobs: JobRunner, time_machine: TimeMachine
+) -> None:
+    """Задача, зависшая в running после падения процесса, возвращается в очередь. Долгой задаче
+    (расшифровка совещания) задан свой `stale_after`, и через 30 минут её не трогают."""
+
+    @jobs.registry.job("example.long_transcribe", stale_after=timedelta(hours=2))
+    async def long_transcribe(ctx: JobContext, payload: dict[str, Any]) -> None:
+        pass
+
+    now = time_machine.now
+    async with app.state.sessionmaker() as session, session.begin():
+        for kind in ("example.short", "example.long_transcribe"):
+            session.add(
+                Job(kind=kind, payload={}, status=JobStatus.RUNNING, run_at=now, created_at=now, started_at=now, attempts=1)
+            )
+
+    async def statuses() -> dict[str, str]:
+        async with app.state.sessionmaker() as session:
+            return dict((await session.execute(select(Job.kind, Job.status))).all())
+
+    time_machine.clock.set(now + timedelta(minutes=31))
+    await jobs.requeue_stale(time_machine.now)
+    assert await statuses() == {"example.short": JobStatus.PENDING, "example.long_transcribe": JobStatus.RUNNING}
+
+    time_machine.clock.set(now + timedelta(hours=2, minutes=1))
+    await jobs.requeue_stale(time_machine.now)
+    assert (await statuses())["example.long_transcribe"] == JobStatus.PENDING

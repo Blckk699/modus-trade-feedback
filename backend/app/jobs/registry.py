@@ -2,8 +2,11 @@
 
 Разовая задача:
 
-    @registry.job("meetings.process")
+    @registry.job("meetings.process", stale_after=timedelta(hours=2))
     async def process_meeting(ctx: JobContext, payload: dict) -> None: ...
+
+`stale_after` — через сколько задачу в статусе running считать зависшей (процесс упал) и вернуть
+в очередь. По умолчанию 30 минут; долгим задачам (расшифровка записи совещания) задавайте больше.
 
 Периодическая (обработчик + расписание; расписание может зависеть от настроек):
 
@@ -17,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,6 +48,8 @@ class JobContext:
         return self.services.clock.now()
 
 
+DEFAULT_STALE_AFTER = timedelta(minutes=30)
+
 Handler = Callable[[JobContext, dict[str, Any]], Awaitable[None]]
 ScheduleFactory = Schedule | Callable[[Settings], Schedule]
 
@@ -62,26 +67,32 @@ class PeriodicSpec:
 class JobRegistry:
     handlers: dict[str, Handler] = field(default_factory=dict)
     periodic_specs: dict[str, PeriodicSpec] = field(default_factory=dict)
+    # Нестандартные таймауты зависания по типу задачи; остальные — DEFAULT_STALE_AFTER.
+    stale_after: dict[str, timedelta] = field(default_factory=dict)
 
-    def job(self, kind: str) -> Callable[[Handler], Handler]:
+    def job(self, kind: str, *, stale_after: timedelta | None = None) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
             if kind in self.handlers:
                 raise ValueError(f"Обработчик задачи {kind!r} уже зарегистрирован")
             self.handlers[kind] = handler
+            if stale_after is not None:
+                self.stale_after[kind] = stale_after
             return handler
 
         return decorator
 
-    def periodic(self, name: str, schedule: ScheduleFactory) -> Callable[[Handler], Handler]:
+    def periodic(
+        self, name: str, schedule: ScheduleFactory, *, stale_after: timedelta | None = None
+    ) -> Callable[[Handler], Handler]:
         def decorator(handler: Handler) -> Handler:
-            self.job(name)(handler)
+            self.job(name, stale_after=stale_after)(handler)
             self.periodic_specs[name] = PeriodicSpec(name, schedule)
             return handler
 
         return decorator
 
     def copy(self) -> JobRegistry:
-        return JobRegistry(dict(self.handlers), dict(self.periodic_specs))
+        return JobRegistry(dict(self.handlers), dict(self.periodic_specs), dict(self.stale_after))
 
 
 # Общий реестр приложения: модули регистрируют в нём обработчики при импорте.

@@ -116,9 +116,11 @@ async def test_draft(client, fake_claude):
 Разовая задача (например, обработка записи совещания):
 
 ```python
+from datetime import timedelta
+
 from app.jobs import JobContext, enqueue, registry
 
-@registry.job("meetings.process")
+@registry.job("meetings.process", stale_after=timedelta(hours=2))
 async def process_meeting(ctx: JobContext, payload: dict) -> None:
     transcript = await ctx.services.speech.transcribe(...)
     ...  # пишем через ctx.session; коммит сделает механизм, при исключении — откат и повтор
@@ -146,3 +148,7 @@ async def send_digest(ctx: JobContext, payload: dict) -> None: ...
 `failed` с текстом ошибки в `last_error`. `dedup_key` не даёт поставить одну задачу дважды
 (удобно для шагов эскалации: `f"escalation:{appeal_id}:{step}"`). Пропущенные запуски периодической
 задачи (сервер лежал) не догоняются: она выполнится один раз и дальше по расписанию.
+
+Задача, которая висит в `running` дольше `stale_after` (по умолчанию 30 минут), считается брошенной
+упавшим процессом и возвращается в очередь. Долгим задачам задавайте свой `stale_after` больше их
+реального времени работы — иначе длинная запись совещания начнёт обрабатываться второй раз.

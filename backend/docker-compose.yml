@@ -31,7 +31,8 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      # Только на localhost: на сервере наружу смотрит Caddy с HTTPS, бэкенд в обход него не открываем.
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped
 
 volumes:
