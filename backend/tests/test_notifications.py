@@ -170,3 +170,23 @@ async def test_unread_counter_and_mark_read(client, login_as) -> None:
     assert [n["is_read"] for n in notifications["items"]] == [False, True]
     assert (await client.post("/api/v1/notifications/read", headers=head, json={"all": True})).json() == {"count": 0}
     assert (await client.get("/api/v1/notifications", headers=head, params={"unread_only": True})).json()["total"] == 0
+
+
+async def test_user_text_is_escaped_for_telegram_html(app, client, login_as) -> None:
+    """Пользовательские фрагменты экранируются: бот шлёт текст с parse_mode=HTML."""
+    created = (
+        await client.post(
+            "/api/v1/appeals",
+            headers=await login_as("employee_sales"),
+            json={**FORM, "summary": "Счёт <b>ООО «Рога & Копыта»</b>", "text": "a < b & c"},
+        )
+    ).json()
+    head = await login_as("head_procurement")
+    await client.post(f"/api/v1/appeals/{created['id']}/take", headers=head)
+    await client.post(f"/api/v1/appeals/{created['id']}/request-info", headers=head, json={"question": "Это <script> & что?"})
+    texts = [n.text for n in await inbox(app, 3) + await inbox(app, 8)]
+    joined = "\n".join(texts)
+    assert "&lt;b&gt;ООО «Рога &amp; Копыта»&lt;/b&gt;" in joined
+    assert "Это &lt;script&gt; &amp; что?" in joined
+    assert "<script>" not in joined and "<b>ООО" not in joined
+    assert all(t.count("<b>") == t.count("</b>") for t in texts), "своя разметка — только номер обращения"
