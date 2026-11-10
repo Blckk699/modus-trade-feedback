@@ -4,7 +4,7 @@
 
 **Blocked by:** F-01 «Каркас приложения, клиент API и вход по коду из бота»
 
-**Status:** ready-for-agent
+**GitHub:** [#9](https://github.com/Blckk699/modus-trade-feedback/issues/9) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 6–17
 

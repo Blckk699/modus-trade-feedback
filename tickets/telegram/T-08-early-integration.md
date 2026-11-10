@@ -4,7 +4,7 @@
 
 **Blocked by:** T-01 «Каркас бота, привязка сотрудника и код входа»; B-03 «Вход через Telegram и роли»; B-16 «Развёртывание на VPS»
 
-**Status:** ready-for-agent
+**GitHub:** [#24](https://github.com/Blckk699/modus-trade-feedback/issues/24) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 23
 

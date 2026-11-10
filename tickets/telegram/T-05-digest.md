@@ -4,7 +4,7 @@
 
 **Blocked by:** T-04 «Уведомления и ответы в боте»
 
-**Status:** ready-for-agent
+**GitHub:** [#23](https://github.com/Blckk699/modus-trade-feedback/issues/23) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 52, 54, 55
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** T-01 «Каркас бота, привязка сотрудника и код входа»
 
-**Status:** ready-for-agent
+**GitHub:** [#13](https://github.com/Blckk699/modus-trade-feedback/issues/13) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 1, 3–5, 9
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** B-03 «Вход через Telegram и роли»
 
-**Status:** ready-for-agent
+**GitHub:** [#20](https://github.com/Blckk699/modus-trade-feedback/issues/20) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 6–11, 17, 42, 59, 63
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** B-05 «Маршрутизация и переназначение»
 
-**Status:** ready-for-agent
+**GitHub:** [#34](https://github.com/Blckk699/modus-trade-feedback/issues/34) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 64–70
 

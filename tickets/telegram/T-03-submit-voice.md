@@ -4,7 +4,7 @@
 
 **Blocked by:** T-02 «Подача текстом и пересылкой»
 
-**Status:** ready-for-agent
+**GitHub:** [#22](https://github.com/Blckk699/modus-trade-feedback/issues/22) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 2
 

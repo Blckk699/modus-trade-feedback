@@ -4,7 +4,7 @@
 
 **Blocked by:** T-01 «Каркас бота, привязка сотрудника и код входа»; W-01 «Каркас веба, клиент API и вход через Telegram Login»
 
-**Status:** ready-for-agent
+**GitHub:** [#15](https://github.com/Blckk699/modus-trade-feedback/issues/15) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 23, 24
 

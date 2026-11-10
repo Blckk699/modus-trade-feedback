@@ -4,7 +4,7 @@
 
 **Blocked by:** B-04 «Обращение: создание через форму, список, карточка, история»
 
-**Status:** ready-for-agent
+**GitHub:** [#27](https://github.com/Blckk699/modus-trade-feedback/issues/27) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 13–16, 28–33, 46, 60
 

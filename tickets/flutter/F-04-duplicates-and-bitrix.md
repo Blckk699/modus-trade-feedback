@@ -4,7 +4,7 @@
 
 **Blocked by:** F-03 «Очередь и обработка обращений»
 
-**Status:** ready-for-agent
+**GitHub:** [#28](https://github.com/Blckk699/modus-trade-feedback/issues/28) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 34–37, 39
 

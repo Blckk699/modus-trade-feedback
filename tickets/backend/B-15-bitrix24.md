@@ -4,7 +4,7 @@
 
 **Blocked by:** B-06 «Статусы, решения и приватная переписка»
 
-**Status:** ready-for-agent
+**GitHub:** [#35](https://github.com/Blckk699/modus-trade-feedback/issues/35) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 39
 

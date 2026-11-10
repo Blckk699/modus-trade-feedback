@@ -4,7 +4,7 @@
 
 **Blocked by:** F-02 «Подача через форму и «Мои обращения»»
 
-**Status:** ready-for-agent
+**GitHub:** [#21](https://github.com/Blckk699/modus-trade-feedback/issues/21) — статус и обсуждение ведутся там
 
 **Истории из SPEC.md:** 26–33, 41–46, 59, 60
 
