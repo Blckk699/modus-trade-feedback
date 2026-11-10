@@ -117,5 +117,11 @@ for path, item in spec["paths"].items():
                     count += 1
                     ok &= validate(value, media["schema"], f"{method.upper()} {path} {label} {name}")
 
+raw = (ROOT / "openapi.yaml").read_text()
+for name in spec["components"].get("examples", {}):
+    if f"'#/components/examples/{name}'" not in raw:
+        print(f"FAIL components/examples/{name}: пример нигде не используется и поэтому не проверяется — подключите или удалите")
+        ok = False
+
 print(f"checked {count} examples")
 sys.exit(0 if ok else 1)
