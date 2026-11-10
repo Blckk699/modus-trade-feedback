@@ -1,0 +1,5303 @@
+openapi: 3.0.3
+info:
+  title: Модус Трейд — обращения и предложения сотрудников
+  version: 1.0.0
+  description: |
+    Контракт API бэкенда. Источник истины для клиентов: веб, Mini App, Flutter, бот.
+    Спека продукта — `SPEC.md`, правила работы с контрактом — `contract/README.md`.
+
+    ## Общие правила
+
+    - Все маршруты под префиксом `/api/v1` (он уже входит в пути контракта; базовый адрес клиента — хост без префикса).
+    - Время — ISO 8601 со смещением. Часовой пояс системы UTC+5, сервер отдаёт время со смещением `+05:00`.
+    - Коды перечислений (статусы, типы, роли) — латиница; подписи на русском отдаёт `GET /dictionaries`.
+    - Клиент не дублирует правила прав и переходов: у обращения есть `allowed_actions`, у пользователя — `permissions`.
+      Действие, которого нет в этих списках, клиент не показывает.
+    - Ошибка всегда в формате `Error`: `{"error": {"code": "...", "message": "...", "details": ...}}`.
+      `message` можно показывать пользователю как есть, ветвиться — только по `code`.
+
+    ## Авторизация
+
+    - Пользователь: `Authorization: Bearer <access_token>`. Токен выдают маршруты `/auth/*`
+      (Mini App, Telegram Login, одноразовый код из бота, dev-вход).
+    - Бот: `X-Service-Key: <ключ бота>` и `X-Telegram-Id: <Telegram ID пользователя>` — бот действует от имени
+      пользователя, права проверяются так же, как для самого пользователя. Так бот вызывает любые
+      пользовательские маршруты. Маршруты `/bot/*` требуют только `X-Service-Key`.
+    - Незаведённый пользователь получает `403 user_not_registered`, отключённый — `403 user_disabled`.
+
+    ## Жизненный цикл обращения
+
+    | Действие (`allowed_actions`) | Маршрут | Из статуса | В статус |
+    |---|---|---|---|
+    | `take` | `POST /appeals/{id}/take` | `new` | `in_review` |
+    | `request_info` | `POST /appeals/{id}/request-info` | `in_review` | `awaiting_info` |
+    | `reply_clarification` | `POST /appeals/{id}/messages` (автор) | `awaiting_info` | `in_review` |
+    | `start_work` | `POST /appeals/{id}/start-work` | `in_review` | `in_progress` |
+    | `reject` | `POST /appeals/{id}/reject` | `in_review` | `rejected` |
+    | `implement` | `POST /appeals/{id}/implement` | `in_progress` | `implemented` |
+    | `accept_feedback` | `POST /appeals/{id}/accept-feedback` | `new` (только отзыв) | `closed` |
+    | `merge` | `POST /appeals/{id}/merge` | `new`, `in_review` | `closed` |
+
+    Любой другой переход — `409 invalid_transition`. Отказ без причины, «В работу» без решения и
+    «Реализовано» без результата — `422 validation_error`.
+
+    **Кто выполняет действия.** Действия жизненного цикла выполняют ответственный обращения, руководитель
+    подразделения обращения и собственник. Руководитель и собственник действуют без смены ответственного:
+    для смены есть `reassign`. Администратор видит все обращения, но не меняет статусы, не склеивает,
+    не выносит на обсуждение, не создаёт задачи в Битрикс24 и не видит приватную переписку (`403`).
+    Автор пишет в переписку и отвечает на уточняющий вопрос.
+
+    **Срок.** В системе один срок — срок первого ответа. Он назначается при маршрутизации и при переназначении,
+    первый ответ фиксирует `take` (или `accept_feedback` у отзыва). Уточняющий вопрос задаётся уже после
+    первого ответа и на срок не влияет.
+servers:
+  - url: http://localhost:4010
+    description: Мок-сервер (Prism, без состояния)
+  - url: http://localhost:8000
+    description: Локальный бэкенд
+tags:
+  - name: system
+    description: Служебное
+  - name: auth
+    description: Вход и сессия
+  - name: me
+    description: Текущий пользователь
+  - name: dictionaries
+    description: Справочники
+  - name: appeals
+    description: Обращения
+  - name: appeal-actions
+    description: Смена статуса, переназначение, склейка
+  - name: messages
+    description: Приватная переписка по обращению
+  - name: attachments
+    description: Вложения
+  - name: duplicates
+    description: Подсказки о повторах
+  - name: drafts
+    description: Черновик обращения из текста и голоса (Claude, ElevenLabs)
+  - name: discussions
+    description: Общие обсуждения
+  - name: feed
+    description: Лента реализованного
+  - name: bitrix
+    description: Битрикс24
+  - name: meetings
+    description: Режим «совещание»
+  - name: analytics
+    description: Сводка и аналитика
+  - name: notifications
+    description: Уведомления и счётчик непрочитанного
+  - name: bot
+    description: Служебные маршруты бота
+  - name: admin
+    description: Настройки администратора
+security:
+  - bearerAuth: []
+  - serviceKey: []
+    telegramId: []
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [system]
+      summary: Проверка живости
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Сервис работает
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+              example:
+                status: ok
+
+  # ---------------------------------------------------------------- auth
+  /api/v1/auth/telegram/mini-app:
+    post:
+      tags: [auth]
+      summary: Вход из Mini App по initData
+      description: Бэкенд проверяет подпись `initData` токеном бота и выдаёт сессию.
+      operationId: loginMiniApp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MiniAppLoginRequest'
+            example:
+              init_data: 'query_id=AAH...&user=%7B%22id%22%3A100000004%7D&auth_date=1794300000&hash=3f2a...'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          $ref: '#/components/responses/InvalidTelegramAuth'
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/auth/telegram/widget:
+    post:
+      tags: [auth]
+      summary: Вход через Telegram Login в вебе
+      description: Тело — поля, которые виджет Telegram Login передаёт в колбэк, без изменений.
+      operationId: loginTelegramWidget
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramWidgetLoginRequest'
+            example:
+              id: 100000004
+              first_name: Айгерим
+              last_name: Нурланова
+              username: aigerim_demo
+              auth_date: 1794300000
+              hash: 9b1c0e7d4a...
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          $ref: '#/components/responses/InvalidTelegramAuth'
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/auth/code:
+    post:
+      tags: [auth]
+      summary: Вход в мобильное приложение по одноразовому коду из бота
+      description: Код обменивается на сессию один раз и истекает через `ttl_seconds` после выдачи.
+      operationId: loginWithCode
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeLoginRequest'
+            example:
+              code: '482913'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          description: Код неверный, уже использован или истёк (`invalid_login_code`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: invalid_login_code
+                  message: Код неверный или истёк. Запросите новый код в боте.
+                  details: null
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/auth/login-codes:
+    post:
+      tags: [auth, bot]
+      summary: Выдать одноразовый код входа (только бот)
+      description: |
+        Бот вызывает с `X-Service-Key` и `X-Telegram-Id` пользователя и показывает код в чате.
+        Пользователь вводит код в мобильном приложении (`POST /auth/code`).
+      operationId: issueLoginCode
+      security:
+        - serviceKey: []
+          telegramId: []
+      responses:
+        '201':
+          description: Код выдан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginCode'
+              example:
+                code: '482913'
+                expires_at: '2026-11-10T19:35:00+05:00'
+                ttl_seconds: 300
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+  /api/v1/auth/dev/users:
+    get:
+      tags: [auth]
+      summary: Список пользователей для dev-входа
+      description: Работает только при `DEV_LOGIN_ENABLED=true`. На сервере для демо выключен — `403 dev_login_disabled`.
+      operationId: listDevUsers
+      security: []
+      responses:
+        '200':
+          description: Пользователи, под которыми можно войти
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBrief'
+              example:
+                - {id: 1, full_name: Ержан Касымов, role: owner, department: null}
+                - {id: 2, full_name: Анна Ли, role: admin, department: null}
+                - {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                - {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+                - {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+                - {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+        '403':
+          $ref: '#/components/responses/DevLoginDisabled'
+  /api/v1/auth/dev/login:
+    post:
+      tags: [auth]
+      summary: Dev-вход под выбранным пользователем
+      description: Работает только при `DEV_LOGIN_ENABLED=true`, иначе `403 dev_login_disabled`.
+      operationId: devLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: integer
+            example:
+              user_id: 4
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '403':
+          $ref: '#/components/responses/DevLoginDisabled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Выход, токен становится недействительным
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Сессия закрыта
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- me
+  /api/v1/me:
+    get:
+      tags: [me]
+      summary: Кто я
+      description: |
+        Роль, подразделение, назначения ответственным и права для навигации.
+        Бот вызывает с `X-Service-Key` и `X-Telegram-Id`, чтобы опознать пользователя:
+        незаведённый получает `403 user_not_registered`, отключённый — `403 user_disabled`.
+      operationId: getMe
+      responses:
+        '200':
+          description: Текущий пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              examples:
+                employee:
+                  $ref: '#/components/examples/MeEmployee'
+                owner:
+                  $ref: '#/components/examples/MeOwner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+
+  /api/v1/dictionaries:
+    get:
+      tags: [dictionaries]
+      summary: Подписи перечислений и таблица переходов
+      operationId: getDictionaries
+      security: []
+      responses:
+        '200':
+          description: Справочники
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dictionaries'
+              example:
+                appeal_types:
+                  - {code: problem, label: Проблема}
+                  - {code: suggestion, label: Предложение}
+                  - {code: praise, label: Положительный отзыв}
+                priorities:
+                  - {code: high, label: Высокий}
+                  - {code: medium, label: Средний}
+                  - {code: low, label: Низкий}
+                statuses:
+                  - {code: new, label: Новое, is_final: false}
+                  - {code: in_review, label: На рассмотрении, is_final: false}
+                  - {code: awaiting_info, label: Ожидает уточнения, is_final: false}
+                  - {code: in_progress, label: В работе, is_final: false}
+                  - {code: implemented, label: Реализовано, is_final: true}
+                  - {code: rejected, label: Отклонено, is_final: true}
+                  - {code: closed, label: Закрыто, is_final: true}
+                roles:
+                  - {code: employee, label: Сотрудник}
+                  - {code: head, label: Руководитель подразделения}
+                  - {code: admin, label: Администратор}
+                  - {code: owner, label: Собственник}
+                sources:
+                  - {code: bot, label: Бот}
+                  - {code: form, label: Форма}
+                  - {code: meeting, label: Совещание}
+                actions:
+                  - {code: take, label: Взять на рассмотрение, from: [new], to: in_review}
+                  - {code: request_info, label: Задать уточняющий вопрос, from: [in_review], to: awaiting_info}
+                  - {code: reply_clarification, label: Ответить на вопрос, from: [awaiting_info], to: in_review}
+                  - {code: start_work, label: В работу, from: [in_review], to: in_progress}
+                  - {code: reject, label: Отклонить, from: [in_review], to: rejected}
+                  - {code: implement, label: Реализовано, from: [in_progress], to: implemented}
+                  - {code: accept_feedback, label: Принять отзыв, from: [new], to: closed}
+                  - {code: merge, label: Присоединить к основному, from: [new, in_review], to: closed}
+                  - {code: reassign, label: Переназначить, from: [new, in_review, awaiting_info, in_progress], to: null}
+                  - {code: publish_discussion, label: Вынести на обсуждение, from: [new, in_review, awaiting_info, in_progress, implemented, rejected], to: null}
+                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [in_review, awaiting_info, in_progress], to: null}
+                  - {code: send_message, label: Написать в переписку, from: [new, in_review, awaiting_info, in_progress], to: null}
+                  - {code: upload_attachment, label: Приложить файл, from: [new, in_review, awaiting_info, in_progress], to: null}
+                due_filters:
+                  - {code: overdue, label: Просрочено}
+                  - {code: due_today, label: Срок сегодня}
+                  - {code: due_week, label: Срок на этой неделе}
+                  - {code: no_deadline, label: Без срока}
+                timezone: '+05:00'
+
+  # ---------------------------------------------------------------- appeals
+  /api/v1/appeals:
+    get:
+      tags: [appeals]
+      summary: Список обращений, которые видит пользователь
+      description: |
+        Видимость по матрице доступа: сотрудник — свои (автор или участник склеенного),
+        ответственный — назначенные, руководитель — своего подразделения, администратор и собственник — все.
+        `scope` сужает выборку внутри видимого. Очередь ответственного: `scope=assigned&sort=due_asc`.
+        Очередь нераспределённых для администратора: `scope=unassigned`.
+      operationId: listAppeals
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppealScope'
+        - name: status
+          in: query
+          description: Один или несколько статусов
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AppealStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppealType'
+        - name: priority
+          in: query
+          schema:
+            $ref: '#/components/schemas/Priority'
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: due
+          in: query
+          schema:
+            $ref: '#/components/schemas/DueFilter'
+        - name: q
+          in: query
+          description: Поиск по номеру, сути и тексту
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_desc, created_asc, due_asc]
+            default: created_desc
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Страница списка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppealPage'
+              examples:
+                AppealPageExample:
+                  $ref: '#/components/examples/AppealPageExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [appeals]
+      summary: Создать обращение
+      description: |
+        Форма в клиентах (`source=form`) и подтверждённый черновик из бота (`source=bot`).
+        Работает без AI-сервисов. Бэкенд сразу маршрутизирует обращение: назначает ответственного
+        по правилу категории (или заместителя, если ответственный отсутствует) и срок первого ответа.
+        Если ответственного нет или категория не указана, `assignee` = null и обращение в очереди администратора.
+        Вложения загружаются после создания: `POST /appeals/{appeal_id}/attachments`.
+      operationId: createAppeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppealCreate'
+            example:
+              type: problem
+              category_id: 1
+              priority: medium
+              text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+              summary: В заявках на оборудование не хватает назначения и параметров
+              proposed_solution: Добавить обязательные поля «назначение» и «параметры» в шаблон заявки
+              source: form
+      responses:
+        '201':
+          description: Обращение создано и назначено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealCreated:
+                  $ref: '#/components/examples/AppealCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    get:
+      tags: [appeals]
+      summary: Карточка обращения
+      description: |
+        `access=participant` — пользователь видит основное обращение как участник склеенного повтора:
+        статус, ответственного, срок и итог, но `text`, `proposed_solution`, `author` и вложения скрыты (null / пусто).
+      operationId: getAppeal
+      responses:
+        '200':
+          description: Обращение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                assignee_view:
+                  $ref: '#/components/examples/AppealA001AssigneeView'
+                rejected:
+                  $ref: '#/components/examples/AppealA017Rejected'
+                implemented:
+                  $ref: '#/components/examples/AppealA004Implemented'
+                participant_view:
+                  $ref: '#/components/examples/AppealParticipantView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/appeals/{appeal_id}/history:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    get:
+      tags: [appeals]
+      summary: История событий обращения
+      description: По возрастанию времени. Участник склеенного повтора историю основного не видит (403).
+      operationId: getAppealHistory
+      responses:
+        '200':
+          description: События
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HistoryEvent'
+              example:
+                - id: 101
+                  appeal_id: 21
+                  kind: created
+                  actor: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+                  field: null
+                  old_value: null
+                  new_value: null
+                  comment: Подано через форму
+                  created_at: '2026-11-10T10:15:00+05:00'
+                - id: 102
+                  appeal_id: 21
+                  kind: assigned
+                  actor: null
+                  field: assignee
+                  old_value: null
+                  new_value: Марат Сейткали
+                  comment: По правилу категории «Межотдельное взаимодействие»
+                  created_at: '2026-11-10T10:15:00+05:00'
+                - id: 103
+                  appeal_id: 21
+                  kind: status_changed
+                  actor: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                  field: status
+                  old_value: new
+                  new_value: in_review
+                  comment: null
+                  created_at: '2026-11-10T11:02:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------- actions
+  /api/v1/appeals/{appeal_id}/take:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Взять на рассмотрение (Новое → На рассмотрении)
+      description: |
+        Фиксирует время первого ответа, если оно ещё не зафиксировано.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
+      operationId: takeAppeal
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  nullable: true
+                  description: Необязательный первый ответ автору, попадает в переписку
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealTaken:
+                  $ref: '#/components/examples/AppealTaken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+  /api/v1/appeals/{appeal_id}/request-info:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Задать автору уточняющий вопрос (На рассмотрении → Ожидает уточнения)
+      description: |
+        Вопрос попадает в переписку с `is_clarification_question=true`, автору уходит уведомление.
+        Срок первого ответа к этому моменту уже выполнен (первый ответ фиксирует `take`), других сроков нет.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
+      operationId: requestInfo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+            example:
+              question: Пришлите, пожалуйста, пример заявки, где не хватило параметров.
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealAwaitingInfo:
+                  $ref: '#/components/examples/AppealAwaitingInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}/start-work:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Принять решение и перевести в работу (На рассмотрении → В работе)
+      description: 'Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.'
+      operationId: startWork
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  minLength: 1
+                  description: Принятое решение — что будет сделано
+            example:
+              decision: Добавим в шаблон заявки обязательные поля «назначение» и «параметры» до конца месяца.
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealInWork:
+                  $ref: '#/components/examples/AppealInWork'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Отклонить с обязательной причиной (На рассмотрении → Отклонено)
+      description: 'Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.'
+      operationId: rejectAppeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+            example:
+              reason: Сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса.
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealA017Rejected:
+                  $ref: '#/components/examples/AppealA017Rejected'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}/implement:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Зафиксировать результат (В работе → Реализовано)
+      description: |
+        Обращение попадает в ленту реализованного, которую видят все сотрудники. В ленте показываются
+        «что предложили» и «что сделали»:
+        - что предложили — `public_summary`; если не задан — публичная формулировка обсуждения, а без обсуждения — краткая суть;
+        - что сделали — `public_result`; если не задан — `result`. Поэтому `result` без `public_result` пишите так,
+          чтобы его можно было показать всем.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
+      operationId: implementAppeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [result]
+              properties:
+                result:
+                  type: string
+                  minLength: 1
+                public_summary:
+                  type: string
+                  nullable: true
+                  description: Что предложили — для ленты
+                public_result:
+                  type: string
+                  nullable: true
+                  description: Что сделали — публичная формулировка для ленты
+            example:
+              result: Запланирован пробный обучающий семинар по новым товарным линейкам на 20 ноября.
+              public_summary: Короткие занятия по новым товарным линейкам
+              public_result: Проведём пробный семинар по новым товарным линейкам
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealA004Implemented:
+                  $ref: '#/components/examples/AppealA004Implemented'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}/accept-feedback:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Принять положительный отзыв одним действием (Новое → Закрыто)
+      description: |
+        Только для `type=praise`. Для других типов — `409 invalid_transition`.
+        Кто: ответственный, руководитель подразделения обращения, собственник. Руководитель и собственник действуют без смены ответственного. Администратору и остальным — `403`.
+      operationId: acceptFeedback
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  nullable: true
+            example:
+              comment: Спасибо! Передали организаторам обучения.
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealFeedbackAccepted:
+                  $ref: '#/components/examples/AppealFeedbackAccepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+  /api/v1/appeals/{appeal_id}/reassign:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Переназначить ответственного с причиной
+      description: |
+        Руководитель (в своём подразделении), администратор, собственник. Срок первого ответа
+        отсчитывается заново, причина пишется в историю. Этим же маршрутом администратор
+        назначает ответственного из очереди нераспределённых.
+        Ответственному, сотруднику — `403`.
+      operationId: reassignAppeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignee_id, reason]
+              properties:
+                assignee_id:
+                  type: integer
+                reason:
+                  type: string
+                  minLength: 1
+            example:
+              assignee_id: 13
+              reason: Вопрос про синхронизацию систем — в зоне IT.
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealReassigned:
+                  $ref: '#/components/examples/AppealReassigned'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/appeals/{appeal_id}/merge:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions, duplicates]
+      summary: Присоединить это обращение как повтор к основному
+      description: |
+        `appeal_id` — повтор, `main_appeal_id` — основное. Оба в статусах «Новое» или «На рассмотрении»
+        и оба видны пользователю, иначе `409 merge_not_allowed` / `403`. Повтор между зонами разных
+        ответственных склеивает руководитель или собственник. Повтор переходит в «Закрыто» со ссылкой
+        на основное, его автор становится участником основного и получает его статусы.
+        Ответ — основное обращение с обновлённым `participants_count`.
+        Кто: ответственный (оба обращения назначены ему), руководитель, собственник. Администратору — `403`, даже если он видит оба обращения.
+      operationId: mergeAppeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [main_appeal_id]
+              properties:
+                main_appeal_id:
+                  type: integer
+            example:
+              main_appeal_id: 3
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealMergedMain:
+                  $ref: '#/components/examples/AppealMergedMain'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Склейка невозможна (`merge_not_allowed`) или недопустимый статус (`invalid_transition`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: merge_not_allowed
+                  message: Склеить можно только обращения в статусах «Новое» и «На рассмотрении».
+                  details: {appeal_status: in_progress, main_appeal_status: in_review}
+
+  # ---------------------------------------------------------------- messages
+  /api/v1/appeals/{appeal_id}/messages:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    get:
+      tags: [messages]
+      summary: Приватная переписка по обращению
+      description: Видят автор, ответственный, руководитель подразделения и собственник. Администратор и участники склеенных повторов — `403`.
+      operationId: listMessages
+      responses:
+        '200':
+          description: Сообщения по возрастанию времени
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+              example:
+                - id: 501
+                  appeal_id: 5
+                  author: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}
+                  text: Уточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?
+                  is_clarification_question: true
+                  created_at: '2026-11-09T12:40:00+05:00'
+                - id: 502
+                  appeal_id: 5
+                  author: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+                  text: Чаще всего акты сверки и счета-фактуры от поставщиков.
+                  is_clarification_question: false
+                  created_at: '2026-11-10T09:05:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [messages]
+      summary: Написать в приватную переписку
+      description: |
+        Если обращение в «Ожидает уточнения» и пишет автор, сообщение считается ответом на вопрос
+        и возвращает обращение в «На рассмотрении» (действие `reply_clarification`).
+        Бот отправляет ответ автора этим же маршрутом от имени пользователя.
+      operationId: postMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+            example:
+              text: Чаще всего акты сверки и счета-фактуры от поставщиков.
+      responses:
+        '201':
+          description: Сообщение добавлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+              example:
+                id: 502
+                appeal_id: 5
+                author: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+                text: Чаще всего акты сверки и счета-фактуры от поставщиков.
+                is_clarification_question: false
+                created_at: '2026-11-10T09:05:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ---------------------------------------------------------------- attachments
+  /api/v1/appeals/{appeal_id}/attachments:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    get:
+      tags: [attachments]
+      summary: Вложения обращения
+      operationId: listAttachments
+      responses:
+        '200':
+          description: Вложения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attachment'
+              example:
+                - {"id": 7, "appeal_id": 1, "filename": "пример_заявки.pdf", "content_type": "application/pdf", "size_bytes": 184320, "download_url": "/api/v1/attachments/7", "uploaded_by": {"id": 4, "full_name": "Айгерим Нурланова", "role": "employee", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-04T10:21:00+05:00"}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [attachments]
+      summary: Приложить файл
+      description: Автор и ответственный. Не больше 20 МБ на файл.
+      operationId: uploadAttachment
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Файл сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+              examples:
+                AttachmentExample:
+                  $ref: '#/components/examples/AttachmentExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+  /api/v1/attachments/{attachment_id}:
+    parameters:
+      - name: attachment_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: [attachments]
+      summary: Скачать файл
+      description: Отдаётся только тем, кто видит обращение (участнику склеенного повтора — нет).
+      operationId: downloadAttachment
+      responses:
+        '200':
+          description: Содержимое файла
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------- duplicates
+  /api/v1/appeals/{appeal_id}/similar:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    get:
+      tags: [duplicates]
+      summary: Подсказки о похожих обращениях
+      description: |
+        Ищутся среди обращений, которые видит пользователь: ответственный — среди назначенных ему,
+        руководитель — в своём подразделении, собственник — по всей компании. Автору не отдаётся (пустой список).
+        Отклонённые кнопкой «Это другое» не возвращаются.
+      operationId: listSimilar
+      responses:
+        '200':
+          description: Подсказки
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DuplicateSuggestion'
+              example:
+                - id: 31
+                  appeal_id: 21
+                  similar_appeal:
+                    id: 3
+                    number: A-003
+                    summary: Разные обозначения одного изделия в рабочих материалах
+                    status: in_progress
+                    type: problem
+                  explanation: Оба обращения о том, что одно изделие называется по-разному и из-за этого дольше проверяются спецификации.
+                  can_merge: false
+                  created_at: '2026-11-10T10:15:05+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/duplicate-suggestions/{suggestion_id}/dismiss:
+    parameters:
+      - name: suggestion_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags: [duplicates]
+      summary: «Это другое» — убрать подсказку навсегда
+      operationId: dismissSuggestion
+      responses:
+        '204':
+          description: Подсказка убрана и больше не предлагается
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------- bitrix
+  /api/v1/appeals/{appeal_id}/bitrix-task:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [bitrix]
+      summary: Создать задачу в Битрикс24
+      description: |
+        Ответственный, руководитель, собственник. Повторный вызов не создаёт вторую задачу и возвращает
+        существующую с кодом 200. При ошибке портала — `502 bitrix_unavailable`, обращение не меняется.
+        Администратору и сотруднику — `403`.
+      operationId: createBitrixTask
+      responses:
+        '200':
+          description: Задача уже была создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BitrixTask'
+              examples:
+                BitrixTaskExample:
+                  $ref: '#/components/examples/BitrixTaskExample'
+        '201':
+          description: Задача создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BitrixTask'
+              examples:
+                BitrixTaskExample:
+                  $ref: '#/components/examples/BitrixTaskExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '502':
+          description: Портал Битрикс24 недоступен или вернул ошибку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: bitrix_unavailable
+                  message: Не удалось создать задачу в Битрикс24. Попробуйте позже.
+                  details: null
+
+  # ---------------------------------------------------------------- drafts
+  /api/v1/drafts/text:
+    post:
+      tags: [drafts]
+      summary: Черновик обращения из текста или пересланного сообщения
+      description: |
+        Claude предлагает тип, категорию из справочника, приоритет, краткую суть и предлагаемое решение.
+        Черновик ничего не создаёт и не хранится: автор правит поля и отправляет `POST /appeals` с `source=bot`.
+        Если AI-сервис недоступен — `503 ai_unavailable`, форма продолжает работать.
+      operationId: draftFromText
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextDraftRequest'
+            example:
+              text: Опять в заявке на камеры не написали, для какого объекта и какое разрешение нужно, третий раз переспрашиваю у продаж
+              forwarded_from: Чат «Закупки — продажи»
+      responses:
+        '200':
+          description: Черновик
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppealDraft'
+              examples:
+                DraftExample:
+                  $ref: '#/components/examples/DraftExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/AiUnavailable'
+  /api/v1/drafts/voice:
+    post:
+      tags: [drafts]
+      summary: Черновик обращения из голосового сообщения
+      description: |
+        ElevenLabs Scribe расшифровывает аудио, затем Claude делает черновик. Расшифровка возвращается в `transcript`
+        и в `text` черновика. Пустое аудио — `422 audio_empty`, длиннее 5 минут — `422 audio_too_long`.
+      operationId: draftFromVoice
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: ogg/opus из Telegram, mp3, m4a, wav
+      responses:
+        '200':
+          description: Черновик с расшифровкой
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppealDraft'
+              examples:
+                VoiceDraftExample:
+                  $ref: '#/components/examples/VoiceDraftExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/FileTooLarge'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/AiUnavailable'
+
+  # ---------------------------------------------------------------- discussions
+  /api/v1/appeals/{appeal_id}/discussion:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [discussions]
+      summary: Вынести обращение на общее обсуждение
+      description: |
+        Ответственный, руководитель, собственник. Одно обсуждение на обращение (повторно — `409 conflict`).
+        Автору уходит запрос на показ имени; до ответа `author_name_consent=pending` и в ленте стоит только подразделение.
+        Администратору и сотруднику — `403`.
+      operationId: publishDiscussion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionCreate'
+            example:
+              public_text: Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?
+              deadline: '2026-11-17T18:00:00+05:00'
+      responses:
+        '201':
+          description: Обсуждение открыто
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionExample:
+                  $ref: '#/components/examples/DiscussionExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/discussions:
+    get:
+      tags: [discussions]
+      summary: Лента обсуждений
+      description: Видна всем пользователям. Приватная переписка обращения сюда не попадает.
+      operationId: listDiscussions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DiscussionStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Страница обсуждений, открытые — по ближайшему сроку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscussionPage'
+              example:
+                items:
+                  - {"id": 12, "appeal": {"id": 20, "number": "A-020", "type": "suggestion", "status": "in_review"}, "public_text": "Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?", "deadline": "2026-11-17T18:00:00+05:00", "status": "open", "author_name_consent": "pending", "author_display": "Отдел «Закупки»", "department": {"id": 1, "name": "Закупки"}, "votes_for": 7, "votes_against": 1, "my_vote": null, "comments_count": 3, "outcome": null, "created_by": {"id": 3, "full_name": "Марат Сейткали", "role": "head", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-10T13:00:00+05:00", "closed_at": null, "can_vote": true, "can_close": false, "can_set_name_consent": false}
+                total: 1
+                page: 1
+                page_size: 50
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/discussions/{discussion_id}:
+    parameters:
+      - $ref: '#/components/parameters/DiscussionId'
+    get:
+      tags: [discussions]
+      summary: Обсуждение
+      operationId: getDiscussion
+      responses:
+        '200':
+          description: Обсуждение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionExample:
+                  $ref: '#/components/examples/DiscussionExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/discussions/{discussion_id}/vote:
+    parameters:
+      - $ref: '#/components/parameters/DiscussionId'
+    put:
+      tags: [discussions]
+      summary: Проголосовать или изменить голос
+      description: Один голос на пользователя, менять можно до срока. После срока или закрытия — `409 voting_closed`.
+      operationId: vote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  $ref: '#/components/schemas/VoteValue'
+            example:
+              value: for
+      responses:
+        '200':
+          description: Обсуждение с обновлённым счётом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionExample:
+                  $ref: '#/components/examples/DiscussionExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VotingClosed'
+    delete:
+      tags: [discussions]
+      summary: Отозвать голос
+      operationId: unvote
+      responses:
+        '200':
+          description: Обсуждение с обновлённым счётом
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionExample:
+                  $ref: '#/components/examples/DiscussionExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VotingClosed'
+  /api/v1/discussions/{discussion_id}/comments:
+    parameters:
+      - $ref: '#/components/parameters/DiscussionId'
+    get:
+      tags: [discussions]
+      summary: Публичные комментарии
+      operationId: listDiscussionComments
+      responses:
+        '200':
+          description: Комментарии по возрастанию времени
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiscussionComment'
+              example:
+                - id: 801
+                  discussion_id: 12
+                  author: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+                  text: Поддерживаю, клиентам тоже можно показывать такие примеры.
+                  created_at: '2026-11-10T14:20:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [discussions]
+      summary: Оставить комментарий
+      operationId: postDiscussionComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+            example:
+              text: Поддерживаю, клиентам тоже можно показывать такие примеры.
+      responses:
+        '201':
+          description: Комментарий добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscussionComment'
+              example:
+                id: 801
+                discussion_id: 12
+                author: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+                text: Поддерживаю, клиентам тоже можно показывать такие примеры.
+                created_at: '2026-11-10T14:20:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/VotingClosed'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/discussions/{discussion_id}/name-consent:
+    parameters:
+      - $ref: '#/components/parameters/DiscussionId'
+    post:
+      tags: [discussions]
+      summary: Автор решает, показывать ли своё имя
+      description: Только автор обращения. Бот вызывает от имени автора по кнопкам «Показать имя» / «Скрыть».
+      operationId: setNameConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [show_name]
+              properties:
+                show_name:
+                  type: boolean
+            example:
+              show_name: true
+      responses:
+        '200':
+          description: Обсуждение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionExample:
+                  $ref: '#/components/examples/DiscussionExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/discussions/{discussion_id}/close:
+    parameters:
+      - $ref: '#/components/parameters/DiscussionId'
+    post:
+      tags: [discussions]
+      summary: Зафиксировать итог обсуждения
+      description: Руководитель подразделения обращения или собственник. Итог записывается в обсуждение и в историю обращения.
+      operationId: closeDiscussion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  type: string
+                  minLength: 1
+            example:
+              outcome: Большинство за. Первый обзор выпустим в конце квартала.
+      responses:
+        '200':
+          description: Закрытое обсуждение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+              examples:
+                DiscussionClosedExample:
+                  $ref: '#/components/examples/DiscussionClosedExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ---------------------------------------------------------------- feed
+  /api/v1/feed/implemented:
+    get:
+      tags: [feed]
+      summary: Лента реализованных улучшений
+      description: Видна всем. Имя автора — только с его согласия, иначе подразделение.
+      operationId: listImplementedFeed
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Новые сверху
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedPage'
+              example:
+                items:
+                  - appeal_id: 4
+                    number: A-004
+                    type: suggestion
+                    category: {id: 4, name: Обучение}
+                    department: {id: 8, name: HR}
+                    public_summary: Короткие занятия по новым товарным линейкам
+                    result: Запланирован пробный обучающий семинар по новым товарным линейкам.
+                    author_display: Отдел «Закупки»
+                    implemented_at: '2026-11-06T16:00:00+05:00'
+                    discussion_id: null
+                  - appeal_id: 8
+                    number: A-008
+                    type: suggestion
+                    category: {id: 8, name: Знания и наставничество}
+                    department: {id: 2, name: Бухгалтерия}
+                    public_summary: Памятка по типовым ошибкам для новых сотрудников
+                    result: Создана учебная инструкция с разбором типовых ошибок и контактами.
+                    author_display: Дина Жуматова
+                    implemented_at: '2026-11-03T12:30:00+05:00'
+                    discussion_id: 9
+                total: 2
+                page: 1
+                page_size: 50
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- meetings
+  /api/v1/meetings:
+    get:
+      tags: [meetings]
+      summary: Совещания, загруженные пользователем
+      description: Руководитель и собственник видят загруженные ими записи. Остальным — `403`.
+      operationId: listMeetings
+      responses:
+        '200':
+          description: Новые сверху
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MeetingBrief'
+              example:
+                - id: 3
+                  title: Планёрка закупок 10.11
+                  status: ready
+                  drafts_total: 3
+                  drafts_pending: 2
+                  uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                  created_at: '2026-11-10T12:00:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [meetings]
+      summary: Загрузить аудиозапись совещания
+      description: |
+        Обработка идёт в фоне: ответ сразу со `status=processing`. Клиент опрашивает `GET /meetings/{id}`
+        раз в несколько секунд, пока статус не станет `ready` или `failed`. До 200 МБ.
+        Только руководитель и собственник, остальным — `403`.
+      operationId: uploadMeeting
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: mp3, m4a, wav, ogg, webm
+                title:
+                  type: string
+      responses:
+        '202':
+          description: Запись принята, идёт обработка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+              example:
+                id: 3
+                title: Планёрка закупок 10.11
+                status: processing
+                error: null
+                transcript: null
+                uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                drafts: []
+                created_at: '2026-11-10T12:00:00+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/MeetingFileTooLarge'
+  /api/v1/meetings/{meeting_id}:
+    parameters:
+      - $ref: '#/components/parameters/MeetingId'
+    get:
+      tags: [meetings]
+      summary: 'Совещание: состояние, расшифровка, черновики'
+      description: Только загрузивший (руководитель или собственник), остальным — `403`.
+      operationId: getMeeting
+      responses:
+        '200':
+          description: Совещание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+              examples:
+                MeetingReadyExample:
+                  $ref: '#/components/examples/MeetingReadyExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/meetings/{meeting_id}/drafts/{draft_id}:
+    parameters:
+      - $ref: '#/components/parameters/MeetingId'
+      - $ref: '#/components/parameters/MeetingDraftId'
+    patch:
+      tags: [meetings]
+      summary: Поправить черновик
+      description: |
+        Только загрузивший и только черновик в статусе `pending`.
+        Остальным — `403`.
+      operationId: updateMeetingDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingDraftUpdate'
+            example:
+              priority: high
+              author_id: 4
+      responses:
+        '200':
+          description: Черновик
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingDraft'
+              examples:
+                MeetingDraftExample:
+                  $ref: '#/components/examples/MeetingDraftExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/meetings/{meeting_id}/drafts/{draft_id}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/MeetingId'
+      - $ref: '#/components/parameters/MeetingDraftId'
+    post:
+      tags: [meetings]
+      summary: Подтвердить черновик — создать обращение
+      description: |
+        Обращение создаётся с `source=meeting` и идёт по обычной маршрутизации. Автор — `author_id` черновика,
+        если указан, иначе загрузивший. Тело необязательно: можно сразу передать последние правки.
+        Только загрузивший, остальным — `403`.
+      operationId: confirmMeetingDraft
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingDraftUpdate'
+      responses:
+        '201':
+          description: Создано обращение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+              examples:
+                AppealCreated:
+                  $ref: '#/components/examples/AppealCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/meetings/{meeting_id}/drafts/{draft_id}/discard:
+    parameters:
+      - $ref: '#/components/parameters/MeetingId'
+      - $ref: '#/components/parameters/MeetingDraftId'
+    post:
+      tags: [meetings]
+      summary: Отбросить черновик
+      description: Только загрузивший, остальным — `403`.
+      operationId: discardMeetingDraft
+      responses:
+        '200':
+          description: Черновик отброшен, обращение не создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeetingDraft'
+              example:
+                id: 13
+                meeting_id: 3
+                status: discarded
+                type: suggestion
+                category: {id: 13, name: Коммуникации}
+                priority: low
+                summary: Перейти на один мессенджер для рабочих чатов
+                text: Обсудили, что рабочие чаты разбросаны по разным мессенджерам.
+                proposed_solution: null
+                quote: «…может, вообще все рабочие чаты в один мессенджер перевести, но это не к нам вопрос…»
+                author: null
+                appeal: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ---------------------------------------------------------------- analytics
+  /api/v1/analytics/summary:
+    get:
+      tags: [analytics]
+      summary: Экран сводки и аналитики
+      description: |
+        Собственник — по компании (может сузить `department_id`), руководитель — только по своему
+        подразделению (`department_id` другого подразделения — `403`). Остальным — `403`.
+      operationId: getAnalyticsSummary
+      parameters:
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AppealStatus'
+        - name: due
+          in: query
+          schema:
+            $ref: '#/components/schemas/DueFilter'
+      responses:
+        '200':
+          description: Сводка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSummary'
+              examples:
+                AnalyticsSummaryExample:
+                  $ref: '#/components/examples/AnalyticsSummaryExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/analytics/digest:
+    get:
+      tags: [analytics]
+      summary: Текст сводки для бота
+      description: |
+        Команда сводки в боте: бот вызывает от имени пользователя и отправляет `text` как есть (Telegram HTML).
+        Руководитель получает своё подразделение, собственник — компанию. Остальным — `403`.
+        Утренняя сводка приходит в очередь уведомлений (`kind=digest`) сама.
+      operationId: getDigest
+      responses:
+        '200':
+          description: Текст сводки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Digest'
+              example:
+                scope: company
+                department: null
+                generated_at: '2026-11-10T09:00:00+05:00'
+                text: "<b>Сводка на 10 ноября</b>\n\n🆕 Новое за сутки: 3\n• A-021 Нет назначения изделия в заявках (Закупки)\n\n⏰ Зависло: 2\n• A-007 — Даурен Исаев, просрочено 2 дн.\n• A-011 — Тимур Абенов, просрочено 1 дн.\n\n✅ Закрыто за неделю: 4\n\n🔁 Повторяется: A-003 — сообщили 3 человека"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ---------------------------------------------------------------- notifications
+  /api/v1/notifications:
+    get:
+      tags: [notifications]
+      summary: Уведомления пользователя
+      operationId: listNotifications
+      parameters:
+        - name: unread_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Новые сверху
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+              example:
+                items:
+                  - {"id": 901, "kind": "status_changed", "text": "Обращение <b>A-017</b> отклонено.\nПричина: сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса.", "appeal": {"id": 17, "number": "A-017", "summary": "Зона для коротких перерывов рядом с рабочими помещениями", "status": "rejected", "type": "suggestion"}, "path": "/appeals/17", "buttons": [{"type": "open_appeal", "text": "Открыть обращение", "appeal_id": 17, "discussion_id": null}], "is_read": false, "created_at": "2026-10-29T16:00:00+05:00"}
+                total: 1
+                page: 1
+                page_size: 50
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [notifications]
+      summary: Счётчик непрочитанного
+      operationId: getUnreadCount
+      responses:
+        '200':
+          description: Счётчик
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+              example:
+                count: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/notifications/read:
+    post:
+      tags: [notifications]
+      summary: Отметить прочитанным
+      description: |
+        `all=true` — всё; `appeal_id` — всё по обращению (клиент вызывает при открытии карточки);
+        `ids` — конкретные. Возвращает новый счётчик.
+      operationId: markNotificationsRead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkReadRequest'
+            example:
+              appeal_id: 21
+      responses:
+        '200':
+          description: Счётчик после отметки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+              example:
+                count: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- bot
+  /api/v1/bot/notifications/pending:
+    get:
+      tags: [bot]
+      summary: Неотправленные уведомления для доставки в Telegram
+      description: |
+        Бот опрашивает раз в несколько секунд. Возвращаются уведомления без подтверждённой доставки,
+        у которых наступило время следующей попытки. Подтверждённое (`ack`) больше не возвращается.
+      operationId: listPendingNotifications
+      security:
+        - serviceKey: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: Уведомления к отправке, старые первыми
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BotNotification'
+              example:
+                - {"id": 905, "kind": "clarification_requested", "text": "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?", "appeal": {"id": 5, "number": "A-005", "summary": "Не видно, на каком этапе пакет документов", "status": "awaiting_info", "type": "problem"}, "path": "/appeals/5", "buttons": [{"type": "reply_clarification", "text": "Ответить", "appeal_id": 5, "discussion_id": null}, {"type": "open_appeal", "text": "Открыть обращение", "appeal_id": 5, "discussion_id": null}], "is_read": false, "created_at": "2026-11-09T12:40:00+05:00", "recipient": {"user_id": 6, "telegram_id": 100000006}, "attempts": 0}
+                - {"id": 906, "kind": "name_consent_request", "text": "Ваше обращение <b>A-020</b> вынесено на общее обсуждение.\nПоказывать ваше имя? Без согласия будет указано только подразделение.", "appeal": {"id": 20, "number": "A-020", "summary": "Публиковать обзор завершённых внутренних улучшений", "status": "in_review", "type": "suggestion"}, "path": "/discussions/12", "buttons": [{"type": "name_consent_show", "text": "Показать имя", "appeal_id": 20, "discussion_id": 12}, {"type": "name_consent_hide", "text": "Скрыть", "appeal_id": 20, "discussion_id": 12}], "is_read": false, "created_at": "2026-11-10T13:00:00+05:00", "recipient": {"user_id": 4, "telegram_id": 100000004}, "attempts": 0}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/bot/notifications/{notification_id}/ack:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+    post:
+      tags: [bot]
+      summary: Подтвердить доставку
+      operationId: ackNotification
+      security:
+        - serviceKey: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                telegram_message_id:
+                  type: integer
+                  nullable: true
+                  description: ID отправленного сообщения — бот по нему узнаёт, на какой вопрос ответил пользователь (reply)
+      responses:
+        '204':
+          description: Доставка подтверждена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/bot/notifications/{notification_id}/fail:
+    parameters:
+      - $ref: '#/components/parameters/NotificationId'
+    post:
+      tags: [bot]
+      summary: Сообщить о неудачной доставке
+      description: Уведомление вернётся в `pending` позже с нарастающей паузой. Пользователь заблокировал бота — `permanent=true`.
+      operationId: failNotification
+      security:
+        - serviceKey: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                permanent:
+                  type: boolean
+                  default: false
+      responses:
+        '204':
+          description: Попытка учтена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------- directories
+  /api/v1/departments:
+    get:
+      tags: [dictionaries]
+      summary: Подразделения
+      operationId: listDepartments
+      responses:
+        '200':
+          description: Подразделения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+              examples:
+                DepartmentsExample:
+                  $ref: '#/components/examples/DepartmentsExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/categories:
+    get:
+      tags: [dictionaries]
+      summary: Категории с ответственными
+      parameters:
+        - name: include_inactive
+          in: query
+          schema:
+            type: boolean
+            default: false
+      operationId: listCategories
+      responses:
+        '200':
+          description: Категории
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              examples:
+                CategoriesExample:
+                  $ref: '#/components/examples/CategoriesExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/users:
+    get:
+      tags: [dictionaries]
+      summary: Справочник сотрудников
+      description: |
+        Для выбора ответственного при переназначении и автора черновика совещания.
+        `telegram_id` отдаётся только администратору, остальным — null.
+      operationId: listUsers
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: department_id
+          in: query
+          schema:
+            type: integer
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/Role'
+        - name: include_disabled
+          in: query
+          description: Только для администратора
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Сотрудники
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+              examples:
+                UsersExample:
+                  $ref: '#/components/examples/UsersExample'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- admin
+  /api/v1/admin/users:
+    post:
+      tags: [admin]
+      summary: Добавить сотрудника по Telegram ID
+      description: Только администратор, остальным — `403`.
+      operationId: adminCreateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+            example:
+              telegram_id: 100000017
+              full_name: Ирина Волкова
+              position: Специалист по закупкам
+              role: employee
+              department_id: 1
+      responses:
+        '201':
+          description: Сотрудник добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 17
+                telegram_id: 100000017
+                full_name: Ирина Волкова
+                position: Специалист по закупкам
+                role: employee
+                department: {id: 1, name: Закупки}
+                is_absent: false
+                is_disabled: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [admin]
+      summary: Изменить роль, подразделение, отсутствие, доступ
+      description: |
+        `is_absent=true` — новые обращения его категорий получает заместитель.
+        `is_disabled=true` — вход запрещён, текущие сессии сбрасываются.
+        Только администратор, остальным — `403`.
+      operationId: adminUpdateUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+            example:
+              is_absent: true
+      responses:
+        '200':
+          description: Сотрудник
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: 3
+                telegram_id: 100000003
+                full_name: Марат Сейткали
+                position: Руководитель закупок
+                role: head
+                department: {id: 1, name: Закупки}
+                is_absent: true
+                is_disabled: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/departments:
+    post:
+      tags: [admin]
+      summary: Добавить подразделение
+      description: Только администратор, остальным — `403`.
+      operationId: adminCreateDepartment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentWrite'
+            example:
+              name: Логистика
+              head_id: null
+      responses:
+        '201':
+          description: Подразделение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+              example:
+                id: 9
+                name: Логистика
+                head: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/departments/{department_id}:
+    parameters:
+      - name: department_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [admin]
+      summary: Изменить название или руководителя подразделения
+      description: Только администратор, остальным — `403`.
+      operationId: adminUpdateDepartment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentUpdate'
+            example:
+              head_id: 3
+      responses:
+        '200':
+          description: Подразделение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+              example:
+                id: 1
+                name: Закупки
+                head: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/categories:
+    post:
+      tags: [admin]
+      summary: Добавить категорию
+      description: Только администратор, остальным — `403`.
+      operationId: adminCreateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryWrite'
+            example:
+              name: Склад и логистика
+              department_id: 1
+              responsible_id: 3
+              deputy_id: 4
+      responses:
+        '201':
+          description: Категория
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 19
+                name: Склад и логистика
+                department: {id: 1, name: Закупки}
+                responsible: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                deputy: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+                is_active: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/categories/{category_id}:
+    parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    patch:
+      tags: [admin]
+      summary: 'Изменить категорию: ответственный, заместитель, подразделение, активность'
+      description: |
+        Изменение влияет на маршрутизацию новых обращений; уже назначенные не переназначаются.
+        Только администратор, остальным — `403`.
+      operationId: adminUpdateCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+            example:
+              responsible_id: 13
+              deputy_id: null
+      responses:
+        '200':
+          description: Категория
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+              example:
+                id: 7
+                name: Интеграции и IT
+                department: {id: 6, name: IT}
+                responsible: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+                deputy: null
+                is_active: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/deadline-rules:
+    get:
+      tags: [admin]
+      summary: Сроки первого ответа по приоритетам
+      description: Только администратор, остальным — `403`.
+      operationId: adminGetDeadlineRules
+      responses:
+        '200':
+          description: Правила
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadlineRule'
+              example:
+                - {priority: high, business_days: 1}
+                - {priority: medium, business_days: 3}
+                - {priority: low, business_days: 5}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      tags: [admin]
+      summary: Изменить сроки первого ответа
+      description: |
+        Применяются к новым обращениям и к переназначениям после изменения.
+        Только администратор, остальным — `403`.
+      operationId: adminUpdateDeadlineRules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              maxItems: 3
+              items:
+                $ref: '#/components/schemas/DeadlineRule'
+            example:
+              - {priority: high, business_days: 1}
+              - {priority: medium, business_days: 2}
+              - {priority: low, business_days: 5}
+      responses:
+        '200':
+          description: Правила после изменения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeadlineRule'
+              example:
+                - {priority: high, business_days: 1}
+                - {priority: medium, business_days: 2}
+                - {priority: low, business_days: 5}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/settings:
+    get:
+      tags: [admin]
+      summary: Общие настройки
+      description: Только администратор, остальным — `403`.
+      operationId: adminGetSettings
+      responses:
+        '200':
+          description: Настройки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSettings'
+              example:
+                digest_time: '09:00'
+                timezone: '+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags: [admin]
+      summary: Изменить время утренней сводки
+      description: Только администратор, остальным — `403`.
+      operationId: adminUpdateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                digest_time:
+                  type: string
+                  pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+            example:
+              digest_time: '09:00'
+      responses:
+        '200':
+          description: Настройки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSettings'
+              example:
+                digest_time: '09:00'
+                timezone: '+05:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Токен сессии из `/auth/*`
+    serviceKey:
+      type: apiKey
+      in: header
+      name: X-Service-Key
+      description: Сервисный ключ бота (только бот, из окружения)
+    telegramId:
+      type: apiKey
+      in: header
+      name: X-Telegram-Id
+      description: Telegram ID пользователя, от имени которого действует бот (вместе с `X-Service-Key`)
+
+  parameters:
+    AppealId:
+      name: appeal_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    DiscussionId:
+      name: discussion_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    MeetingId:
+      name: meeting_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    MeetingDraftId:
+      name: draft_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    NotificationId:
+      name: notification_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+
+  responses:
+    Session:
+      description: Сессия выдана
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Session'
+          examples:
+            employee:
+              $ref: '#/components/examples/SessionEmployee'
+    Unauthorized:
+      description: Нет токена, токен истёк или неверный сервисный ключ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: unauthorized
+              message: Требуется вход.
+              details: null
+    InvalidTelegramAuth:
+      description: Подпись данных Telegram не прошла проверку или данные устарели
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invalid_telegram_auth
+              message: Не удалось подтвердить вход через Telegram.
+              details: null
+    LoginForbidden:
+      description: Пользователя нет в списке сотрудников (`user_not_registered`) или доступ отключён (`user_disabled`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            not_registered:
+              value:
+                error:
+                  code: user_not_registered
+                  message: Вас нет в списке сотрудников. Обратитесь к администратору.
+                  details: null
+            disabled:
+              value:
+                error:
+                  code: user_disabled
+                  message: Доступ отключён. Обратитесь к администратору.
+                  details: null
+    DevLoginDisabled:
+      description: Dev-вход выключен настройкой окружения
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: dev_login_disabled
+              message: Dev-вход выключен.
+              details: null
+    Forbidden:
+      description: Действие недоступно роли пользователя или обращение ему не видно
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: forbidden
+              message: Недостаточно прав для этого действия.
+              details: null
+    NotFound:
+      description: Объект не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: Обращение не найдено.
+              details: null
+    Conflict:
+      description: Конфликт с текущим состоянием (`conflict`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: conflict
+              message: Обращение уже вынесено на обсуждение.
+              details: null
+    InvalidTransition:
+      description: Недопустимый переход статуса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invalid_transition
+              message: Из статуса «Новое» нельзя перейти в «Реализовано».
+              details:
+                action: implement
+                status: new
+                allowed_actions: [take, reassign, send_message]
+    ValidationError:
+      description: Ошибка в данных запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: validation_error
+              message: Укажите причину отказа.
+              details:
+                fields:
+                  - {field: reason, message: Обязательное поле}
+    VotingClosed:
+      description: Срок обсуждения прошёл или итог зафиксирован
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: voting_closed
+              message: Обсуждение завершено.
+              details: null
+    FileTooLarge:
+      description: Файл больше допустимого
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: file_too_large
+              message: Файл больше 20 МБ.
+              details: {max_bytes: 20971520}
+    MeetingFileTooLarge:
+      description: Запись больше допустимого
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: file_too_large
+              message: Запись больше 200 МБ.
+              details: {max_bytes: 209715200}
+    AiUnavailable:
+      description: Claude или ElevenLabs недоступны — предложите заполнить форму
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: ai_unavailable
+              message: Разбор сейчас недоступен. Заполните обращение через форму.
+              details: null
+
+  schemas:
+    # ------------------------------------------------ errors
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              $ref: '#/components/schemas/ErrorCode'
+            message:
+              type: string
+              description: Текст для пользователя на русском
+            details:
+              type: object
+              nullable: true
+              additionalProperties: true
+              description: |
+                Для `validation_error` — `{"fields": [{"field": "...", "message": "..."}]}`.
+                Для `invalid_transition` — `{"action", "status", "allowed_actions"}`.
+    ErrorCode:
+      type: string
+      description: |
+        `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 ·
+        `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
+        `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
+        `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
+        `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
+      enum:
+        - unauthorized
+        - invalid_telegram_auth
+        - invalid_login_code
+        - user_not_registered
+        - user_disabled
+        - dev_login_disabled
+        - forbidden
+        - not_found
+        - conflict
+        - invalid_transition
+        - merge_not_allowed
+        - voting_closed
+        - file_too_large
+        - validation_error
+        - audio_empty
+        - audio_too_long
+        - bitrix_unavailable
+        - ai_unavailable
+        - internal_error
+
+    # ------------------------------------------------ enums
+    Role:
+      type: string
+      enum: [employee, head, admin, owner]
+      description: employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
+    AppealType:
+      type: string
+      enum: [problem, suggestion, praise]
+      description: problem — проблема, suggestion — предложение, praise — положительный отзыв
+    Priority:
+      type: string
+      enum: [high, medium, low]
+    AppealStatus:
+      type: string
+      enum: [new, in_review, awaiting_info, in_progress, implemented, rejected, closed]
+      description: |
+        new — Новое, in_review — На рассмотрении, awaiting_info — Ожидает уточнения, in_progress — В работе,
+        implemented — Реализовано, rejected — Отклонено, closed — Закрыто
+    AppealSource:
+      type: string
+      enum: [bot, form, meeting]
+    AppealScope:
+      type: string
+      enum: [all, mine, assigned, department, unassigned]
+      description: |
+        all — всё видимое (по умолчанию); mine — я автор или участник; assigned — я ответственный;
+        department — обращения моего подразделения (руководитель); unassigned — без ответственного (администратор)
+    DueFilter:
+      type: string
+      enum: [overdue, due_today, due_week, no_deadline]
+    DueState:
+      type: string
+      enum: [on_time, due_soon, overdue, answered, no_deadline]
+      description: |
+        on_time — срок не скоро; due_soon — меньше суток; overdue — просрочен;
+        answered — первый ответ уже дан; no_deadline — срока нет (отзыв или нет ответственного)
+    AppealAction:
+      type: string
+      enum:
+        - take
+        - request_info
+        - reply_clarification
+        - start_work
+        - reject
+        - implement
+        - accept_feedback
+        - merge
+        - reassign
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    ViewerRelation:
+      type: string
+      enum: [author, participant, assignee, department_head, owner, admin]
+    ClosedReason:
+      type: string
+      enum: [feedback_accepted, merged]
+    DiscussionStatus:
+      type: string
+      enum: [open, closed]
+    VoteValue:
+      type: string
+      enum: [for, against]
+    NameConsent:
+      type: string
+      enum: [pending, shown, hidden]
+    MeetingStatus:
+      type: string
+      enum: [processing, ready, failed]
+    MeetingDraftStatus:
+      type: string
+      enum: [pending, confirmed, discarded]
+    NotificationKind:
+      type: string
+      enum:
+        - appeal_assigned
+        - appeal_created
+        - status_changed
+        - clarification_requested
+        - clarification_answered
+        - message_received
+        - deadline_reminder
+        - escalation_head
+        - appeal_merged
+        - name_consent_request
+        - discussion_closed
+        - digest
+      description: |
+        appeal_assigned — ответственному: новое назначение (в т. ч. переназначение);
+        appeal_created — автору: номер, ответственный, срок;
+        status_changed — автору и участникам; clarification_requested — автору: вопрос;
+        clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке;
+        deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил;
+        appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение;
+        discussion_closed — автору: итог обсуждения; digest — утренняя сводка
+    NotificationButtonType:
+      type: string
+      enum: [open_appeal, open_analytics, open_discussion, reply_clarification, name_consent_show, name_consent_hide]
+
+    # ------------------------------------------------ refs
+    DepartmentRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    CategoryRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    UserBrief:
+      type: object
+      required: [id, full_name, role, department]
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+    AppealRef:
+      type: object
+      required: [id, number, summary, status, type]
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          example: A-003
+        summary:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/AppealStatus'
+        type:
+          $ref: '#/components/schemas/AppealType'
+
+    # ------------------------------------------------ auth / users
+    MiniAppLoginRequest:
+      type: object
+      required: [init_data]
+      properties:
+        init_data:
+          type: string
+          description: '`Telegram.WebApp.initData` без изменений'
+    TelegramWidgetLoginRequest:
+      type: object
+      required: [id, first_name, auth_date, hash]
+      properties:
+        id:
+          type: integer
+          format: int64
+        first_name:
+          type: string
+        last_name:
+          type: string
+        username:
+          type: string
+        photo_url:
+          type: string
+        auth_date:
+          type: integer
+        hash:
+          type: string
+    CodeLoginRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+    LoginCode:
+      type: object
+      required: [code, expires_at, ttl_seconds]
+      properties:
+        code:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        ttl_seconds:
+          type: integer
+    Session:
+      type: object
+      required: [access_token, token_type, expires_at, user]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/Me'
+    User:
+      type: object
+      required: [id, telegram_id, full_name, position, role, department, is_absent, is_disabled]
+      properties:
+        id:
+          type: integer
+        telegram_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Только для администратора и для самого пользователя
+        full_name:
+          type: string
+        position:
+          type: string
+          nullable: true
+          description: Должность, например «Сотрудник закупок»
+        role:
+          $ref: '#/components/schemas/Role'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        is_absent:
+          type: boolean
+        is_disabled:
+          type: boolean
+    Permissions:
+      type: object
+      description: Что показывать в навигации. Права на конкретное обращение — в `Appeal.allowed_actions`.
+      required:
+        - can_create_appeal
+        - can_process_appeals
+        - can_view_department
+        - can_view_all_appeals
+        - analytics_scope
+        - can_upload_meetings
+        - can_manage_settings
+        - can_view_unassigned
+      properties:
+        can_create_appeal:
+          type: boolean
+        can_process_appeals:
+          type: boolean
+          description: Есть очередь назначенных (ответственный по категории или по обращению), руководитель или собственник
+        can_view_department:
+          type: boolean
+        can_view_all_appeals:
+          type: boolean
+        analytics_scope:
+          type: string
+          enum: [none, department, company]
+        can_upload_meetings:
+          type: boolean
+        can_manage_settings:
+          type: boolean
+        can_view_unassigned:
+          type: boolean
+    Me:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [responsible_for, deputy_for, assigned_open_count, permissions]
+          properties:
+            responsible_for:
+              type: array
+              description: Категории, где пользователь — ответственный
+              items:
+                $ref: '#/components/schemas/CategoryRef'
+            deputy_for:
+              type: array
+              description: Категории, где пользователь — заместитель
+              items:
+                $ref: '#/components/schemas/CategoryRef'
+            assigned_open_count:
+              type: integer
+              description: Открытых обращений, где пользователь — ответственный
+            permissions:
+              $ref: '#/components/schemas/Permissions'
+    UserCreate:
+      type: object
+      required: [telegram_id, full_name, role]
+      properties:
+        telegram_id:
+          type: integer
+          format: int64
+        full_name:
+          type: string
+        position:
+          type: string
+          nullable: true
+        role:
+          $ref: '#/components/schemas/Role'
+        department_id:
+          type: integer
+          nullable: true
+    UserUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+        position:
+          type: string
+          nullable: true
+        role:
+          $ref: '#/components/schemas/Role'
+        department_id:
+          type: integer
+          nullable: true
+        is_absent:
+          type: boolean
+        is_disabled:
+          type: boolean
+
+    # ------------------------------------------------ org
+    Department:
+      type: object
+      required: [id, name, head]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        head:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+    DepartmentWrite:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        head_id:
+          type: integer
+          nullable: true
+    DepartmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        head_id:
+          type: integer
+          nullable: true
+    Category:
+      type: object
+      required: [id, name, department, responsible, deputy, is_active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        department:
+          $ref: '#/components/schemas/DepartmentRef'
+        responsible:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+        deputy:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+        is_active:
+          type: boolean
+    CategoryWrite:
+      type: object
+      required: [name, department_id]
+      properties:
+        name:
+          type: string
+        department_id:
+          type: integer
+        responsible_id:
+          type: integer
+          nullable: true
+        deputy_id:
+          type: integer
+          nullable: true
+    CategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        department_id:
+          type: integer
+        responsible_id:
+          type: integer
+          nullable: true
+        deputy_id:
+          type: integer
+          nullable: true
+        is_active:
+          type: boolean
+    DeadlineRule:
+      type: object
+      required: [priority, business_days]
+      properties:
+        priority:
+          $ref: '#/components/schemas/Priority'
+        business_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+    SystemSettings:
+      type: object
+      required: [digest_time, timezone]
+      properties:
+        digest_time:
+          type: string
+          example: '09:00'
+          description: Время утренней сводки, ЧЧ:ММ по часовому поясу системы
+        timezone:
+          type: string
+          example: '+05:00'
+          description: Часовой пояс системы, задаётся окружением; только чтение
+
+    # ------------------------------------------------ dictionaries
+    LabeledCode:
+      type: object
+      required: [code, label]
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+    Dictionaries:
+      type: object
+      required: [appeal_types, priorities, statuses, roles, sources, actions, due_filters, timezone]
+      properties:
+        appeal_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabeledCode'
+        priorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabeledCode'
+        statuses:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/LabeledCode'
+              - type: object
+                required: [is_final]
+                properties:
+                  is_final:
+                    type: boolean
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabeledCode'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabeledCode'
+        actions:
+          type: array
+          description: Подписи кнопок и справочная таблица переходов. Доступность — только по `Appeal.allowed_actions`.
+          items:
+            allOf:
+              - $ref: '#/components/schemas/LabeledCode'
+              - type: object
+                required: [from, to]
+                properties:
+                  from:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AppealStatus'
+                  to:
+                    type: string
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/AppealStatus'
+        due_filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabeledCode'
+        timezone:
+          type: string
+
+    # ------------------------------------------------ appeals
+    AppealCreate:
+      type: object
+      required: [type, priority, text]
+      properties:
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category_id:
+          type: integer
+          nullable: true
+          description: null — категория не определена, обращение уходит в очередь администратора
+        priority:
+          $ref: '#/components/schemas/Priority'
+        text:
+          type: string
+          minLength: 1
+        summary:
+          type: string
+          nullable: true
+          description: Краткая суть; если пусто — первые слова текста
+        proposed_solution:
+          type: string
+          nullable: true
+        source:
+          type: string
+          enum: [form, bot]
+          default: form
+        forwarded_from:
+          type: string
+          nullable: true
+          description: Для пересылки в бот — откуда переслано (из `TextDraftRequest.forwarded_from`)
+    AppealListItem:
+      type: object
+      required:
+        - id
+        - number
+        - type
+        - category
+        - department
+        - priority
+        - status
+        - summary
+        - author
+        - assignee
+        - source
+        - first_response_due_at
+        - due_state
+        - escalation_level
+        - participants_count
+        - merged_into
+        - access
+        - has_unread
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+          example: A-021
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CategoryRef'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+          description: Подразделение категории — по нему руководитель видит обращение
+        priority:
+          $ref: '#/components/schemas/Priority'
+        status:
+          $ref: '#/components/schemas/AppealStatus'
+        summary:
+          type: string
+          nullable: true
+        author:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+          description: null для участника склеенного повтора (чужое имя скрыто)
+        assignee:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+          description: null — в очереди нераспределённых
+        source:
+          $ref: '#/components/schemas/AppealSource'
+        first_response_due_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Срок первого ответа — единственный срок в системе. null у отзывов и нераспределённых.
+        due_state:
+          $ref: '#/components/schemas/DueState'
+        escalation_level:
+          type: integer
+          minimum: 0
+          maximum: 3
+          description: 0 — нет; 1 — напомнили ответственному; 2 — уведомили руководителя; 3 — «Зависло» в сводке собственника
+        participants_count:
+          type: integer
+          description: Сколько человек сообщили о проблеме (автор + авторы присоединённых повторов)
+        merged_into:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AppealRef'
+          description: Для повтора — основное обращение (его статус показывается автору повтора)
+        access:
+          type: string
+          enum: [full, participant]
+          description: participant — пользователь видит основное обращение только как участник склеенного повтора
+        has_unread:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Appeal:
+      allOf:
+        - $ref: '#/components/schemas/AppealListItem'
+        - type: object
+          required:
+            - text
+            - proposed_solution
+            - first_response_at
+            - decision
+            - rejection_reason
+            - result
+            - public_summary
+            - public_result
+            - forwarded_from
+            - closed_reason
+            - bitrix_task
+            - discussion
+            - attachments
+            - viewer_relations
+            - allowed_actions
+          properties:
+            text:
+              type: string
+              nullable: true
+              description: null при access=participant
+            proposed_solution:
+              type: string
+              nullable: true
+            first_response_at:
+              type: string
+              format: date-time
+              nullable: true
+            decision:
+              type: string
+              nullable: true
+              description: Принятое решение при переводе в работу
+            rejection_reason:
+              type: string
+              nullable: true
+            result:
+              type: string
+              nullable: true
+              description: Зафиксированный результат («Реализовано»)
+            public_summary:
+              type: string
+              nullable: true
+              description: Что предложили — публичная формулировка для ленты реализованного
+            public_result:
+              type: string
+              nullable: true
+              description: Что сделали — публичная формулировка результата для ленты
+            forwarded_from:
+              type: string
+              nullable: true
+              description: Откуда переслано сообщение, если обращение подано пересылкой в бот
+            closed_reason:
+              type: string
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/ClosedReason'
+            bitrix_task:
+              type: object
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/BitrixTask'
+            discussion:
+              type: object
+              nullable: true
+              allOf:
+                - $ref: '#/components/schemas/DiscussionRef'
+            attachments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Attachment'
+            viewer_relations:
+              type: array
+              description: Почему пользователь видит обращение
+              items:
+                $ref: '#/components/schemas/ViewerRelation'
+            allowed_actions:
+              type: array
+              description: Действия, доступные пользователю сейчас. Клиент показывает только их.
+              items:
+                $ref: '#/components/schemas/AppealAction'
+    AppealPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppealListItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    HistoryEvent:
+      type: object
+      required: [id, appeal_id, kind, actor, field, old_value, new_value, comment, created_at]
+      properties:
+        id:
+          type: integer
+        appeal_id:
+          type: integer
+        kind:
+          type: string
+          enum:
+            - created
+            - assigned
+            - reassigned
+            - status_changed
+            - deadline_set
+            - clarification_requested
+            - clarification_answered
+            - escalated
+            - merged
+            - participant_added
+            - attachment_added
+            - discussion_published
+            - discussion_closed
+            - bitrix_task_created
+            - field_changed
+        actor:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+          description: null — система
+        field:
+          type: string
+          nullable: true
+        old_value:
+          type: string
+          nullable: true
+        new_value:
+          type: string
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+          description: Причина переназначения, текст решения и т. п.
+        created_at:
+          type: string
+          format: date-time
+    Message:
+      type: object
+      required: [id, appeal_id, author, text, is_clarification_question, created_at]
+      properties:
+        id:
+          type: integer
+        appeal_id:
+          type: integer
+        author:
+          $ref: '#/components/schemas/UserBrief'
+        text:
+          type: string
+        is_clarification_question:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    Attachment:
+      type: object
+      required: [id, appeal_id, filename, content_type, size_bytes, download_url, uploaded_by, created_at]
+      properties:
+        id:
+          type: integer
+        appeal_id:
+          type: integer
+        filename:
+          type: string
+        content_type:
+          type: string
+        size_bytes:
+          type: integer
+        download_url:
+          type: string
+          description: Путь от корня сервера (`/api/v1/attachments/{id}`), требует авторизации
+        uploaded_by:
+          $ref: '#/components/schemas/UserBrief'
+        created_at:
+          type: string
+          format: date-time
+    DuplicateSuggestion:
+      type: object
+      required: [id, appeal_id, similar_appeal, explanation, can_merge, created_at]
+      properties:
+        id:
+          type: integer
+        appeal_id:
+          type: integer
+        similar_appeal:
+          $ref: '#/components/schemas/AppealRef'
+        explanation:
+          type: string
+          description: Объяснение сходства от Claude
+        can_merge:
+          type: boolean
+          description: Можно ли склеить сейчас (статусы и права); кнопку «Присоединить» показывать только при true
+        created_at:
+          type: string
+          format: date-time
+    BitrixTask:
+      type: object
+      required: [task_id, url, created_at]
+      properties:
+        task_id:
+          type: string
+        url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # ------------------------------------------------ drafts
+    TextDraftRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+        forwarded_from:
+          type: string
+          nullable: true
+          description: Откуда переслано сообщение (название чата или имя), если это пересылка
+    AppealDraft:
+      type: object
+      description: Черновик для правки и подтверждения. Не хранится на сервере.
+      required: [type, category, priority, summary, text, proposed_solution, transcript]
+      properties:
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CategoryRef'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        summary:
+          type: string
+        text:
+          type: string
+          description: Текст обращения (для голоса — расшифровка)
+        proposed_solution:
+          type: string
+          nullable: true
+        transcript:
+          type: string
+          nullable: true
+          description: Расшифровка голосового; null для текста
+
+    # ------------------------------------------------ discussions
+    DiscussionCreate:
+      type: object
+      required: [public_text, deadline]
+      properties:
+        public_text:
+          type: string
+          minLength: 1
+          description: Публичная формулировка вопроса
+        deadline:
+          type: string
+          format: date-time
+    DiscussionRef:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/DiscussionStatus'
+    Discussion:
+      type: object
+      required:
+        - id
+        - appeal
+        - public_text
+        - deadline
+        - status
+        - author_name_consent
+        - author_display
+        - department
+        - votes_for
+        - votes_against
+        - my_vote
+        - comments_count
+        - outcome
+        - created_by
+        - created_at
+        - closed_at
+        - can_vote
+        - can_close
+        - can_set_name_consent
+      properties:
+        id:
+          type: integer
+        appeal:
+          type: object
+          required: [id, number, type, status]
+          description: Публичная ссылка на обращение; текст и переписка не раскрываются
+          properties:
+            id:
+              type: integer
+            number:
+              type: string
+            type:
+              $ref: '#/components/schemas/AppealType'
+            status:
+              $ref: '#/components/schemas/AppealStatus'
+        public_text:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DiscussionStatus'
+        author_name_consent:
+          $ref: '#/components/schemas/NameConsent'
+        author_display:
+          type: string
+          description: Имя автора при согласии, иначе «Отдел «…»»
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        votes_for:
+          type: integer
+        votes_against:
+          type: integer
+        my_vote:
+          type: string
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/VoteValue'
+        comments_count:
+          type: integer
+        outcome:
+          type: string
+          nullable: true
+        created_by:
+          $ref: '#/components/schemas/UserBrief'
+        created_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        can_vote:
+          type: boolean
+        can_close:
+          type: boolean
+        can_set_name_consent:
+          type: boolean
+          description: true только автору обращения
+    DiscussionPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Discussion'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    DiscussionComment:
+      type: object
+      required: [id, discussion_id, author, text, created_at]
+      properties:
+        id:
+          type: integer
+        discussion_id:
+          type: integer
+        author:
+          $ref: '#/components/schemas/UserBrief'
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    FeedItem:
+      type: object
+      required: [appeal_id, number, type, category, department, public_summary, result, author_display, implemented_at, discussion_id]
+      properties:
+        appeal_id:
+          type: integer
+        number:
+          type: string
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CategoryRef'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        public_summary:
+          type: string
+          description: Что предложили
+        result:
+          type: string
+          description: Что сделали — `public_result` обращения, а если он не задан — `result`
+        author_display:
+          type: string
+          description: Имя автора при согласии, иначе подразделение
+        implemented_at:
+          type: string
+          format: date-time
+        discussion_id:
+          type: integer
+          nullable: true
+    FeedPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedItem'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    # ------------------------------------------------ meetings
+    MeetingBrief:
+      type: object
+      required: [id, title, status, drafts_total, drafts_pending, uploaded_by, created_at]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/MeetingStatus'
+        drafts_total:
+          type: integer
+        drafts_pending:
+          type: integer
+        uploaded_by:
+          $ref: '#/components/schemas/UserBrief'
+        created_at:
+          type: string
+          format: date-time
+    Meeting:
+      type: object
+      required: [id, title, status, error, transcript, uploaded_by, drafts, created_at]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/MeetingStatus'
+        error:
+          type: string
+          nullable: true
+          description: Текст ошибки для пользователя при status=failed
+        transcript:
+          type: string
+          nullable: true
+        uploaded_by:
+          $ref: '#/components/schemas/UserBrief'
+        drafts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeetingDraft'
+        created_at:
+          type: string
+          format: date-time
+    MeetingDraft:
+      type: object
+      required: [id, meeting_id, status, type, category, priority, summary, text, proposed_solution, quote, author, appeal]
+      properties:
+        id:
+          type: integer
+        meeting_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/MeetingDraftStatus'
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CategoryRef'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        summary:
+          type: string
+        text:
+          type: string
+        proposed_solution:
+          type: string
+          nullable: true
+        quote:
+          type: string
+          description: Цитата из расшифровки, на которой основан черновик
+        author:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+          description: Сотрудник-автор; null — автором станет загрузивший
+        appeal:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AppealRef'
+          description: Созданное обращение после подтверждения
+    MeetingDraftUpdate:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/AppealType'
+        category_id:
+          type: integer
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/Priority'
+        summary:
+          type: string
+        text:
+          type: string
+        proposed_solution:
+          type: string
+          nullable: true
+        author_id:
+          type: integer
+          nullable: true
+
+    # ------------------------------------------------ analytics
+    CountByType:
+      type: object
+      required: [type, count]
+      properties:
+        type:
+          $ref: '#/components/schemas/AppealType'
+        count:
+          type: integer
+    CountByCategory:
+      type: object
+      required: [category, count]
+      properties:
+        category:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/CategoryRef'
+          description: null — без категории
+        count:
+          type: integer
+    CountByStatus:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          $ref: '#/components/schemas/AppealStatus'
+        count:
+          type: integer
+    StuckAppeal:
+      type: object
+      required: [appeal, assignee, days_overdue, escalation_level]
+      properties:
+        appeal:
+          $ref: '#/components/schemas/AppealRef'
+        assignee:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+        days_overdue:
+          type: integer
+          description: Рабочих дней просрочки
+        escalation_level:
+          type: integer
+    RepeatedTopic:
+      type: object
+      required: [appeal, participants_count]
+      properties:
+        appeal:
+          $ref: '#/components/schemas/AppealRef'
+        participants_count:
+          type: integer
+    AnalyticsSummary:
+      type: object
+      required:
+        - scope
+        - department
+        - generated_at
+        - total
+        - closed_count
+        - closed_share
+        - avg_first_response_hours
+        - by_type
+        - by_category
+        - by_status
+        - new_last_24h
+        - stuck
+        - closed_last_week
+        - repeated_topics
+        - overdue
+        - assignee_load
+      properties:
+        scope:
+          type: string
+          enum: [company, department]
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        generated_at:
+          type: string
+          format: date-time
+        total:
+          type: integer
+        closed_count:
+          type: integer
+          description: В финальных статусах (implemented, rejected, closed)
+        closed_share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        avg_first_response_hours:
+          type: number
+          format: float
+          nullable: true
+          description: Среднее время от создания до первого ответа, часы; null — нет данных
+        by_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/CountByType'
+        by_category:
+          type: array
+          items:
+            $ref: '#/components/schemas/CountByCategory'
+        by_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/CountByStatus'
+        new_last_24h:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppealRef'
+        stuck:
+          type: array
+          description: Зависшие — шаг эскалации 3
+          items:
+            $ref: '#/components/schemas/StuckAppeal'
+        closed_last_week:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppealRef'
+        repeated_topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/RepeatedTopic'
+        overdue:
+          type: array
+          description: Все с просроченным сроком первого ответа
+          items:
+            $ref: '#/components/schemas/StuckAppeal'
+        assignee_load:
+          type: array
+          description: Нагрузка по ответственным в выборке (история 53), по убыванию открытых
+          items:
+            $ref: '#/components/schemas/AssigneeLoad'
+    AssigneeLoad:
+      type: object
+      required: [assignee, open_count, overdue_count, avg_first_response_hours]
+      properties:
+        assignee:
+          $ref: '#/components/schemas/UserBrief'
+        open_count:
+          type: integer
+          description: Открытых обращений (не в финальном статусе)
+        overdue_count:
+          type: integer
+          description: Из них с просроченным сроком первого ответа
+        avg_first_response_hours:
+          type: number
+          format: float
+          nullable: true
+    Digest:
+      type: object
+      required: [scope, department, generated_at, text]
+      properties:
+        scope:
+          type: string
+          enum: [company, department]
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        generated_at:
+          type: string
+          format: date-time
+        text:
+          type: string
+          description: Готовый текст для Telegram, `parse_mode=HTML`
+
+    # ------------------------------------------------ notifications
+    NotificationButton:
+      type: object
+      required: [type, text, appeal_id, discussion_id]
+      properties:
+        type:
+          $ref: '#/components/schemas/NotificationButtonType'
+        text:
+          type: string
+        appeal_id:
+          type: integer
+          nullable: true
+        discussion_id:
+          type: integer
+          nullable: true
+    Notification:
+      type: object
+      required: [id, kind, text, appeal, path, buttons, is_read, created_at]
+      properties:
+        id:
+          type: integer
+        kind:
+          $ref: '#/components/schemas/NotificationKind'
+        text:
+          type: string
+          description: Текст для Telegram (`parse_mode=HTML`) и для списка в клиенте
+        appeal:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AppealRef'
+        path:
+          type: string
+          nullable: true
+          description: |
+            Маршрут клиента: `/appeals/{id}`, `/discussions/{id}`, `/analytics`. Бот передаёт его в Mini App
+            через `startapp` (`/appeals/21` → `appeals_21`).
+        buttons:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationButton'
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    NotificationPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    BotNotification:
+      allOf:
+        - $ref: '#/components/schemas/Notification'
+        - type: object
+          required: [recipient, attempts]
+          properties:
+            recipient:
+              type: object
+              required: [user_id, telegram_id]
+              properties:
+                user_id:
+                  type: integer
+                telegram_id:
+                  type: integer
+                  format: int64
+            attempts:
+              type: integer
+              description: Сколько раз бот уже пытался доставить
+    UnreadCount:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+    MarkReadRequest:
+      type: object
+      properties:
+        all:
+          type: boolean
+        appeal_id:
+          type: integer
+        ids:
+          type: array
+          items:
+            type: integer
+
+  examples:
+    MeEmployee:
+      summary: Сотрудник закупок
+      value:
+        id: 4
+        telegram_id: 100000004
+        full_name: Айгерим Нурланова
+        position: Сотрудник закупок
+        role: employee
+        department: {id: 1, name: Закупки}
+        is_absent: false
+        is_disabled: false
+        responsible_for: []
+        deputy_for:
+          - {id: 1, name: Межотдельное взаимодействие}
+        assigned_open_count: 0
+        permissions:
+          can_create_appeal: true
+          can_process_appeals: true
+          can_view_department: false
+          can_view_all_appeals: false
+          analytics_scope: none
+          can_upload_meetings: false
+          can_manage_settings: false
+          can_view_unassigned: false
+    MeOwner:
+      summary: Собственник
+      value:
+        id: 1
+        telegram_id: 100000001
+        full_name: Ержан Касымов
+        position: Собственник
+        role: owner
+        department: null
+        is_absent: false
+        is_disabled: false
+        responsible_for: []
+        deputy_for: []
+        assigned_open_count: 0
+        permissions:
+          can_create_appeal: true
+          can_process_appeals: true
+          can_view_department: true
+          can_view_all_appeals: true
+          analytics_scope: company
+          can_upload_meetings: true
+          can_manage_settings: false
+          can_view_unassigned: true
+    SessionEmployee:
+      summary: Сессия сотрудника
+      value:
+        access_token: eyJhbGciOiJIUzI1NiJ9.mock.session
+        token_type: bearer
+        expires_at: '2026-12-10T19:30:00+05:00'
+        user:
+          id: 4
+          telegram_id: 100000004
+          full_name: Айгерим Нурланова
+          position: Сотрудник закупок
+          role: employee
+          department: {id: 1, name: Закупки}
+          is_absent: false
+          is_disabled: false
+          responsible_for: []
+          deputy_for:
+            - {id: 1, name: Межотдельное взаимодействие}
+          assigned_open_count: 0
+          permissions:
+            can_create_appeal: true
+            can_process_appeals: true
+            can_view_department: false
+            can_view_all_appeals: false
+            analytics_scope: none
+            can_upload_meetings: false
+            can_manage_settings: false
+            can_view_unassigned: false
+    AppealPageExample:
+      summary: Очередь руководителя закупок
+      value:
+        items:
+          - id: 1
+            number: A-001
+            type: problem
+            category: {id: 1, name: Межотдельное взаимодействие}
+            department: {id: 1, name: Закупки}
+            priority: medium
+            status: new
+            summary: В заявках на оборудование не хватает назначения и параметров
+            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            source: form
+            first_response_due_at: '2026-11-09T18:00:00+05:00'
+            due_state: overdue
+            escalation_level: 1
+            participants_count: 1
+            merged_into: null
+            access: full
+            has_unread: true
+            created_at: '2026-11-04T10:20:00+05:00'
+            updated_at: '2026-11-10T09:00:00+05:00'
+          - id: 2
+            number: A-002
+            type: suggestion
+            category: {id: 2, name: Информационная прозрачность}
+            department: {id: 1, name: Закупки}
+            priority: medium
+            status: in_review
+            summary: Показывать поставщикам стадию проекта без коммерческих деталей
+            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            source: bot
+            first_response_due_at: '2026-11-06T18:00:00+05:00'
+            due_state: answered
+            escalation_level: 0
+            participants_count: 1
+            merged_into: null
+            access: full
+            has_unread: false
+            created_at: '2026-11-03T15:40:00+05:00'
+            updated_at: '2026-11-05T11:10:00+05:00'
+          - id: 20
+            number: A-020
+            type: suggestion
+            category: {id: 18, name: Прозрачность результатов}
+            department: {id: 1, name: Закупки}
+            priority: low
+            status: new
+            summary: Публиковать обзор завершённых внутренних улучшений
+            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            source: form
+            first_response_due_at: '2026-11-16T18:00:00+05:00'
+            due_state: on_time
+            escalation_level: 0
+            participants_count: 1
+            merged_into: null
+            access: full
+            has_unread: false
+            created_at: '2026-11-09T11:00:00+05:00'
+            updated_at: '2026-11-09T11:00:00+05:00'
+        total: 3
+        page: 1
+        page_size: 50
+    AppealCreated:
+      summary: Только что созданное обращение
+      value:
+        id: 21
+        number: A-021
+        type: problem
+        category: {id: 1, name: Межотдельное взаимодействие}
+        department: {id: 1, name: Закупки}
+        priority: medium
+        status: new
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        source: form
+        first_response_due_at: '2026-11-13T18:00:00+05:00'
+        due_state: on_time
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-10T10:15:00+05:00'
+        updated_at: '2026-11-10T10:15:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля «назначение» и «параметры» в шаблон заявки
+        first_response_at: null
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations: [author]
+        allowed_actions: [send_message, upload_attachment]
+    AppealA001AssigneeView:
+      summary: Карточка глазами ответственного (A-001, просрочено)
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category: {id: 1, name: Межотдельное взаимодействие}
+        department: {id: 1, name: Закупки}
+        priority: medium
+        status: new
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: overdue
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: true
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-10T09:00:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: null
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+          - id: 7
+            appeal_id: 1
+            filename: пример_заявки.pdf
+            content_type: application/pdf
+            size_bytes: 184320
+            download_url: /api/v1/attachments/7
+            uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations: [assignee, department_head]
+        allowed_actions: [take, reassign, merge, publish_discussion, send_message, upload_attachment]
+    AppealA017Rejected:
+      summary: Отклонённое обращение глазами автора (A-017)
+      value:
+        id: 17
+        number: A-017
+        type: suggestion
+        category: {id: 16, name: Корпоративная среда}
+        department: {id: 7, name: Административный отдел}
+        priority: low
+        status: rejected
+        summary: Зона для коротких перерывов рядом с рабочими помещениями
+        author: {id: 15, full_name: Асель Тулегенова, role: employee, department: {id: 7, name: Административный отдел}}
+        assignee: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}
+        source: form
+        first_response_due_at: '2026-10-30T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-10-23T09:30:00+05:00'
+        updated_at: '2026-10-29T16:00:00+05:00'
+        text: Предлагаю организовать отдельную небольшую зону для коротких перерывов рядом с рабочими помещениями.
+        proposed_solution: null
+        first_response_at: '2026-10-27T11:00:00+05:00'
+        decision: null
+        rejection_reason: Сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса.
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations: [author]
+        allowed_actions: []
+    AppealA004Implemented:
+      summary: Реализованное обращение (A-004) с задачей в Битрикс24
+      value:
+        id: 4
+        number: A-004
+        type: suggestion
+        category: {id: 4, name: Обучение}
+        department: {id: 8, name: HR}
+        priority: low
+        status: implemented
+        summary: Короткие занятия по новым товарным линейкам
+        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}
+        source: bot
+        first_response_due_at: '2026-10-27T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-10-20T14:00:00+05:00'
+        updated_at: '2026-11-06T16:00:00+05:00'
+        text: Было бы полезно проводить короткие занятия по новым товарным линейкам с разбором типовых запросов. Предлагаю составить календарь таких встреч.
+        proposed_solution: Составить календарь занятий
+        first_response_at: '2026-10-21T10:00:00+05:00'
+        decision: Проведём пробный семинар и по итогам решим о календаре.
+        rejection_reason: null
+        result: Запланирован пробный обучающий семинар по новым товарным линейкам.
+        public_summary: Короткие занятия по новым товарным линейкам
+        public_result: Запланирован пробный обучающий семинар по новым товарным линейкам.
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task:
+          task_id: '1287'
+          url: https://modus-demo.bitrix24.kz/company/personal/user/1/tasks/task/view/1287/
+          created_at: '2026-10-22T12:00:00+05:00'
+        discussion: null
+        attachments: []
+        viewer_relations: [author]
+        allowed_actions: []
+    AppealParticipantView:
+      summary: Основное обращение глазами автора присоединённого повтора
+      value:
+        id: 3
+        number: A-003
+        type: problem
+        category: {id: 3, name: Каталог и данные}
+        department: {id: 4, name: Проектирование}
+        priority: high
+        status: in_progress
+        summary: Разные обозначения одного изделия в рабочих материалах
+        author: null
+        assignee: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+        source: form
+        first_response_due_at: '2026-11-03T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 0
+        participants_count: 3
+        merged_into: null
+        access: participant
+        has_unread: true
+        created_at: '2026-11-02T09:00:00+05:00'
+        updated_at: '2026-11-10T10:16:00+05:00'
+        text: null
+        proposed_solution: null
+        first_response_at: '2026-11-03T10:30:00+05:00'
+        decision: Подготовим правило проверки и корректировки номенклатуры.
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations: [participant]
+        allowed_actions: []
+    AppealTaken:
+      summary: A-001 после «Взять»
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: in_review
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-10T11:02:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - request_info
+        - start_work
+        - reject
+        - reassign
+        - merge
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealAwaitingInfo:
+      summary: A-001 после уточняющего вопроса
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: awaiting_info
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-10T11:05:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - reassign
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealInWork:
+      summary: A-001 после «В работу»
+      value:
+        id: 1
+        number: A-001
+        type: problem
+        category:
+          id: 1
+          name: Межотдельное взаимодействие
+        department:
+          id: 1
+          name: Закупки
+        priority: medium
+        status: in_progress
+        summary: В заявках на оборудование не хватает назначения и параметров
+        author:
+          id: 4
+          full_name: Айгерим Нурланова
+          role: employee
+          department:
+            id: 1
+            name: Закупки
+        assignee:
+          id: 3
+          full_name: Марат Сейткали
+          role: head
+          department:
+            id: 1
+            name: Закупки
+        source: form
+        first_response_due_at: '2026-11-09T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 1
+        participants_count: 2
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-04T10:20:00+05:00'
+        updated_at: '2026-11-11T10:00:00+05:00'
+        text: В заявках на приобретение оборудования иногда не хватает назначения изделия и требуемых параметров. Предлагаю добавить обязательные поля, чтобы сократить число уточнений.
+        proposed_solution: Добавить обязательные поля в шаблон заявки
+        first_response_at: '2026-11-10T11:02:00+05:00'
+        decision: Добавим в шаблон заявки обязательные поля «назначение» и «параметры» до конца месяца.
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments:
+        - id: 7
+          appeal_id: 1
+          filename: пример_заявки.pdf
+          content_type: application/pdf
+          size_bytes: 184320
+          download_url: /api/v1/attachments/7
+          uploaded_by:
+            id: 4
+            full_name: Айгерим Нурланова
+            role: employee
+            department:
+              id: 1
+              name: Закупки
+          created_at: '2026-11-04T10:21:00+05:00'
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - implement
+        - reassign
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AppealFeedbackAccepted:
+      summary: 'A-018: отзыв принят'
+      value:
+        id: 18
+        number: A-018
+        type: praise
+        category:
+          id: 16
+          name: Корпоративная среда
+        department:
+          id: 7
+          name: Административный отдел
+        priority: low
+        status: closed
+        summary: Польза внутренних учебных встреч
+        author:
+          id: 15
+          full_name: Асель Тулегенова
+          role: employee
+          department:
+            id: 7
+            name: Административный отдел
+        assignee:
+          id: 14
+          full_name: Гульнара Омарова
+          role: head
+          department:
+            id: 7
+            name: Административный отдел
+        source: form
+        first_response_due_at: null
+        due_state: no_deadline
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-05T09:00:00+05:00'
+        updated_at: '2026-11-05T15:00:00+05:00'
+        text: 'Хочу отметить пользу внутренних учебных встреч: после них стало легче обращаться к коллегам за консультацией. Было бы хорошо сохранить этот формат.'
+        proposed_solution: null
+        first_response_at: '2026-11-05T15:00:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: feedback_accepted
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions: []
+    AppealReassigned:
+      summary: 'A-007 после переназначения на IT: срок отсчитан заново'
+      value:
+        id: 7
+        number: A-007
+        type: problem
+        category:
+          id: 7
+          name: Интеграции и IT
+        department:
+          id: 6
+          name: IT
+        priority: high
+        status: new
+        summary: Повторный ввод данных в разных системах
+        author:
+          id: 6
+          full_name: Дина Жуматова
+          role: employee
+          department:
+            id: 2
+            name: Бухгалтерия
+        assignee:
+          id: 13
+          full_name: Даурен Исаев
+          role: employee
+          department:
+            id: 6
+            name: IT
+        source: form
+        first_response_due_at: '2026-11-11T18:00:00+05:00'
+        due_state: on_time
+        escalation_level: 0
+        participants_count: 1
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-05T10:00:00+05:00'
+        updated_at: '2026-11-10T16:00:00+05:00'
+        text: Иногда повторный ввод одних и тех же сведений в разных рабочих системах занимает много времени. Нужна оценка, какие операции можно синхронизировать безопасно.
+        proposed_solution: null
+        first_response_at: null
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - owner
+        allowed_actions:
+        - take
+        - reassign
+        - merge
+        - publish_discussion
+        - send_message
+        - upload_attachment
+    AppealMergedMain:
+      summary: 'Основное обращение A-003 после склейки: участников стало 3'
+      value:
+        id: 3
+        number: A-003
+        type: problem
+        category:
+          id: 3
+          name: Каталог и данные
+        department:
+          id: 4
+          name: Проектирование
+        priority: high
+        status: in_review
+        summary: Разные обозначения одного изделия в рабочих материалах
+        author:
+          id: 10
+          full_name: Алия Сапарова
+          role: employee
+          department:
+            id: 4
+            name: Проектирование
+        assignee:
+          id: 9
+          full_name: Нурлан Беков
+          role: head
+          department:
+            id: 4
+            name: Проектирование
+        source: form
+        first_response_due_at: '2026-11-03T18:00:00+05:00'
+        due_state: answered
+        escalation_level: 0
+        participants_count: 3
+        merged_into: null
+        access: full
+        has_unread: false
+        created_at: '2026-11-02T09:00:00+05:00'
+        updated_at: '2026-11-10T10:16:00+05:00'
+        text: В рабочих материалах иногда встречаются разные обозначения одного изделия. Это увеличивает время проверки спецификации. Нужен понятный способ находить актуальную карточку позиции.
+        proposed_solution: null
+        first_response_at: '2026-11-03T10:30:00+05:00'
+        decision: null
+        rejection_reason: null
+        result: null
+        public_summary: null
+        public_result: null
+        forwarded_from: null
+        closed_reason: null
+        bitrix_task: null
+        discussion: null
+        attachments: []
+        viewer_relations:
+        - assignee
+        - department_head
+        allowed_actions:
+        - request_info
+        - start_work
+        - reject
+        - reassign
+        - merge
+        - publish_discussion
+        - create_bitrix_task
+        - send_message
+        - upload_attachment
+    AttachmentExample:
+      value:
+        id: 7
+        appeal_id: 1
+        filename: пример_заявки.pdf
+        content_type: application/pdf
+        size_bytes: 184320
+        download_url: /api/v1/attachments/7
+        uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        created_at: '2026-11-04T10:21:00+05:00'
+    BitrixTaskExample:
+      value:
+        task_id: '1287'
+        url: https://modus-demo.bitrix24.kz/company/personal/user/1/tasks/task/view/1287/
+        created_at: '2026-11-10T15:00:00+05:00'
+    DraftExample:
+      summary: Черновик из пересланного сообщения
+      value:
+        type: problem
+        category: {id: 1, name: Межотдельное взаимодействие}
+        priority: medium
+        summary: В заявках на камеры не указаны объект и требуемое разрешение
+        text: Опять в заявке на камеры не написали, для какого объекта и какое разрешение нужно, третий раз переспрашиваю у продаж
+        proposed_solution: Сделать поля «объект» и «параметры» обязательными в шаблоне заявки
+        transcript: null
+    VoiceDraftExample:
+      summary: Черновик из голосового
+      value:
+        type: problem
+        category: {id: 7, name: Интеграции и IT}
+        priority: high
+        summary: Одни и те же данные вводим вручную в 1С и в Битрикс
+        text: Слушайте, у нас каждый день одно и то же — счёт сначала забиваю в 1С, потом руками то же самое в Битрикс, уходит час. Можно как-то это связать?
+        proposed_solution: Оценить синхронизацию счетов между 1С и Битрикс24
+        transcript: Слушайте, у нас каждый день одно и то же — счёт сначала забиваю в 1С, потом руками то же самое в Битрикс, уходит час. Можно как-то это связать?
+    DiscussionExample:
+      summary: Открытое обсуждение по A-020
+      value:
+        id: 12
+        appeal: {id: 20, number: A-020, type: suggestion, status: in_review}
+        public_text: Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?
+        deadline: '2026-11-17T18:00:00+05:00'
+        status: open
+        author_name_consent: pending
+        author_display: Отдел «Закупки»
+        department: {id: 1, name: Закупки}
+        votes_for: 7
+        votes_against: 1
+        my_vote: null
+        comments_count: 3
+        outcome: null
+        created_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        created_at: '2026-11-10T13:00:00+05:00'
+        closed_at: null
+        can_vote: true
+        can_close: false
+        can_set_name_consent: false
+    DiscussionClosedExample:
+      value:
+        id: 12
+        appeal: {id: 20, number: A-020, type: suggestion, status: in_progress}
+        public_text: Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?
+        deadline: '2026-11-17T18:00:00+05:00'
+        status: closed
+        author_name_consent: shown
+        author_display: Айгерим Нурланова
+        department: {id: 1, name: Закупки}
+        votes_for: 11
+        votes_against: 2
+        my_vote: for
+        comments_count: 5
+        outcome: Большинство за. Первый обзор выпустим в конце квартала.
+        created_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        created_at: '2026-11-10T13:00:00+05:00'
+        closed_at: '2026-11-17T18:05:00+05:00'
+        can_vote: false
+        can_close: false
+        can_set_name_consent: false
+    MeetingDraftExample:
+      value:
+        id: 11
+        meeting_id: 3
+        status: pending
+        type: problem
+        category: {id: 1, name: Межотдельное взаимодействие}
+        priority: high
+        summary: Заявки от продаж приходят без назначения оборудования
+        text: На планёрке обсудили, что заявки от отдела продаж регулярно приходят без назначения оборудования и параметров, из-за чего закупки тратят время на уточнения.
+        proposed_solution: Ввести обязательные поля в шаблон заявки
+        quote: «…опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля…»
+        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        appeal: null
+    MeetingReadyExample:
+      value:
+        id: 3
+        title: Планёрка закупок 10.11
+        status: ready
+        error: null
+        transcript: "Марат: Коллеги, по заявкам. Опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля.\nАйгерим: Согласна, и ещё поставщики спрашивают про сроки проекта.\nМарат: Может, вообще все рабочие чаты в один мессенджер перевести, но это не к нам вопрос."
+        uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        drafts:
+          - id: 11
+            meeting_id: 3
+            status: pending
+            type: problem
+            category: {id: 1, name: Межотдельное взаимодействие}
+            priority: high
+            summary: Заявки от продаж приходят без назначения оборудования
+            text: На планёрке обсудили, что заявки от отдела продаж регулярно приходят без назначения оборудования и параметров, из-за чего закупки тратят время на уточнения.
+            proposed_solution: Ввести обязательные поля в шаблон заявки
+            quote: «…опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля…»
+            author: null
+            appeal: null
+          - id: 12
+            meeting_id: 3
+            status: confirmed
+            type: suggestion
+            category: {id: 2, name: Информационная прозрачность}
+            priority: medium
+            summary: Показывать поставщикам ориентировочные сроки проекта
+            text: Поставщики спрашивают о сроках проекта; предложено давать им краткий статус без коммерческих деталей.
+            proposed_solution: null
+            quote: «…и ещё поставщики спрашивают про сроки проекта…»
+            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            appeal: {id: 22, number: A-022, summary: Показывать поставщикам ориентировочные сроки проекта, status: new, type: suggestion}
+          - id: 13
+            meeting_id: 3
+            status: pending
+            type: suggestion
+            category: {id: 13, name: Коммуникации}
+            priority: low
+            summary: Перейти на один мессенджер для рабочих чатов
+            text: Обсудили, что рабочие чаты разбросаны по разным мессенджерам.
+            proposed_solution: null
+            quote: «…может, вообще все рабочие чаты в один мессенджер перевести, но это не к нам вопрос…»
+            author: null
+            appeal: null
+        created_at: '2026-11-10T12:00:00+05:00'
+    AnalyticsSummaryExample:
+      summary: Сводка по компании на сид-данных
+      value:
+        scope: company
+        department: null
+        generated_at: '2026-11-10T09:00:00+05:00'
+        total: 20
+        closed_count: 4
+        closed_share: 0.2
+        avg_first_response_hours: 18.5
+        by_type:
+          - {type: problem, count: 9}
+          - {type: suggestion, count: 10}
+          - {type: praise, count: 1}
+        by_category:
+          - {category: {id: 4, name: Обучение}, count: 2}
+          - {category: {id: 16, name: Корпоративная среда}, count: 2}
+          - {category: {id: 7, name: Интеграции и IT}, count: 1}
+          - {category: {id: 1, name: Межотдельное взаимодействие}, count: 1}
+        by_status:
+          - {status: new, count: 5}
+          - {status: in_review, count: 6}
+          - {status: awaiting_info, count: 2}
+          - {status: in_progress, count: 3}
+          - {status: implemented, count: 2}
+          - {status: rejected, count: 1}
+          - {status: closed, count: 1}
+        new_last_24h:
+          - {id: 20, number: A-020, summary: Публиковать обзор завершённых внутренних улучшений, status: new, type: suggestion}
+        stuck:
+          - appeal: {id: 7, number: A-007, summary: Повторный ввод данных в разных системах, status: new, type: problem}
+            assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            days_overdue: 2
+            escalation_level: 3
+        closed_last_week:
+          - {id: 4, number: A-004, summary: Короткие занятия по новым товарным линейкам, status: implemented, type: suggestion}
+          - {id: 18, number: A-018, summary: Польза внутренних учебных встреч, status: closed, type: praise}
+        repeated_topics:
+          - appeal: {id: 3, number: A-003, summary: Разные обозначения одного изделия в рабочих материалах, status: in_progress, type: problem}
+            participants_count: 3
+        overdue:
+          - appeal: {id: 7, number: A-007, summary: Повторный ввод данных в разных системах, status: new, type: problem}
+            assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            days_overdue: 2
+            escalation_level: 3
+          - appeal: {id: 1, number: A-001, summary: В заявках на оборудование не хватает назначения и параметров, status: new, type: problem}
+            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            days_overdue: 1
+            escalation_level: 1
+        assignee_load:
+          - assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            open_count: 4
+            overdue_count: 1
+            avg_first_response_hours: 20.0
+          - assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            open_count: 2
+            overdue_count: 1
+            avg_first_response_hours: null
+          - assignee: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+            open_count: 2
+            overdue_count: 0
+            avg_first_response_hours: 6.5
+    NotificationStatusExample:
+      value:
+        id: 901
+        kind: status_changed
+        text: "Обращение <b>A-017</b> отклонено.\nПричина: сейчас нет подходящего помещения; вернёмся к вопросу при перепланировке офиса."
+        appeal: {id: 17, number: A-017, summary: Зона для коротких перерывов рядом с рабочими помещениями, status: rejected, type: suggestion}
+        path: /appeals/17
+        buttons:
+          - {type: open_appeal, text: Открыть обращение, appeal_id: 17, discussion_id: null}
+        is_read: false
+        created_at: '2026-10-29T16:00:00+05:00'
+    BotNotificationClarificationExample:
+      value:
+        id: 905
+        kind: clarification_requested
+        text: "По обращению <b>A-005</b> вопрос от ответственного:\nУточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?"
+        appeal: {id: 5, number: A-005, summary: 'Не видно, на каком этапе пакет документов', status: awaiting_info, type: problem}
+        path: /appeals/5
+        buttons:
+          - {type: reply_clarification, text: Ответить, appeal_id: 5, discussion_id: null}
+          - {type: open_appeal, text: Открыть обращение, appeal_id: 5, discussion_id: null}
+        is_read: false
+        created_at: '2026-11-09T12:40:00+05:00'
+        recipient: {user_id: 6, telegram_id: 100000006}
+        attempts: 0
+    BotNotificationConsentExample:
+      value:
+        id: 906
+        kind: name_consent_request
+        text: "Ваше обращение <b>A-020</b> вынесено на общее обсуждение.\nПоказывать ваше имя? Без согласия будет указано только подразделение."
+        appeal: {id: 20, number: A-020, summary: Публиковать обзор завершённых внутренних улучшений, status: in_review, type: suggestion}
+        path: /discussions/12
+        buttons:
+          - {type: name_consent_show, text: Показать имя, appeal_id: 20, discussion_id: 12}
+          - {type: name_consent_hide, text: Скрыть, appeal_id: 20, discussion_id: 12}
+        is_read: false
+        created_at: '2026-11-10T13:00:00+05:00'
+        recipient: {user_id: 4, telegram_id: 100000004}
+        attempts: 0
+    DepartmentsExample:
+      value:
+        - {id: 1, name: Закупки, head: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}}
+        - {id: 2, name: Бухгалтерия, head: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}}
+        - {id: 3, name: Продажи, head: {id: 7, full_name: Тимур Абенов, role: head, department: {id: 3, name: Продажи}}}
+        - {id: 4, name: Проектирование, head: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}}
+        - {id: 5, name: Проектный офис, head: {id: 11, full_name: Виктор Ахметов, role: head, department: {id: 5, name: Проектный офис}}}
+        - {id: 6, name: IT, head: null}
+        - {id: 7, name: Административный отдел, head: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}}
+        - {id: 8, name: HR, head: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}}
+    CategoriesExample:
+      value:
+        - id: 1
+          name: Межотдельное взаимодействие
+          department: {id: 1, name: Закупки}
+          responsible: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+          deputy: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+          is_active: true
+        - id: 3
+          name: Каталог и данные
+          department: {id: 4, name: Проектирование}
+          responsible: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+          deputy: {id: 10, full_name: Алия Сапарова, role: employee, department: {id: 4, name: Проектирование}}
+          is_active: true
+        - id: 4
+          name: Обучение
+          department: {id: 8, name: HR}
+          responsible: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}
+          deputy: null
+          is_active: true
+        - id: 5
+          name: Документооборот
+          department: {id: 2, name: Бухгалтерия}
+          responsible: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}
+          deputy: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+          is_active: true
+        - id: 7
+          name: Интеграции и IT
+          department: {id: 6, name: IT}
+          responsible: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+          deputy: null
+          is_active: true
+        - id: 9
+          name: Договорная работа
+          department: {id: 3, name: Продажи}
+          responsible: {id: 7, full_name: Тимур Абенов, role: head, department: {id: 3, name: Продажи}}
+          deputy: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+          is_active: true
+        - id: 16
+          name: Корпоративная среда
+          department: {id: 7, name: Административный отдел}
+          responsible: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}
+          deputy: {id: 15, full_name: Асель Тулегенова, role: employee, department: {id: 7, name: Административный отдел}}
+          is_active: true
+    UsersExample:
+      value:
+        - {id: 3, telegram_id: null, full_name: Марат Сейткали, position: Руководитель закупок, role: head, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
+        - {id: 4, telegram_id: null, full_name: Айгерим Нурланова, position: Сотрудник закупок, role: employee, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
+        - {id: 13, telegram_id: null, full_name: Даурен Исаев, position: IT-специалист, role: employee, department: {id: 6, name: IT}, is_absent: false, is_disabled: false}
+        - {id: 16, telegram_id: null, full_name: Жанна Ермекова, position: HR / внутренние коммуникации, role: head, department: {id: 8, name: HR}, is_absent: false, is_disabled: false}

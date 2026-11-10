@@ -1,0 +1,14 @@
+{
+  "name": "modus-contract",
+  "private": true,
+  "description": "Контракт API Модус Трейд и мок-сервер",
+  "scripts": {
+    "mock": "prism mock --host 0.0.0.0 --port 4010 openapi.yaml",
+    "lint": "redocly lint openapi.yaml",
+    "docs": "redocly build-docs openapi.yaml -o dist/index.html"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.11.0",
+    "@stoplight/prism-cli": "5.15.11"
+  }
+}
