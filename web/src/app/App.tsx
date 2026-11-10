@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { LoginScreen, useAuth } from '../auth';
 import type { ReactNode } from 'react';
 import { AppealPage } from '../pages/AppealPage';
+import { DigestPage } from '../pages/DigestPage';
 import { MyAppealsPage } from '../pages/MyAppealsPage';
 import { NewAppealPage } from '../pages/NewAppealPage';
 import { QueuePage } from '../pages/QueuePage';
@@ -15,6 +16,7 @@ import { UnreadProvider } from './unread';
 const PAGES: Partial<Record<NavId, ReactNode>> = {
   my: <MyAppealsPage />,
   queue: <QueuePage />,
+  digest: <DigestPage />,
 };
 
 const SECTIONS: Record<NavId, { title: string; lead: string }> = {
