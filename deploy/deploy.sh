@@ -23,7 +23,8 @@ ssh "$HOST" "set -e; cd $DIR
   docker run --rm -v $DIR/src/web:/w -w /w \
     -e VITE_API_BASE_URL=https://modus.systm.kz -e VITE_DEV_LOGIN=false -e VITE_TELEGRAM_BOT_USERNAME=modus_fb_bot \
     node:24-alpine sh -c 'npm ci --no-audit --no-fund >/dev/null && npm run build >/dev/null'
-  rm -rf web-dist.new && cp -r src/web/dist web-dist.new && rm -rf web-dist && mv web-dist.new web-dist
+  # Обновляем содержимое на месте: nginx смонтировал саму папку web-dist, подмена папки оставила бы его на удалённой.
+  mkdir -p web-dist && find web-dist -mindepth 1 -delete && cp -R src/web/dist/. web-dist/
   docker compose -f src/deploy/compose.yml --project-directory $DIR --env-file .env --env-file secrets.env up -d --build --remove-orphans
   sleep 5
   docker compose -f src/deploy/compose.yml --project-directory $DIR ps --format '{{.Service}}: {{.Status}}'
