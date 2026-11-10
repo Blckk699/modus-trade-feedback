@@ -8,6 +8,7 @@ import { useUnread } from '../app/unread';
 import { ActionsPanel } from '../appeals/ActionsPanel';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
 import { BitrixSection } from '../appeals/BitrixSection';
+import { cardSections } from '../appeals/cardSections';
 import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { HistorySection } from '../appeals/HistorySection';
@@ -75,7 +76,7 @@ interface CardProps {
 
 function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const dict = useDictionaries();
-  const participant = a.access === 'participant';
+  const show = cardSections(a);
 
   return (
     <section className="page appeal">
@@ -91,7 +92,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         </div>
       </header>
 
-      {participant && (
+      {show.participantNotice && (
         <div className="notice">
           Вы видите это обращение, потому что ваше присоединили к нему как повтор. Статусы и итог приходят вам, текст
           и автор основного обращения скрыты.
@@ -100,7 +101,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <Outcome appeal={a} />
 
-      {a.participants_count > 1 && !participant && (
+      {show.participantsCounter && (
         <div className="notice notice--info">
           Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
         </div>
@@ -115,12 +116,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         </div>
       )}
 
-      {!participant && (
-        <>
-          <DuplicatesSection appeal={a} onMerged={() => onChanged()} />
-          <BitrixSection appeal={a} onUpdated={onUpdated} />
-        </>
-      )}
+      {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
+      {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
 
       <dl className="facts">
         <dt>Тип</dt>
@@ -166,13 +163,9 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         </div>
       )}
 
-      {!participant && (
-        <>
-          <MessagesSection appeal={a} onAppealChanged={onChanged} />
-          <AttachmentsSection appeal={a} />
-          <HistorySection appealId={a.id} version={a.updated_at} />
-        </>
-      )}
+      {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
+      {show.attachments && <AttachmentsSection appeal={a} />}
+      {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
     </section>
   );
 }
