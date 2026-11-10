@@ -6,7 +6,7 @@
 from fastapi import APIRouter
 
 from app.admin import router as admin
-from app.api import health
+from app.api import dictionaries, health
 from app.appeals import actions_router as appeal_actions
 from app.appeals import bitrix as appeal_bitrix
 from app.appeals import duplicates
@@ -21,6 +21,7 @@ API_PREFIX = "/api/v1"
 
 api_router = APIRouter(prefix=API_PREFIX)
 api_router.include_router(health.router)
+api_router.include_router(dictionaries.router)
 api_router.include_router(auth.router)
 api_router.include_router(appeals.router)
 api_router.include_router(appeal_actions.router)
