@@ -3,7 +3,7 @@
 # Запуск из любой папки внутри репозитория:  sh bus/setup-bus.sh <путь к файлу токена>
 # Токен не печатается. Он попадает только в два локальных файла, которые игнорирует git:
 #   .mcp.json                     — MCP-сервер шины `bus`
-#   .claude/settings.local.json   — хуки: уведомления о почте, запрет завершать ход с непрочитанной почтой, счётчик агентов
+#   .claude/settings.local.json   — хуки через bus/hook.sh (токен в командах хуков не пишется)
 set -e
 
 BUS="https://systm.kz/bus"
@@ -33,8 +33,7 @@ if [ -f .claude/settings.local.json ]; then
   echo "Старые .claude/settings.local.json сохранены в .claude/settings.local.json.bak"
 fi
 
-AUTH="-H 'Authorization: Bearer $TOK'"
-JSON="-H 'Content-Type: application/json' --data-binary @-"
+H='sh \"${CLAUDE_PROJECT_DIR:-.}/bus/hook.sh\"'
 
 umask 077
 cat > .mcp.json <<EOF
@@ -53,13 +52,13 @@ cat > .claude/settings.local.json <<EOF
 {
   "enabledMcpjsonServers": ["bus"],
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "curl -s -m 5 -X POST $AUTH $JSON '$BUS/api/hook/usage' >/dev/null || true" }] }],
-    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "curl -s -m 5 -X POST $AUTH $JSON '$BUS/api/hook/usage' >/dev/null || true" }] }],
-    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "curl -s -m 5 -X POST $AUTH $JSON '$BUS/api/hook/usage' >/dev/null || true" }] }],
-    "PreToolUse": [{ "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "curl -s -m 5 -X POST $AUTH $JSON '$BUS/api/hook/usage' >/dev/null || true" }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "curl -s -m 5 $AUTH '$BUS/api/hook/post?event=UserPromptSubmit' || true" }] }],
-    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "curl -s -m 5 $AUTH '$BUS/api/hook/post?event=PostToolUse' || true" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "curl -s -m 10 -X POST $AUTH $JSON '$BUS/api/hook/stop' || true" }] }]
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "$H usage" }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "$H usage" }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "$H usage" }] }],
+    "PreToolUse": [{ "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "$H usage" }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "$H post UserPromptSubmit" }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "$H post PostToolUse" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "$H stop" }] }]
   }
 }
 EOF
