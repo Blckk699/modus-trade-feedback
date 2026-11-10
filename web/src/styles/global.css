@@ -1008,3 +1008,39 @@ textarea.input {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- повторы и Битрикс24 (W-04) */
+.notice--info {
+  background: var(--info-bg);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.block--hint {
+  border-color: var(--accent);
+}
+
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.suggestion {
+  display: grid;
+  gap: 6px;
+}
+
+.suggestion + .suggestion {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.suggestion__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}

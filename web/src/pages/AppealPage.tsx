@@ -7,11 +7,14 @@ import { useDictionaries } from '../app/dictionaries';
 import { useUnread } from '../app/unread';
 import { ActionsPanel } from '../appeals/ActionsPanel';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
+import { BitrixSection } from '../appeals/BitrixSection';
+import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
 import { MessagesSection } from '../appeals/MessagesSection';
 import { formatDateTime } from '../lib/format';
+import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 
 type Appeal = Schemas['Appeal'];
@@ -97,7 +100,20 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <Outcome appeal={a} />
 
+      {a.participants_count > 1 && !participant && (
+        <div className="notice notice--info">
+          Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
+        </div>
+      )}
+
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
+
+      {!participant && (
+        <>
+          <DuplicatesSection appeal={a} onMerged={() => onChanged()} />
+          <BitrixSection appeal={a} onUpdated={onUpdated} />
+        </>
+      )}
 
       <dl className="facts">
         <dt>Тип</dt>
@@ -127,12 +143,6 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         )}
         <dt>Подано</dt>
         <dd>{formatDateTime(a.created_at)}</dd>
-        {a.participants_count > 1 && (
-          <>
-            <dt>Сообщили о том же</dt>
-            <dd>{a.participants_count}</dd>
-          </>
-        )}
       </dl>
 
       {a.text && (
@@ -194,6 +204,12 @@ function Outcome({ appeal: a }: { appeal: Appeal }) {
           <>
             {': '}
             <Link to={`/appeals/${a.merged_into.id}`}>{a.merged_into.number}</Link>
+            {a.merged_into.summary ? ` · ${a.merged_into.summary}` : ''}
+            <div className="appeal-row__meta">
+              <span className="muted">Статус основного:</span>
+              <StatusBadge status={a.merged_into.status} />
+            </div>
+            <p className="muted">Статусы основного обращения будут приходить вам.</p>
           </>
         )}
       </div>
