@@ -96,6 +96,31 @@ class Api:
     async def categories(self, telegram_id: int) -> list[dict[str, Any]]:
         return await self.request("GET", "/api/v1/categories", telegram_id=telegram_id)
 
+    async def my_appeals(self, telegram_id: int, page_size: int = 10) -> dict[str, Any]:
+        params = {"scope": "mine", "sort": "created_desc", "page_size": page_size}
+        return await self.request("GET", "/api/v1/appeals", telegram_id=telegram_id, params=params)
+
+    async def post_message(self, telegram_id: int, appeal_id: int, text: str) -> dict[str, Any]:
+        path = f"/api/v1/appeals/{appeal_id}/messages"
+        return await self.request("POST", path, telegram_id=telegram_id, json={"text": text})
+
+    async def set_name_consent(self, telegram_id: int, discussion_id: int, show_name: bool) -> dict[str, Any]:
+        path = f"/api/v1/discussions/{discussion_id}/name-consent"
+        return await self.request("POST", path, telegram_id=telegram_id, json={"show_name": show_name})
+
+    # ---- очередь уведомлений: только сервисный ключ
+
+    async def pending_notifications(self, limit: int = 50) -> list[dict[str, Any]]:
+        return await self.request("GET", "/api/v1/bot/notifications/pending", params={"limit": limit})
+
+    async def ack_notification(self, notification_id: int, telegram_message_id: int | None) -> None:
+        path = f"/api/v1/bot/notifications/{notification_id}/ack"
+        await self.request("POST", path, json={"telegram_message_id": telegram_message_id})
+
+    async def fail_notification(self, notification_id: int, error: str, permanent: bool) -> None:
+        path = f"/api/v1/bot/notifications/{notification_id}/fail"
+        await self.request("POST", path, json={"error": error[:500], "permanent": permanent})
+
     async def dictionaries(self) -> dict[str, Any]:
         """Подписи перечислений. Справочник не меняется, поэтому читается один раз."""
         if self._dictionaries is None:

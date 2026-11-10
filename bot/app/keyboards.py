@@ -18,9 +18,7 @@ def can_see_digest(me: dict[str, Any]) -> bool:
 
 
 def main_menu(me: dict[str, Any], mini_app_url: str | None) -> ReplyKeyboardMarkup:
-    first_row = [KeyboardButton(text=texts.BTN_SUBMIT)]
-    if mini_app_url:
-        first_row.append(KeyboardButton(text=texts.BTN_MY_APPEALS))
+    first_row = [KeyboardButton(text=texts.BTN_SUBMIT), KeyboardButton(text=texts.BTN_MY_APPEALS)]
     second_row = []
     if can_see_digest(me):
         second_row.append(KeyboardButton(text=texts.BTN_DIGEST))

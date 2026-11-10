@@ -7,7 +7,7 @@ from typing import Any
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
 from aiogram.methods import GetFile, SendMessage, TelegramMethod
-from aiogram.types import Chat, Message
+from aiogram.types import Chat, File, InlineKeyboardMarkup, Message
 
 
 class FakeTelegram(BaseSession):
@@ -18,9 +18,16 @@ class FakeTelegram(BaseSession):
         self.calls: list[TelegramMethod] = []
         self._ids = itertools.count(1000)
         self._message_ids: dict[int, int] = {}  # id(SendMessage) → message_id
+        # chat_id → фабрика исключения: так тест изображает заблокированного пользователя или сбой сети
+        self.errors: dict[int, Any] = {}
+        self.files: dict[str, bytes] = {}  # file_id → содержимое для getFile и скачивания
 
     async def make_request(self, bot: Bot, method: TelegramMethod, timeout: int | None = None) -> Any:
         self.calls.append(method)
+        if isinstance(method, GetFile):
+            return File(file_id=method.file_id, file_unique_id=method.file_id, file_path=f"files/{method.file_id}")
+        if isinstance(method, SendMessage) and method.chat_id in self.errors:
+            raise self.errors[method.chat_id](method)
         if isinstance(method, SendMessage):
             message_id = next(self._ids)
             self._message_ids[id(method)] = message_id
@@ -29,6 +36,7 @@ class FakeTelegram(BaseSession):
                 date=datetime.now(),
                 chat=Chat(id=method.chat_id, type="private"),
                 text=method.text,
+                reply_markup=method.reply_markup if isinstance(method.reply_markup, InlineKeyboardMarkup) else None,
             )
         return True
 

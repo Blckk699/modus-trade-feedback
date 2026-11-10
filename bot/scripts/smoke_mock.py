@@ -3,13 +3,14 @@
     npx -y @stoplight/prism-cli@5.15.11 mock -h 127.0.0.1 -p 4011 ../contract/openapi.yaml
     uv run python -m scripts.smoke_mock [http://127.0.0.1:4011]
 
-Подаёт боту команды меню и подачу обращения, запросы идут по контракту, ответы бота печатаются.
+Подаёт боту команды меню, подачу обращения и уведомления из очереди, запросы идут по контракту, ответы бота печатаются.
 """
 
 import asyncio
 import sys
 
 from app import texts
+from app.notifications import deliver_pending
 from tests.support import BotHarness
 
 
@@ -36,7 +37,16 @@ async def main(base_url: str) -> int:
         await h.press(h.telegram.calls[-2], "Высокий")
         n = show(h, n, "Приоритет → Высокий")
         await h.press(card, texts.BTN_DRAFT_SEND)
-        show(h, n, texts.BTN_DRAFT_SEND)
+        n = show(h, n, texts.BTN_DRAFT_SEND)
+
+        delivered = await deliver_pending(h.bot, h.api, h.settings)
+        n = show(h, n, f"очередь уведомлений: доставлено {delivered}")
+        question, consent = h.telegram.sent()[-2:]
+        await h.press(question, "Ответить", user_id=question.chat_id)
+        await h.send_text("Акты сверки и счета-фактуры", user_id=question.chat_id)
+        n = show(h, n, "Ответить → текст ответа")
+        await h.press(consent, "Скрыть", user_id=consent.chat_id)
+        show(h, n, "Скрыть имя")
         return 0
     finally:
         await h.close()
