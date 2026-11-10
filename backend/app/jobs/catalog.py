@@ -6,3 +6,4 @@
 
 from app.appeals import duplicates, escalation  # noqa: F401
 from app.jobs import builtin  # noqa: F401
+from app.meetings import router as meetings  # noqa: F401

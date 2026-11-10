@@ -15,6 +15,7 @@ from app.auth import router as auth
 from app.directory import router as directory
 from app.discussions import router as discussions
 from app.drafts import router as drafts
+from app.meetings import router as meetings
 from app.notifications import router as notifications
 
 API_PREFIX = "/api/v1"
@@ -32,3 +33,4 @@ api_router.include_router(discussions.router)
 api_router.include_router(notifications.router)
 api_router.include_router(admin.router)
 api_router.include_router(drafts.router)
+api_router.include_router(meetings.router)
