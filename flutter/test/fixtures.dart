@@ -163,6 +163,7 @@ Map<String, dynamic> appealJson({
   Map<String, dynamic>? mergedInto,
   String? closedReason,
   Map<String, dynamic>? bitrixTask,
+  Map<String, dynamic>? discussion,
   String access = 'full',
 }) =>
     {
@@ -197,7 +198,7 @@ Map<String, dynamic> appealJson({
       'forwarded_from': null,
       'closed_reason': closedReason,
       'bitrix_task': bitrixTask,
-      'discussion': null,
+      'discussion': discussion,
       'attachments': attachments,
       'viewer_relations': ['author'],
       'allowed_actions': allowedActions,
@@ -260,3 +261,38 @@ const usersJson = [
     'department': null, 'is_absent': false, 'is_disabled': true,
   },
 ];
+
+Map<String, dynamic> discussionJson({
+  int id = 9,
+  String status = 'open',
+  String consent = 'pending',
+  int votesFor = 4,
+  int votesAgainst = 1,
+  String? myVote,
+  String? outcome,
+  bool canVote = true,
+  bool canClose = false,
+  bool canSetNameConsent = false,
+  String authorDisplay = 'Сотрудник подразделения «Закупки»',
+}) =>
+    {
+      'id': id,
+      'appeal': {'id': 21, 'number': 'A-021', 'type': 'suggestion', 'status': 'in_review'},
+      'public_text': 'Добавить обязательные поля в шаблон заявки на оборудование',
+      'deadline': '2026-11-13T18:00:00+05:00',
+      'status': status,
+      'author_name_consent': consent,
+      'author_display': authorDisplay,
+      'department': {'id': 1, 'name': 'Закупки'},
+      'votes_for': votesFor,
+      'votes_against': votesAgainst,
+      'my_vote': myVote,
+      'comments_count': 2,
+      'outcome': outcome,
+      'created_by': assignee,
+      'created_at': '2026-11-10T12:00:00+05:00',
+      'closed_at': status == 'closed' ? '2026-11-13T18:05:00+05:00' : null,
+      'can_vote': canVote,
+      'can_close': canClose,
+      'can_set_name_consent': canSetNameConsent,
+    };
