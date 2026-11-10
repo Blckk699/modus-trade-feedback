@@ -111,6 +111,7 @@ def list_query(
     q: str | None,
     now: datetime,
     tz: tzinfo,
+    headed_ids: set[int],
 ) -> Select:
     query = select(Appeal).where(policy.visible_filter(user))
     if scope == "mine":
@@ -121,9 +122,9 @@ def list_query(
     elif scope == "assigned":
         query = query.where(Appeal.assignee_id == user.id)
     elif scope == "department":
-        if user.role != Role.HEAD or user.department_id is None:
+        if not headed_ids:
             raise Forbidden("Обращения подразделения видит его руководитель")
-        department_id = user.department_id
+        query = query.where(Appeal.category_id.in_(select(Category.id).where(Category.department_id.in_(headed_ids))))
     elif scope == "unassigned":
         if user.role not in (Role.ADMIN, Role.OWNER):
             raise Forbidden("Очередь нераспределённых доступна администратору")
@@ -158,7 +159,10 @@ def list_query(
 
     if q and q.strip():
         pattern = f"%{q.strip()}%"
-        query = query.where(or_(Appeal.number.ilike(pattern), Appeal.summary.ilike(pattern), Appeal.text.ilike(pattern)))
+        # По тексту ищем только среди обращений, видимых полностью: участник склеенного повтора
+        # не должен находить основное обращение по словам скрытого от него текста.
+        in_text = and_(Appeal.text.ilike(pattern), policy.full_visible_filter(user))
+        query = query.where(or_(Appeal.number.ilike(pattern), Appeal.summary.ilike(pattern), in_text))
     return query
 
 
