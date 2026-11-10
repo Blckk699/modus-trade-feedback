@@ -1,0 +1,85 @@
+"""Настройки приложения из переменных окружения (и файла `.env`, если он есть)."""
+
+from __future__ import annotations
+
+import re
+from datetime import time, timedelta, timezone
+from functools import cached_property
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_OFFSET_RE = re.compile(r"^(?:UTC)?([+-])(\d{1,2}):?(\d{2})?$")
+
+
+def parse_utc_offset(value: str) -> timezone:
+    """`+05:00`, `+5`, `UTC+05:00` -> фиксированный часовой пояс."""
+    match = _OFFSET_RE.match(value.strip())
+    if not match:
+        raise ValueError(f"TIMEZONE должен быть смещением вида +05:00, получено {value!r}")
+    sign, hours, minutes = match.groups()
+    delta = timedelta(hours=int(hours), minutes=int(minutes or 0))
+    if delta > timedelta(hours=14):
+        raise ValueError(f"Смещение часового пояса вне диапазона: {value!r}")
+    return timezone(-delta if sign == "-" else delta, name=f"UTC{sign}{int(hours):02d}:{int(minutes or 0):02d}")
+
+
+def to_async_url(url: str) -> str:
+    """Приводит адрес базы к драйверу asyncpg: `postgresql://` -> `postgresql+asyncpg://`."""
+    for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://", "postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+asyncpg://" + url[len(prefix):]
+    return url
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    database_url: str = "postgresql+asyncpg://modus:modus@localhost:5432/modus"
+
+    # Вход для разработки с выбором пользователя (B-03). На сервере для демо выключен.
+    dev_login_enabled: bool = False
+    # Сервисный ключ бота: заголовок X-Service-Key.
+    bot_service_key: str = ""
+
+    anthropic_api_key: str = ""
+    claude_model: str = "claude-sonnet-5-5"
+
+    elevenlabs_api_key: str = ""
+    elevenlabs_stt_model: str = "scribe_v1"
+    elevenlabs_language: str = "rus"
+
+    telegram_bot_token: str = ""
+
+    bitrix24_webhook_url: str = ""
+    # Кому назначать задачу в портале (ID пользователя Битрикс24); у вебхука это обязательное поле.
+    bitrix24_responsible_id: int = 1
+
+    # Часовой пояс системы — фиксированное смещение, по спеке UTC+5.
+    timezone: str = "+05:00"
+    # Время ежедневной сводки по часовому поясу системы.
+    digest_time: time = time(9, 0)
+    # Как часто проверять сроки и эскалацию (B-07).
+    escalation_interval_minutes: int = 10
+
+    # Фоновый воркер внутри процесса API. В тестах выключен: задачи гоняются вручную.
+    jobs_worker_enabled: bool = True
+    jobs_poll_seconds: float = 5.0
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str) -> str:
+        parse_utc_offset(value)
+        return value
+
+    @cached_property
+    def tz(self) -> timezone:
+        return parse_utc_offset(self.timezone)
+
+    @property
+    def async_database_url(self) -> str:
+        return to_async_url(self.database_url)
+
+
+def get_settings() -> Settings:
+    return Settings()

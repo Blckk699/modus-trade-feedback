@@ -1,0 +1,38 @@
+# Бэкенд и база одной командой:  docker compose up --build
+# API: http://localhost:8000/api/v1/health, документация: http://localhost:8000/api/v1/docs
+# Ключи внешних сервисов — в backend/.env (образец: .env.example). Файл необязателен.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: modus
+      POSTGRES_PASSWORD: modus
+      POSTGRES_DB: modus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modus -d modus"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  api:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://modus:modus@db:5432/modus
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
