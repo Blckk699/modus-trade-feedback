@@ -193,16 +193,15 @@ async def test_author_answers_clarification_in_bot(client, demo, login_as) -> No
     assert kinds[-2:] == ["clarification_answered", "status_changed"]
 
 
-async def test_first_message_from_assignee_counts_as_first_response(client, login_as) -> None:
+async def test_only_take_records_first_response(client, login_as) -> None:
+    """Сообщение без «Взять» не считается первым ответом: срок и эскалация продолжают действовать."""
     head = await login_as("head_procurement")
     sent = await client.post("/api/v1/appeals/1/messages", headers=head, json={"text": "Приняли, посмотрю"})
     assert sent.status_code == 201
     after = await card(client, head, 1)
-    assert after["status"] == "new" and after["first_response_at"] is not None and after["due_state"] == "answered"
-
-    author = await login_as("employee_procurement")
-    await client.post("/api/v1/appeals/20/messages", headers=author, json={"text": "Дополню"})
-    assert (await card(client, author, 20))["first_response_at"] is None, "сообщение автора — не ответ"
+    assert (after["status"], after["first_response_at"], after["due_state"]) == ("new", None, "overdue")
+    taken = (await act(client, head, 1, "take")).json()
+    assert taken["first_response_at"] is not None and taken["due_state"] == "answered"
 
 
 async def test_no_messages_after_final_status(client, login_as) -> None:
@@ -221,3 +220,18 @@ async def test_history_does_not_leak_private_thread(client, login_as) -> None:
     assert "секрет" not in history
     seeded = (await client.get("/api/v1/appeals/5/history", headers=await login_as("admin"))).text
     assert "Уточните" not in seeded, "в сиде вопрос к A-005 тоже только в переписке"
+
+
+async def test_parallel_actions_do_not_both_apply(client, login_as) -> None:
+    """Одновременные «Отклонить» и «В работу»: строка блокируется, второе действие видит новый статус."""
+    import asyncio
+
+    head = await login_as("head_procurement")
+    rejected, started = await asyncio.gather(
+        act(client, head, 2, "reject", {"reason": "Нельзя раскрывать сроки"}),
+        act(client, head, 2, "start-work", {"decision": "Покажем статус"}),
+    )
+    assert sorted([rejected.status_code, started.status_code]) == [200, 409]
+    final = await card(client, head, 2)
+    assert (final["decision"] is None) != (final["rejection_reason"] is None), "заполнено только одно"
+    assert final["status"] in ("rejected", "in_progress")

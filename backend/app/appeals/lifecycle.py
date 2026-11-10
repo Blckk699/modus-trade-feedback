@@ -134,16 +134,15 @@ async def ensure_can_read_messages(session: AsyncSession, appeal: Appeal, user: 
 
 async def post_message(session: AsyncSession, appeal: Appeal, user: User, now: datetime, text: str) -> Message:
     """Сообщение в приватную переписку. Ответ автора на уточняющий вопрос возвращает обращение
-    в «На рассмотрении». Первое сообщение ответственного фиксирует время первого ответа."""
+    в «На рассмотрении». Время первого ответа фиксирует только «Взять» (и принятие отзыва):
+    сообщение без взятия оставляет обращение «Новым» со сроком и эскалацией."""
     if appeal.status == AppealStatus.AWAITING_INFO and appeal.author_id == user.id:
         await _check(session, appeal, user, AppealAction.REPLY_CLARIFICATION, who="author")
         message = _message(session, appeal, user, text, now)
         record(session, appeal, HistoryKind.CLARIFICATION_ANSWERED, now, user.id)
         _move(appeal, AppealStatus.IN_REVIEW, user, now, session)
         return message
-    rel = await _check(session, appeal, user, AppealAction.SEND_MESSAGE, who="message")
-    if policy.can_process(rel) and appeal.author_id != user.id:
-        _first_response(appeal, now)
+    await _check(session, appeal, user, AppealAction.SEND_MESSAGE, who="message")
     message = _message(session, appeal, user, text, now)
     appeal.updated_at = now
     return message
