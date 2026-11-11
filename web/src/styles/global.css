@@ -64,6 +64,9 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
   --control-h: 44px;
+  /* общая ширина шапки и контента: края совпадают */
+  --container: 1200px;
+  --gutter: 24px;
   --topbar-h: 56px;
   --bottombar-h: 60px;
 }
@@ -439,7 +442,7 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 24px;
+  padding: 0 max(var(--gutter), calc((100% - var(--container)) / 2));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -516,14 +519,14 @@ input:focus-visible,
 
 .content {
   grid-area: main;
-  padding: 24px;
+  padding: 24px var(--gutter);
   min-width: 0;
 }
 
 .page {
   display: grid;
   gap: 8px;
-  max-width: 960px;
+  max-width: var(--container);
   margin-inline: auto;
 }
 
@@ -1031,12 +1034,14 @@ textarea.input {
   pointer-events: none;
 }
 
+/* неактивный пункт — полупрозрачный тон поверх того, что под ним:
+   не сливается ни с фоном страницы, ни с белой карточкой */
 .segmented__item span {
   display: inline-block;
   padding: 8px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--field-bg);
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
@@ -1044,7 +1049,8 @@ textarea.input {
 }
 
 .segmented__item:hover input:not(:checked) + span {
-  background: var(--field-bg-hover);
+  background: color-mix(in srgb, var(--heading) 12%, transparent);
+  color: var(--heading);
 }
 
 .segmented__item input:checked + span {
@@ -1054,7 +1060,7 @@ textarea.input {
 }
 
 .segmented__item input:focus-visible:not(:checked) + span {
-  background: var(--field-bg-focus);
+  background: color-mix(in srgb, var(--heading) 15%, transparent);
   color: var(--heading);
 }
 
@@ -1220,7 +1226,7 @@ textarea.input {
 
 /* ---------- очередь и действия (W-03) */
 .page--wide {
-  max-width: 1100px;
+  max-width: var(--container);
 }
 
 .filters {
@@ -1968,4 +1974,9 @@ details.block > summary {
 .badge--people {
   background: var(--people-bg);
   color: var(--people);
+}
+
+/* фокус с клавиатуры у переключателя — кольцо, а не только смена заливки */
+.segmented__item input:focus-visible + span {
+  box-shadow: var(--focus-ring);
 }
