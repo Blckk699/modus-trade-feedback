@@ -14,6 +14,7 @@
 | `modus-flutter` | Александр | Пачка Flutter | `agent:modus-flutter` |
 | `modus-back` | n1kollo | Пачка бэкенда | `agent:modus-back` |
 | `modus-front` | klinduhwtf | Пачка фронта (веб и экраны Mini App) | `agent:modus-front` |
+| `modus-front2` | помощник | Помощь фронту (`web/`), задачи от `modus-orch` | `agent:modus-front2` |
 | `modus-tg` | Александр | Пачка Telegram (бот и оболочка Mini App) | `agent:modus-tg` |
 | `modus-chat` | Александр | Ответы в чате команды, публикация закрытых тикетов | — |
 
