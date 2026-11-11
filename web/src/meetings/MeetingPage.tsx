@@ -93,7 +93,7 @@ function MeetingView({ meeting: m, onChange }: { meeting: Meeting; onChange: (m:
             {m.drafts.length === 0
               ? 'В записи не нашлось вопросов для обращений.'
               : pending > 0
-                ? `Черновиков: ${m.drafts.length}. Ждут решения: ${pending}. Проверьте каждый: подтвердите, поправьте или отбросьте.`
+                ? `Черновиков: ${m.drafts.length}. Ждут решения: ${pending}.`
                 : `Все черновики разобраны (${m.drafts.length}).`}
           </p>
           <ul className="drafts">
