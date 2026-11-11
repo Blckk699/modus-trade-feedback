@@ -4,6 +4,7 @@ import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { EmptyState } from '../app/EmptyState';
+import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -24,6 +25,12 @@ export function InvitesTab() {
   const list = useAsync(() => unwrap(api.GET('/api/v1/admin/invites', { params: { query: { include_inactive: true } } })), []);
   const departments = useAsync(() => unwrap(api.GET('/api/v1/departments')), []);
   const [created, setCreated] = useState<Created | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const close = () => {
+    setOpen(false);
+    setCreated(null);
+  };
 
   const deps = departments.state.status === 'ready' ? departments.state.data : [];
   const upsert = (inv: Invite) => {
@@ -35,21 +42,37 @@ export function InvitesTab() {
   const s = list.state;
   return (
     <div className="settings-tab">
-      <CreateInvite
-        departments={deps}
-        onCreated={(c) => {
-          setCreated(c);
-          upsert(c);
-        }}
-      />
-      {created && <CreatedLinks invite={created} onClose={() => setCreated(null)} />}
+      <div className="settings-toolbar">
+        <p className="muted">По ссылке человек сразу получает доступ с заданной ролью и подразделением, без заявки.</p>
+        <button type="button" className="btn" onClick={() => setOpen(true)}>
+          Создать приглашение
+        </button>
+      </div>
 
-      <h2 className="block__title">Приглашения</h2>
+      {/* Форма и готовые ссылки — в окне. Ссылки показываются один раз, поэтому окно не закрывается
+          случайным кликом мимо, а во время создания не закрывается вовсе. */}
+      <Modal open={open} onClose={close} labelledBy="invite-title" locked={busy} closeOnBackdrop={false}>
+        {open &&
+          (created ? (
+            <CreatedLinks invite={created} onClose={close} />
+          ) : (
+            <CreateInvite
+              departments={deps}
+              onBusy={setBusy}
+              onCancel={close}
+              onCreated={(c) => {
+                setCreated(c);
+                upsert(c);
+              }}
+            />
+          ))}
+      </Modal>
+
       {s.status === 'loading' && <p className="muted">Загружаем…</p>}
       {s.status === 'error' && <p className="error-text">{s.message}</p>}
       {s.status === 'ready' && s.data.length === 0 && (
         <EmptyState icon="inbox" title="Приглашений пока нет">
-          Создайте ссылку выше — по ней человек сразу получит доступ с заданной ролью.
+          Нажмите «Создать приглашение» — по ссылке человек сразу получит доступ с заданной ролью.
         </EmptyState>
       )}
       {s.status === 'ready' && s.data.length > 0 && (
@@ -63,7 +86,14 @@ export function InvitesTab() {
   );
 }
 
-function CreateInvite({ departments, onCreated }: { departments: Schemas['Department'][]; onCreated: (c: Created) => void }) {
+interface CreateInviteProps {
+  departments: Schemas['Department'][];
+  onCreated: (c: Created) => void;
+  onCancel: () => void;
+  onBusy: (busy: boolean) => void;
+}
+
+function CreateInvite({ departments, onCreated, onCancel, onBusy }: CreateInviteProps) {
   const dict = useDictionaries();
   const [form, setForm] = useState<InviteForm>(INVITE_DEFAULTS);
   const [busy, setBusy] = useState(false);
@@ -75,6 +105,7 @@ function CreateInvite({ departments, onCreated }: { departments: Schemas['Depart
     const invalid = inviteFormError(form);
     if (invalid) return setError(invalid);
     setBusy(true);
+    onBusy(true);
     setError('');
     try {
       onCreated(await unwrap(api.POST('/api/v1/admin/invites', { body: inviteBody(form) })));
@@ -83,15 +114,18 @@ function CreateInvite({ departments, onCreated }: { departments: Schemas['Depart
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      onBusy(false);
     }
   }
 
   return (
-    <form className="block settings-form" onSubmit={submit} noValidate>
-      <h2 className="block__title">Новое приглашение</h2>
-      <p className="muted field__hint">
-        По ссылке человек сразу получает доступ с заданной ролью и подразделением, без заявки.
-      </p>
+    <form className="user-form" onSubmit={submit} noValidate>
+      <div className="user-form__head">
+        <h2 id="invite-title" className="user-form__title">
+          Новое приглашение
+        </h2>
+        <p className="muted">По ссылке человек сразу получает доступ с заданной ролью и подразделением.</p>
+      </div>
       <div className="settings-grid">
         <label className="field">
           <span className="field__label">Роль</span>
@@ -118,7 +152,7 @@ function CreateInvite({ departments, onCreated }: { departments: Schemas['Depart
           <span className="field__label">
             Имя <span className="muted">— необязательно</span>
           </span>
-          <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} />
+          <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} data-autofocus />
         </label>
         <label className="field">
           <span className="field__label">Действует, дней</span>
@@ -129,15 +163,18 @@ function CreateInvite({ departments, onCreated }: { departments: Schemas['Depart
           <input className="input" type="number" min={1} max={100} value={form.uses} onChange={(e) => set({ uses: e.target.value })} />
         </label>
       </div>
-      <div className="form__actions">
-        <button type="submit" className="btn" disabled={busy}>
-          {busy ? 'Создаём…' : 'Создать приглашение'}
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="user-form__actions">
+        <button type="button" className="btn btn--soft" onClick={onCancel} disabled={busy}>
+          Отмена
         </button>
-        {error && (
-          <span className="error-text" role="alert">
-            {error}
-          </span>
-        )}
+        <button type="submit" className="btn" disabled={busy}>
+          {busy ? 'Создаём…' : 'Создать ссылку'}
+        </button>
       </div>
     </form>
   );
@@ -146,13 +183,27 @@ function CreateInvite({ departments, onCreated }: { departments: Schemas['Depart
 /** Ссылки показываются один раз: токен хранится на сервере хешем. */
 function CreatedLinks({ invite, onClose }: { invite: Created; onClose: () => void }) {
   return (
-    <div className="notice notice--success invite-links" role="status">
-      <strong>Приглашение создано. Скопируйте ссылку сейчас — потом её не показать.</strong>
+    <div className="user-form invite-links" role="status">
+      <div className="upload-modal__top">
+        <span className="upload-modal__done" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        <div className="upload-modal__head">
+          <h2 id="invite-title" className="upload-modal__title">
+            Приглашение создано
+          </h2>
+          <p className="muted">Скопируйте ссылку сейчас — потом её не показать.</p>
+        </div>
+      </div>
       <CopyLink label="Через бота в Telegram" value={invite.bot_link} />
       <CopyLink label="Через браузер" value={invite.web_link} />
-      <button type="button" className="link-btn" onClick={onClose}>
-        Я скопировал, скрыть
-      </button>
+      <div className="user-form__actions">
+        <button type="button" className="btn" onClick={onClose}>
+          Готово
+        </button>
+      </div>
     </div>
   );
 }
@@ -161,11 +212,11 @@ function CopyLink({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="invite-links__row">
-      <span className="muted">{label}</span>
+      <span className="field__label">{label}</span>
       <input className="input" value={value} readOnly onFocus={(e) => e.currentTarget.select()} aria-label={label} />
       <button
         type="button"
-        className="btn btn--ghost"
+        className="btn btn--soft"
         onClick={() => {
           navigator.clipboard
             ?.writeText(value)
