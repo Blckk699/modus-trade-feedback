@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Request, Response
@@ -21,6 +21,7 @@ from app.api.schemas import UserBrief
 from app.auth import service
 from app.auth.me import MeOut, build_me, user_brief
 from app.auth.telegram import verify_login_widget, verify_mini_app
+from app.clock import LocalDatetime
 from app.errors import DevLoginDisabled, Forbidden, InvalidLoginCode, NotFound
 from app.models import User
 
@@ -30,7 +31,7 @@ router = APIRouter(tags=["auth"])
 class SessionOut(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
-    expires_at: datetime
+    expires_at: LocalDatetime
     user: MeOut
 
 
@@ -54,7 +55,7 @@ class CodeLoginIn(BaseModel):
 
 class LoginCodeOut(BaseModel):
     code: str
-    expires_at: datetime
+    expires_at: LocalDatetime
     ttl_seconds: int
 
 

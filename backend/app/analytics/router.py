@@ -25,6 +25,7 @@ from app.api.schemas import CategoryRef, DepartmentRef, UserBrief
 from app.appeals import policy, service
 from app.appeals.schemas import AppealRef
 from app.appeals.views import Directory, appeal_ref
+from app.clock import LocalDatetime
 from app.config import Settings
 from app.domain.business_days import add_business_days
 from app.domain.enums import AppealStatus, AppealType, NotificationKind, Role
@@ -83,7 +84,7 @@ class AssigneeLoad(BaseModel):
 class AnalyticsSummary(BaseModel):
     scope: DigestScope
     department: DepartmentRef | None
-    generated_at: datetime
+    generated_at: LocalDatetime
     total: int
     closed_count: int
     closed_share: float
@@ -103,7 +104,7 @@ class AnalyticsSummary(BaseModel):
 class Digest(BaseModel):
     scope: DigestScope
     department: DepartmentRef | None
-    generated_at: datetime
+    generated_at: LocalDatetime
     text: str
 
 

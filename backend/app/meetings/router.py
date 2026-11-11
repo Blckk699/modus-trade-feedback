@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -23,6 +23,7 @@ from app.api.schemas import CategoryRef, UserBrief
 from app.appeals import service
 from app.appeals.schemas import AppealOut, AppealRef
 from app.appeals.views import Directory, appeal_out, appeal_ref
+from app.clock import LocalDatetime
 from app.config import Settings
 from app.domain.enums import AppealSource, AppealType, MeetingDraftStatus, MeetingStatus, Priority, Role
 from app.errors import AppError, Conflict, ExternalServiceError, FileTooLarge, Forbidden, NotFound, ValidationFailed
@@ -51,7 +52,7 @@ class MeetingBriefOut(BaseModel):
     drafts_total: int
     drafts_pending: int
     uploaded_by: UserBrief
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class MeetingDraftOut(BaseModel):
@@ -77,7 +78,7 @@ class MeetingOut(BaseModel):
     transcript: str | None
     uploaded_by: UserBrief
     drafts: list[MeetingDraftOut]
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class MeetingDraftUpdate(BaseModel):

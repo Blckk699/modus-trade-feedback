@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -14,6 +13,7 @@ from app.api.schemas import UserBrief
 from app.appeals import lifecycle, service
 from app.appeals.schemas import AppealOut
 from app.appeals.views import Directory, appeal_out
+from app.clock import LocalDatetime
 from app.models import Message
 
 router = APIRouter(tags=["appeal-actions"])
@@ -54,7 +54,7 @@ class MessageOut(BaseModel):
     author: UserBrief
     text: str
     is_clarification_question: bool
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 @router.post("/appeals/{appeal_id}/take", response_model=AppealOut, summary="Взять на рассмотрение")
