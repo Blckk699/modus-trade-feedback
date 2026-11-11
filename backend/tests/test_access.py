@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import timedelta
 
@@ -377,13 +378,14 @@ async def test_invite_lasts_seven_days_by_default(client, demo, login_as, time_m
     assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 410
 
 
-async def test_invite_token_guessing_is_rate_limited(client, demo, login_as, time_machine) -> None:
-    """Токен виден в путях и логах — перебор ограничен: 10 неудач за 15 минут с адреса, у бота — с Telegram ID."""
-    invite = await create_invite(client, await login_as("admin"))
-    for i in range(10):
-        assert (await client.get(f"/api/v1/invites/guess-{i}")).status_code == 410
-    blocked = await client.get(f"/api/v1/invites/{invite['token']}")
+async def test_invite_token_guessing_is_rate_limited(client, app, demo, login_as, time_machine) -> None:
+    """Токен виден в путях и логах — перебор ограничен: 10 неудач за 15 минут на человека или токен, у бота — по Telegram ID."""
+    invite = await create_invite(client, await login_as("admin"), max_uses=3)
+    for _ in range(10):
+        assert (await client.get("/api/v1/invites/expired-token")).status_code == 410
+    blocked = await client.get("/api/v1/invites/expired-token")
     assert (blocked.status_code, blocked.json()["error"]["code"]) == (429, "too_many_requests")
+    assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 200  # другой токен с того же адреса
 
     # Бот считается по Telegram ID пользователя, а не по своему адресу.
     for i in range(10):
@@ -392,7 +394,31 @@ async def test_invite_token_guessing_is_rate_limited(client, demo, login_as, tim
     assert (await accept_by_bot(client, invite["token"], OTHER_STRANGER)).status_code == 200
 
     await time_machine.advance(minutes=16)
-    assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 410  # уже исчерпано, но не 429
+    assert (await accept_by_bot(client, invite["token"])).status_code == 200
+
+
+async def accept_by_web(client: httpx.AsyncClient, token: str, telegram_id: int, time_machine: TimeMachine) -> httpx.Response:
+    return await client.post("/api/v1/invites/accept", json={"token": token, "telegram_login": widget(telegram_id, time_machine)})
+
+
+async def test_one_colleague_behind_office_nat_does_not_block_others(client, demo, login_as, time_machine) -> None:
+    """В офисе все на одном адресе: ошибки одного сотрудника блокируют только его."""
+    invite = await create_invite(client, await login_as("admin"), max_uses=2)
+    for i in range(10):
+        assert (await accept_by_web(client, f"typo-{i}", STRANGER, time_machine)).status_code == 410
+    assert (await accept_by_web(client, invite["token"], STRANGER, time_machine)).status_code == 429
+    colleague = await accept_by_web(client, invite["token"], OTHER_STRANGER, time_machine)
+    assert (colleague.status_code, colleague.json()["created"]) == (200, True)
+
+
+async def test_address_wide_limit_still_stops_guessing(client, app, demo, login_as, time_machine) -> None:
+    """Перебор разными токенами с одного адреса упирается в общий порог адреса."""
+    app.state.settings.invite_max_failures_per_ip = 15
+    invite = await create_invite(client, await login_as("admin"))
+    for i in range(15):
+        assert (await client.get(f"/api/v1/invites/guess-{i}")).status_code == 410
+    assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 429
+    assert (await accept_by_bot(client, invite["token"])).status_code == 200  # бот адрес не считает
 
 
 async def test_invite_links_come_from_settings(client, app, demo, login_as) -> None:
@@ -402,3 +428,33 @@ async def test_invite_links_come_from_settings(client, app, demo, login_as) -> N
     assert invite["bot_link"] == f"https://t.me/other_bot?start=inv_{invite['token']}"
     assert invite["web_link"] == f"https://modus.test/invite/{invite['token']}"
     assert len(invite["token"]) >= 22  # не меньше 128 бит в base64url
+
+
+# --- B-19: доводка после ревью B-18 -----------------------------------------------------------------
+
+
+async def users_with_telegram_id(app: FastAPI, telegram_id: int) -> int:
+    async with app.state.sessionmaker() as session:
+        return len((await session.execute(select(User).where(User.telegram_id == telegram_id))).scalars().all())
+
+
+@pytest.mark.parametrize("max_uses", [1, 2])
+async def test_double_accept_by_one_account_is_idempotent(client, app, demo, login_as, max_uses) -> None:
+    """Двойное нажатие: один пользователь, одно использование, без 500."""
+    invite = await create_invite(client, await login_as("admin"), max_uses=max_uses)
+    first, second = await asyncio.gather(accept_by_bot(client, invite["token"]), accept_by_bot(client, invite["token"]))
+    assert (first.status_code, second.status_code) == (200, 200), (first.text, second.text)
+    assert sorted([first.json()["created"], second.json()["created"]]) == [False, True]
+    assert first.json()["user"]["id"] == second.json()["user"]["id"]
+    assert await users_with_telegram_id(app, STRANGER) == 1
+    listed = (await client.get("/api/v1/admin/invites", headers=await login_as("admin"))).json()
+    assert next(i for i in listed if i["id"] == invite["id"])["used_count"] == 1
+
+
+async def test_one_account_accepting_two_invites_at_once_gets_one_user(client, app, demo, login_as) -> None:
+    admin = await login_as("admin")
+    a, b = await create_invite(client, admin), await create_invite(client, admin)
+    responses = await asyncio.gather(accept_by_bot(client, a["token"]), accept_by_bot(client, b["token"]))
+    assert [r.status_code for r in responses] == [200, 200], [r.text for r in responses]
+    assert sorted(r.json()["created"] for r in responses) == [False, True]
+    assert await users_with_telegram_id(app, STRANGER) == 1

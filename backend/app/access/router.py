@@ -15,6 +15,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.access.identity import BotTelegramIdDep, TelegramIdentityIn, TelegramProfile, identify
@@ -511,12 +512,22 @@ async def revoke_invite(invite_id: int, _: ManagerDep, session: SessionDep, cloc
 # --- без сессии: приглашение -----------------------------------------------------------------------
 
 
-def _attempt_key(request: Request, bot_id: int | None) -> str:
-    """Бот ходит с одного адреса за всех, поэтому его попытки считаются по Telegram ID пользователя.
-    Адрес клиента — из X-Forwarded-For только от доверенного прокси (см. create_app)."""
-    if bot_id is not None:
-        return f"tg:{bot_id}"
-    return f"ip:{request.client.host if request.client else 'unknown'}"
+def _attempt_limits(
+    request: Request, settings: SettingsDep, *, telegram_id: int | None, via_bot: bool, token: str
+) -> list[tuple[str, int]]:
+    """Ключи и пороги неудачных попыток.
+
+    Неудачи считаются по человеку (Telegram ID, а без него — по токену) и отдельно по адресу.
+    В офисе все сотрудники выходят в интернет с одного адреса, поэтому порог адреса выше:
+    один ошибающийся сотрудник не блокирует остальных, а перебор с адреса всё равно ограничен.
+    Бот ходит с одного адреса за всех — у него адрес не считается.
+    Адрес клиента — из X-Forwarded-For только от доверенного прокси (см. create_app).
+    """
+    who = f"tg:{telegram_id}" if telegram_id is not None else f"tok:{_sha256(token)[:32]}"
+    limits = [(who, settings.invite_max_failures)]
+    if not via_bot:
+        limits.append((f"ip:{request.client.host if request.client else 'unknown'}", settings.invite_max_failures_per_ip))
+    return limits
 
 
 async def _valid_invite(
@@ -526,19 +537,20 @@ async def _valid_invite(
     now: datetime,
     settings: SettingsDep,
     *,
-    attempt_key: str,
+    limits: list[tuple[str, int]],
     lock: bool = False,
 ) -> Invite:
     """Действующее приглашение по токену. Токен бывает в путях и логах, поэтому неудачные попытки
-    ограничены: больше `invite_max_failures` за окно с одного ключа — 429 до конца окна."""
+    ограничены: при достижении порога по любому ключу — 429 до конца окна."""
     since = now - timedelta(seconds=settings.invite_failure_window_seconds)
-    failures = await session.scalar(
-        select(func.count())
-        .select_from(InviteAttempt)
-        .where(InviteAttempt.key == attempt_key, InviteAttempt.created_at > since)
-    )
-    if (failures or 0) >= settings.invite_max_failures:
-        raise TooManyRequests("Слишком много попыток с недействительными приглашениями. Подождите и попробуйте снова.")
+    for key, limit in limits:
+        failures = await session.scalar(
+            select(func.count())
+            .select_from(InviteAttempt)
+            .where(InviteAttempt.key == key, InviteAttempt.created_at > since)
+        )
+        if (failures or 0) >= limit:
+            raise TooManyRequests("Слишком много попыток с недействительными приглашениями. Подождите и попробуйте снова.")
     query = select(Invite).where(Invite.token_hash == _sha256(token))
     if lock:
         query = query.with_for_update()
@@ -546,16 +558,17 @@ async def _valid_invite(
     if invite is None or invite_state(invite, now) != "active":
         # Транзакция запроса откатится вместе с ошибкой — неудачу пишем отдельной.
         async with request.app.state.sessionmaker() as attempts, attempts.begin():
-            attempts.add(InviteAttempt(key=attempt_key, created_at=now))
+            attempts.add_all([InviteAttempt(key=key, created_at=now) for key, _ in limits])
         raise InviteInvalid()
     return invite
 
 
 @router.get("/invites/{token}", response_model=InvitePreview, summary="Что за приглашение")
 async def invite_preview(
-    token: str, request: Request, session: SessionDep, clock: ClockDep, settings: SettingsDep
+    token: str, request: Request, bot_id: BotTelegramIdDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
 ) -> InvitePreview:
-    invite = await _valid_invite(session, request, token, clock.now(), settings, attempt_key=_attempt_key(request, None))
+    limits = _attempt_limits(request, settings, telegram_id=bot_id, via_bot=bot_id is not None, token=token)
+    invite = await _valid_invite(session, request, token, clock.now(), settings, limits=limits)
     return InvitePreview(
         role=invite.role,
         department=await _department(session, invite.department_id),
@@ -585,18 +598,30 @@ async def accept_invite(
     now = clock.now()
     profile = identify(body, bot_id, settings, now, bot_username=_clean(body.telegram_username))
 
-    existing = await auth_service.user_by_telegram_id(session, profile.telegram_id)
-    if existing is not None:
+    async def already_registered(user: User) -> InviteAccepted:
         # Уже заведённый пользователь по ссылке ничего не меняет и приглашение не расходует.
-        auth_service.ensure_can_login(existing)
+        auth_service.ensure_can_login(user)
         return InviteAccepted(
             created=False,
-            user=await build_me(session, existing),
-            session=await _session_token(session, existing, profile, now, settings),
+            user=await build_me(session, user),
+            session=await _session_token(session, user, profile, now, settings),
         )
 
+    existing = await auth_service.user_by_telegram_id(session, profile.telegram_id)
+    if existing is not None:
+        return await already_registered(existing)
+
+    # Двойное нажатие: принятия одного приглашения идут по очереди на его строке, и второе
+    # видит пользователя, созданного первым, раньше, чем проверку исчерпанного приглашения.
+    await session.execute(select(Invite.id).where(Invite.token_hash == _sha256(body.token)).with_for_update())
+    existing = await auth_service.user_by_telegram_id(session, profile.telegram_id)
+    if existing is not None:
+        return await already_registered(existing)
+
     invite = await _valid_invite(
-        session, request, body.token, now, settings, attempt_key=_attempt_key(request, bot_id), lock=True
+        session, request, body.token, now, settings,
+        limits=_attempt_limits(request, settings, telegram_id=profile.telegram_id, via_bot=bot_id is not None, token=body.token),
+        lock=True,
     )
     full_name = invite.full_name or _clean(body.full_name) or profile.name
     if not full_name:
@@ -611,7 +636,16 @@ async def accept_invite(
         is_disabled=False,
         created_at=now,
     )
-    session.add(user)
+    try:
+        # Тот же аккаунт одновременно принимает другое приглашение: его строка нас не задержала.
+        async with session.begin_nested():
+            session.add(user)
+            await session.flush()
+    except IntegrityError:
+        existing = await auth_service.user_by_telegram_id(session, profile.telegram_id)
+        if existing is None:
+            raise
+        return await already_registered(existing)
     invite.used_count += 1
     await session.flush()
 
