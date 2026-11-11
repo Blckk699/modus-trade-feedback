@@ -62,6 +62,9 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
   --control-h: 44px;
+  /* общая ширина шапки и контента: края совпадают */
+  --container: 1200px;
+  --gutter: 24px;
   --topbar-h: 56px;
   --bottombar-h: 60px;
 }
@@ -433,7 +436,7 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 24px;
+  padding: 0 max(var(--gutter), calc((100% - var(--container)) / 2));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -510,14 +513,14 @@ input:focus-visible,
 
 .content {
   grid-area: main;
-  padding: 24px;
+  padding: 24px var(--gutter);
   min-width: 0;
 }
 
 .page {
   display: grid;
   gap: 8px;
-  max-width: 960px;
+  max-width: var(--container);
   margin-inline: auto;
 }
 
@@ -1217,7 +1220,7 @@ textarea.input {
 
 /* ---------- очередь и действия (W-03) */
 .page--wide {
-  max-width: 1100px;
+  max-width: var(--container);
 }
 
 .filters {
