@@ -196,7 +196,7 @@ export function NewAppealPage() {
           </p>
         )}
         <div className="form__actions">
-          <button type="submit" className="btn" disabled={busy}>
+          <button type="submit" className="btn btn--accent" disabled={busy}>
             {busy ? 'Отправляем…' : 'Отправить'}
           </button>
         </div>

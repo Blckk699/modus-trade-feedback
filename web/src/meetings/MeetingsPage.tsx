@@ -69,7 +69,7 @@ export function MeetingsPage() {
           )}
         </div>
         <div className="form__actions">
-          <button type="submit" className="btn" disabled={busy || !file}>
+          <button type="submit" className="btn btn--accent" disabled={busy || !file}>
             {busy ? 'Загружаем…' : 'Загрузить и расшифровать'}
           </button>
           {error && (

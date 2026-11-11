@@ -1,6 +1,11 @@
 import type { ThemeParams, WebApp } from './webApp';
 
-/** Переменные темы веба (styles/global.css) ← цвета Telegram. Не заданный Telegram цвет остаётся из CSS. */
+/**
+ * Переменные темы веба (styles/global.css) ← цвета Telegram. Не заданный Telegram цвет остаётся из CSS.
+ * Берём у Telegram только фон, текст, подсказки, разделители и ссылки — Mini App выглядит продолжением чата.
+ * Фирменная красная кнопка (--accent), primary, статусы и danger/warn/success остаются нашими
+ * и переключаются по colorScheme через data-theme (design/README.md, раздел про Mini App).
+ */
 const MAPPING: [cssVar: string, key: keyof ThemeParams][] = [
   ['--bg', 'secondary_bg_color'],
   ['--surface', 'bg_color'],
@@ -8,9 +13,7 @@ const MAPPING: [cssVar: string, key: keyof ThemeParams][] = [
   ['--text', 'text_color'],
   ['--muted', 'hint_color'],
   ['--border', 'section_separator_color'],
-  ['--accent', 'button_color'],
-  ['--accent-text', 'button_text_color'],
-  ['--danger', 'destructive_text_color'],
+  ['--link', 'link_color'],
 ];
 
 export function themeVariables(params: ThemeParams): Record<string, string> {

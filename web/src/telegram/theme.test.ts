@@ -9,8 +9,7 @@ describe('тема Telegram', () => {
         secondary_bg_color: '#f0f0f0',
         text_color: '#000000',
         hint_color: '#999999',
-        button_color: '#2481cc',
-        button_text_color: '#ffffff',
+        link_color: '#2481cc',
       }),
     ).toEqual({
       '--bg': '#f0f0f0',
@@ -18,9 +17,17 @@ describe('тема Telegram', () => {
       '--surface-2': '#f0f0f0',
       '--text': '#000000',
       '--muted': '#999999',
-      '--accent': '#2481cc',
-      '--accent-text': '#ffffff',
+      '--link': '#2481cc',
     });
+  });
+
+  it('фирменная кнопка и статусы не берутся у Telegram', () => {
+    const vars = themeVariables({
+      button_color: '#2481cc',
+      button_text_color: '#ffffff',
+      destructive_text_color: '#ec3942',
+    });
+    expect(vars).toEqual({});
   });
 
   it('не заданный Telegram цвет остаётся из CSS', () => {

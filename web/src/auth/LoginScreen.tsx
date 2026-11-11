@@ -9,8 +9,9 @@ export function LoginScreen() {
   return (
     <main className="login">
       <div className="login__card">
+        <span className="brand-mark">Модус Трейд</span>
         <h1 className="login__title">Обращения и предложения</h1>
-        <p className="muted">Модус Трейд. Войдите через Telegram, чтобы подать обращение или посмотреть свои.</p>
+        <p className="muted">Войдите через Telegram, чтобы подать обращение или посмотреть свои.</p>
         {notice && (
           <p className="error-text" role="alert">
             {notice}
