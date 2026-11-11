@@ -7,7 +7,7 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 
 from app import drafts, handlers, notifications, texts
 from app.api import Api
@@ -39,6 +39,13 @@ def build_bot(token: str, **kwargs) -> Bot:
     return Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML), **kwargs)
 
 
+async def setup_menu_button(bot: Bot, settings: Settings) -> None:
+    """Кнопка меню «Открыть» для всех чатов сразу, а не только после /start (тот ставит её в своём чате)."""
+    if settings.mini_app_url:
+        button = MenuButtonWebApp(text=texts.BTN_OPEN_APP, web_app=WebAppInfo(url=settings.mini_app_url))
+        await bot.set_chat_menu_button(menu_button=button)
+
+
 async def run(settings: Settings) -> None:
     api = Api(settings.api_base_url, settings.bot_service_key.get_secret_value(), settings.api_timeout_seconds)
     bot = build_bot(settings.telegram_bot_token.get_secret_value())
@@ -46,6 +53,7 @@ async def run(settings: Settings) -> None:
     poller = asyncio.create_task(notifications.poll_forever(bot, api, settings))
     try:
         await bot.set_my_commands(COMMANDS)
+        await setup_menu_button(bot, settings)
         await dp.start_polling(bot)
     finally:
         poller.cancel()
