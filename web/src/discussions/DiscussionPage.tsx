@@ -77,9 +77,12 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
         </div>
       )}
 
-      <Votes discussion={d} onUpdated={onUpdated} />
-      {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
-      <Comments discussion={d} />
+      {/* Голосование, итог и комментарии — одна карточка, части разделены линией. */}
+      <div className="discussion__card">
+        <Votes discussion={d} onUpdated={onUpdated} />
+        {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
+        <Comments discussion={d} />
+      </div>
     </article>
   );
 }
