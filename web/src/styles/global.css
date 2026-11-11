@@ -1995,6 +1995,7 @@ details.block > summary {
   border: 0;
 }
 
+<<<<<<< ours
 /* ---------- пустой список: без карточки, всё по центру */
 .empty {
   display: grid;
@@ -2033,3 +2034,27 @@ details.block > summary {
   margin-top: 12px;
 }
 
+=======
+/* Пустой список занимает всё свободное место под шапкой и стоит по центру по вертикали.
+   .content растягивается на высоту экрана, страница с пустым состоянием — тоже. */
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.content > .page {
+  width: 100%;
+}
+
+.page:has(> .empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page > .empty {
+  flex: 1;
+  align-content: center;
+}
+>>>>>>> theirs
