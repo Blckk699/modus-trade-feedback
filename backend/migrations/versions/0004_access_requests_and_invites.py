@@ -67,6 +67,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_invites')),
     sa.UniqueConstraint('token_hash', name=op.f('uq_invites_token_hash'))
     )
+    op.create_table('invite_attempts',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('key', sa.String(length=80), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_invite_attempts'))
+    )
+    op.create_index('ix_invite_attempts_key_created_at', 'invite_attempts', ['key', 'created_at'], unique=False)
     op.add_column('notifications', sa.Column('telegram_id', sa.BigInteger(), nullable=True))
     op.alter_column('notifications', 'user_id',
                existing_type=sa.INTEGER(),
@@ -81,6 +88,8 @@ def downgrade() -> None:
                existing_type=sa.INTEGER(),
                nullable=False)
     op.drop_column('notifications', 'telegram_id')
+    op.drop_index('ix_invite_attempts_key_created_at', table_name='invite_attempts')
+    op.drop_table('invite_attempts')
     op.drop_table('invites')
     op.drop_index('uq_access_requests_pending_telegram_id', table_name='access_requests', postgresql_where=sa.text("status = 'pending'"))
     op.drop_index('ix_access_requests_telegram_id', table_name='access_requests')

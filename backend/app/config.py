@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # Заявки на доступ и приглашения (B-18): не больше N подач с одного Telegram-аккаунта за окно.
     access_request_max_per_window: int = 5
     access_request_window_seconds: int = 3600
+    # Перебор токенов приглашений: неудачные попытки с одного IP (у бота — с одного Telegram ID) за окно -> 429.
+    invite_max_failures: int = 10
+    invite_failure_window_seconds: int = 900
     # Ссылки приглашений: диплинк бота и страница веба.
     telegram_bot_username: str = "modus_feedback_bot"
     public_web_url: str = "http://localhost:5173"

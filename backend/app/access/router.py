@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from html import escape
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,7 @@ from app.errors import (
     UserDisabled,
     ValidationFailed,
 )
-from app.models import AccessRequest, AccessSubmission, Department, Invite, User
+from app.models import AccessRequest, AccessSubmission, Department, Invite, InviteAttempt, User
 from app.notifications import service as notify
 
 router = APIRouter(tags=["access"])
@@ -511,19 +511,51 @@ async def revoke_invite(invite_id: int, _: ManagerDep, session: SessionDep, cloc
 # --- без сессии: приглашение -----------------------------------------------------------------------
 
 
-async def _valid_invite(session: AsyncSession, token: str, now: datetime, *, lock: bool = False) -> Invite:
+def _attempt_key(request: Request, bot_id: int | None) -> str:
+    """Бот ходит с одного адреса за всех, поэтому его попытки считаются по Telegram ID пользователя.
+    Адрес клиента — из X-Forwarded-For только от доверенного прокси (см. create_app)."""
+    if bot_id is not None:
+        return f"tg:{bot_id}"
+    return f"ip:{request.client.host if request.client else 'unknown'}"
+
+
+async def _valid_invite(
+    session: AsyncSession,
+    request: Request,
+    token: str,
+    now: datetime,
+    settings: SettingsDep,
+    *,
+    attempt_key: str,
+    lock: bool = False,
+) -> Invite:
+    """Действующее приглашение по токену. Токен бывает в путях и логах, поэтому неудачные попытки
+    ограничены: больше `invite_max_failures` за окно с одного ключа — 429 до конца окна."""
+    since = now - timedelta(seconds=settings.invite_failure_window_seconds)
+    failures = await session.scalar(
+        select(func.count())
+        .select_from(InviteAttempt)
+        .where(InviteAttempt.key == attempt_key, InviteAttempt.created_at > since)
+    )
+    if (failures or 0) >= settings.invite_max_failures:
+        raise TooManyRequests("Слишком много попыток с недействительными приглашениями. Подождите и попробуйте снова.")
     query = select(Invite).where(Invite.token_hash == _sha256(token))
     if lock:
         query = query.with_for_update()
     invite = await session.scalar(query)
     if invite is None or invite_state(invite, now) != "active":
+        # Транзакция запроса откатится вместе с ошибкой — неудачу пишем отдельной.
+        async with request.app.state.sessionmaker() as attempts, attempts.begin():
+            attempts.add(InviteAttempt(key=attempt_key, created_at=now))
         raise InviteInvalid()
     return invite
 
 
 @router.get("/invites/{token}", response_model=InvitePreview, summary="Что за приглашение")
-async def invite_preview(token: str, session: SessionDep, clock: ClockDep) -> InvitePreview:
-    invite = await _valid_invite(session, token, clock.now())
+async def invite_preview(
+    token: str, request: Request, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> InvitePreview:
+    invite = await _valid_invite(session, request, token, clock.now(), settings, attempt_key=_attempt_key(request, None))
     return InvitePreview(
         role=invite.role,
         department=await _department(session, invite.department_id),
@@ -543,7 +575,12 @@ async def _session_token(
 
 @router.post("/invites/accept", response_model=InviteAccepted, summary="Принять приглашение")
 async def accept_invite(
-    body: InviteAccept, bot_id: BotTelegramIdDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
+    body: InviteAccept,
+    request: Request,
+    bot_id: BotTelegramIdDep,
+    session: SessionDep,
+    clock: ClockDep,
+    settings: SettingsDep,
 ) -> InviteAccepted:
     now = clock.now()
     profile = identify(body, bot_id, settings, now, bot_username=_clean(body.telegram_username))
@@ -558,7 +595,9 @@ async def accept_invite(
             session=await _session_token(session, existing, profile, now, settings),
         )
 
-    invite = await _valid_invite(session, body.token, now, lock=True)
+    invite = await _valid_invite(
+        session, request, body.token, now, settings, attempt_key=_attempt_key(request, bot_id), lock=True
+    )
     full_name = invite.full_name or _clean(body.full_name) or profile.name
     if not full_name:
         raise _field_error("full_name", "Укажите имя")

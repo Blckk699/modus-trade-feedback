@@ -6,7 +6,7 @@
 from app.auth.models import AuthSession, LoginAttempt, LoginCode
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
-from app.models.access import AccessRequest, AccessSubmission, Invite
+from app.models.access import AccessRequest, AccessSubmission, Invite, InviteAttempt
 from app.models.appeals import (
     Appeal,
     AppealParticipant,
@@ -39,6 +39,7 @@ __all__ = [
     "DuplicateSuggestion",
     "HistoryEvent",
     "Invite",
+    "InviteAttempt",
     "Job",
     "LoginAttempt",
     "LoginCode",

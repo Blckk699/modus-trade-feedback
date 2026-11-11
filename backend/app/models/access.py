@@ -68,3 +68,14 @@ class Invite(Base):
     max_uses: Mapped[int]
     used_count: Mapped[int] = mapped_column(default=0)
     revoked_at: Mapped[datetime | None]
+
+
+class InviteAttempt(Base):
+    """Неудачная попытка с токеном приглашения: ключ — IP клиента или `tg:<id>` для бота. Для лимита перебора."""
+
+    __tablename__ = "invite_attempts"
+    __table_args__ = (Index("ix_invite_attempts_key_created_at", "key", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime]

@@ -375,3 +375,30 @@ async def test_invite_lasts_seven_days_by_default(client, demo, login_as, time_m
     assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 200
     await time_machine.advance(hours=2)
     assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 410
+
+
+async def test_invite_token_guessing_is_rate_limited(client, demo, login_as, time_machine) -> None:
+    """Токен виден в путях и логах — перебор ограничен: 10 неудач за 15 минут с адреса, у бота — с Telegram ID."""
+    invite = await create_invite(client, await login_as("admin"))
+    for i in range(10):
+        assert (await client.get(f"/api/v1/invites/guess-{i}")).status_code == 410
+    blocked = await client.get(f"/api/v1/invites/{invite['token']}")
+    assert (blocked.status_code, blocked.json()["error"]["code"]) == (429, "too_many_requests")
+
+    # Бот считается по Telegram ID пользователя, а не по своему адресу.
+    for i in range(10):
+        assert (await accept_by_bot(client, f"guess-{i}")).status_code == 410
+    assert (await accept_by_bot(client, invite["token"])).status_code == 429
+    assert (await accept_by_bot(client, invite["token"], OTHER_STRANGER)).status_code == 200
+
+    await time_machine.advance(minutes=16)
+    assert (await client.get(f"/api/v1/invites/{invite['token']}")).status_code == 410  # уже исчерпано, но не 429
+
+
+async def test_invite_links_come_from_settings(client, app, demo, login_as) -> None:
+    app.state.settings.telegram_bot_username = "other_bot"
+    app.state.settings.public_web_url = "https://modus.test/"
+    invite = await create_invite(client, await login_as("owner"))
+    assert invite["bot_link"] == f"https://t.me/other_bot?start=inv_{invite['token']}"
+    assert invite["web_link"] == f"https://modus.test/invite/{invite['token']}"
+    assert len(invite["token"]) >= 22  # не меньше 128 бит в base64url
