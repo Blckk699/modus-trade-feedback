@@ -45,7 +45,7 @@ export function MyAppealsPage() {
     <section className="page">
       <div className="page__head">
         <h1 className="page__title">Мои обращения</h1>
-        <Link to="/my/new" className="btn">
+        <Link to="/my/new" className="btn btn--accent">
           Подать обращение
         </Link>
       </div>

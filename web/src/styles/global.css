@@ -1,46 +1,149 @@
-/* Токены темы. Светлая по умолчанию, тёмная — по системе или по выбору (data-theme).
-   Оболочка Mini App (T-06) может переопределить эти переменные цветами Telegram. */
+/* Токены темы — значения из design/tokens.json (карта: design/README.md).
+   Светлая по умолчанию, тёмная — по системе или по выбору (data-theme).
+   В Mini App src/telegram/theme.ts подставляет поверх фон, текст, подсказки, разделители и ссылки
+   из темы Telegram; красная главная кнопка, статусы, danger/warn/success, шрифты и формы остаются нашими. */
 :root {
-  --bg: #f5f6f8;
+  --bg: #f4f7fb;
   --surface: #ffffff;
-  --surface-2: #eef0f4;
-  --text: #1a1d23;
-  --muted: #5d6470;
-  --border: #dde1e7;
-  --accent: #2563eb;
+  --surface-2: #eff6fd;
+  --text: #323a47;
+  --heading: #082742;
+  --muted: #5a6a82;
+  --border: #d1d5dd;
+  --border-input: #848fa0;
+  --primary: #082742;
+  --primary-hover: #0e3a61;
+  --primary-text: #ffffff;
+  --accent: #e40000;
+  --accent-hover: #cc0000;
   --accent-text: #ffffff;
-  --danger: #c62828;
+  --link: #1a66c9;
+  --focus: #2f80ed;
+  --danger: #b3261e;
+  --danger-bg: #fdecea;
+  --warn: #9a4a00;
+  --warn-bg: #ffefe0;
+  --success: #17703a;
+  --success-bg: #e5f4ea;
+  --info: #1a66c9;
+  --info-bg: #e6f0fc;
+  --status-new: #1a62c4;
+  --status-new-bg: #e6f0fc;
+  --status-in_review: #082742;
+  --status-in_review-bg: #e3eaf2;
+  --status-awaiting_info: #9a4a00;
+  --status-awaiting_info-bg: #ffefe0;
+  --status-in_progress: #5a3db8;
+  --status-in_progress-bg: #eee9fb;
+  --status-implemented: #17703a;
+  --status-implemented-bg: #e5f4ea;
+  --status-rejected: #b3261e;
+  --status-rejected-bg: #fdecea;
+  --status-closed: #4f5b6b;
+  --status-closed-bg: #edeff2;
+  --shadow-sm: 0 1px 2px rgba(8, 39, 66, 0.06);
+  --shadow-md: 0 4px 20px rgba(132, 131, 136, 0.2);
+  color-scheme: light;
+  /* Шрифты: Manrope вместо Gilroy сайта, Montserrat — как в заголовках сайта (index.html, Google Fonts). */
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Montserrat', 'Manrope', system-ui, sans-serif;
+  --radius-sm: 4px;
+  --radius-md: 8px;
   --radius: 10px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --control-h: 44px;
   --topbar-h: 56px;
   --bottombar-h: 60px;
-  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #111317;
-    --surface: #1b1e24;
-    --surface-2: #252932;
-    --text: #e8eaee;
-    --muted: #9aa1ad;
-    --border: #2f343d;
-    --accent: #5b8cff;
-    --accent-text: #0b1020;
-    --danger: #ff6b6b;
+    --bg: #071521;
+    --surface: #0d2236;
+    --surface-2: #142d45;
+    --text: #e6ecf2;
+    --heading: #ffffff;
+    --muted: #9aabbf;
+    --border: #23405c;
+    --border-input: #5a7ea3;
+    --primary: #8cb8e6;
+    --primary-hover: #a9cbef;
+    --primary-text: #082742;
+    --accent: #e40000;
+    --accent-hover: #c80000;
+    --accent-text: #ffffff;
+    --link: #8dbbf5;
+    --focus: #8dbbf5;
+    --danger: #ff8a80;
+    --danger-bg: #3d1b1b;
+    --warn: #f7b57a;
+    --warn-bg: #3a2614;
+    --success: #7fd39a;
+    --success-bg: #143222;
+    --info: #8dbbf5;
+    --info-bg: #12304f;
+    --status-new: #8dbbf5;
+    --status-new-bg: #12304f;
+    --status-in_review: #c9d6e6;
+    --status-in_review-bg: #1c3047;
+    --status-awaiting_info: #f7b57a;
+    --status-awaiting_info-bg: #3a2614;
+    --status-in_progress: #b9a6f5;
+    --status-in_progress-bg: #2a2148;
+    --status-implemented: #7fd39a;
+    --status-implemented-bg: #143222;
+    --status-rejected: #ff9b92;
+    --status-rejected-bg: #3d1b1b;
+    --status-closed: #a9b4c2;
+    --status-closed-bg: #222c38;
+    --shadow-sm: 0 0 0 transparent;
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #111317;
-  --surface: #1b1e24;
-  --surface-2: #252932;
-  --text: #e8eaee;
-  --muted: #9aa1ad;
-  --border: #2f343d;
-  --accent: #5b8cff;
-  --accent-text: #0b1020;
-  --danger: #ff6b6b;
+  --bg: #071521;
+  --surface: #0d2236;
+  --surface-2: #142d45;
+  --text: #e6ecf2;
+  --heading: #ffffff;
+  --muted: #9aabbf;
+  --border: #23405c;
+  --border-input: #5a7ea3;
+  --primary: #8cb8e6;
+  --primary-hover: #a9cbef;
+  --primary-text: #082742;
+  --accent: #e40000;
+  --accent-hover: #c80000;
+  --accent-text: #ffffff;
+  --link: #8dbbf5;
+  --focus: #8dbbf5;
+  --danger: #ff8a80;
+  --danger-bg: #3d1b1b;
+  --warn: #f7b57a;
+  --warn-bg: #3a2614;
+  --success: #7fd39a;
+  --success-bg: #143222;
+  --info: #8dbbf5;
+  --info-bg: #12304f;
+  --status-new: #8dbbf5;
+  --status-new-bg: #12304f;
+  --status-in_review: #c9d6e6;
+  --status-in_review-bg: #1c3047;
+  --status-awaiting_info: #f7b57a;
+  --status-awaiting_info-bg: #3a2614;
+  --status-in_progress: #b9a6f5;
+  --status-in_progress-bg: #2a2148;
+  --status-implemented: #7fd39a;
+  --status-implemented-bg: #143222;
+  --status-rejected: #ff9b92;
+  --status-rejected-bg: #3d1b1b;
+  --status-closed: #a9b4c2;
+  --status-closed-bg: #222c38;
+  --shadow-sm: 0 0 0 transparent;
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
   color-scheme: dark;
 }
 
@@ -55,7 +158,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font: 500 15px/1.5 var(--font-body);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -63,6 +166,21 @@ h1,
 h2,
 p {
   margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--heading);
+}
+
+h1,
+.page__title,
+.login__title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
 }
 
 button {
@@ -88,35 +206,67 @@ button {
   text-align: center;
 }
 
+/* Кнопки: по умолчанию тёмно-синяя (primary). Красная .btn--accent — только главное действие экрана. */
 .btn {
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-text);
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: var(--primary-text);
+  padding: 8px 16px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn--accent:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn--ghost {
   background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
+  color: var(--primary);
+  border: 1px solid var(--border-input);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border-input);
 }
 
 .icon-btn {
   width: 36px;
   height: 36px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: transparent;
+  color: var(--text);
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
 }
 
 button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--accent);
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -133,10 +283,32 @@ a:focus-visible {
   max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
   padding: 24px;
   display: grid;
   gap: 16px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 13px/1 var(--font-heading);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--heading);
+}
+
+/* Красная точка — отсылка к «зрачку» логотипа; сам логотип не используем. */
+.brand-mark::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--heading);
+  margin-left: 3px;
 }
 
 .login__title {
@@ -183,7 +355,7 @@ a:focus-visible {
 }
 
 .dev-login__user:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--primary);
 }
 
 .dev-login__user:disabled {
@@ -220,7 +392,6 @@ a:focus-visible {
 }
 
 .topbar__brand {
-  font-weight: 700;
   margin-right: auto;
 }
 
@@ -253,9 +424,11 @@ a:focus-visible {
 }
 
 .sidenav__link {
+  position: relative;
   padding: 9px 12px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   color: var(--text);
+  font-weight: 600;
   text-decoration: none;
 }
 
@@ -264,8 +437,19 @@ a:focus-visible {
 }
 
 .sidenav__link.active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--surface-2);
+  color: var(--primary);
+}
+
+.sidenav__link.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
 }
 
 .sidenav__short {
@@ -285,7 +469,8 @@ a:focus-visible {
 }
 
 .page__title {
-  font-size: 22px;
+  font-size: 24px;
+  line-height: 1.25;
 }
 
 /* ---------- телефон и Mini App: навигация внизу */
@@ -337,6 +522,16 @@ a:focus-visible {
     text-align: center;
   }
 
+  .sidenav__link.active::before {
+    left: 20%;
+    right: 20%;
+    top: -4px;
+    bottom: auto;
+    width: auto;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+  }
+
   .sidenav__label {
     display: none;
   }
@@ -347,47 +542,18 @@ a:focus-visible {
 }
 
 /* ---------- общие блоки экранов */
-:root {
-  --success: #1b7f3b;
-  --success-bg: #e7f5ec;
-  --danger-bg: #fdecec;
-  --warn: #8a5a00;
-  --warn-bg: #fff4dc;
-  --info-bg: #e8f0fe;
-}
-
-:root[data-theme='dark'] {
-  --success: #6fd394;
-  --success-bg: #16301f;
-  --danger-bg: #3a1c1c;
-  --warn: #f3c96b;
-  --warn-bg: #352a12;
-  --info-bg: #1c2840;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --success: #6fd394;
-    --success-bg: #16301f;
-    --danger-bg: #3a1c1c;
-    --warn: #f3c96b;
-    --warn-bg: #352a12;
-    --info-bg: #1c2840;
-  }
-}
-
 a {
-  color: var(--accent);
+  color: var(--link);
 }
 
 a.btn {
-  display: inline-block;
   text-decoration: none;
 }
 
 .back-link {
   text-decoration: none;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .page__head {
@@ -433,6 +599,7 @@ a.btn {
 
 .block__title {
   font-size: 16px;
+  font-weight: 700;
 }
 
 .prose {
@@ -458,36 +625,62 @@ a.btn {
 /* ---------- бейджи */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
   background: var(--surface-2);
+  color: var(--text);
   white-space: nowrap;
 }
 
-.badge--status-new,
-.badge--status-in_review {
-  background: var(--info-bg);
+/* Семь статусов обращения: пары color.*.status.<код>.fg/bg из design/tokens.json. */
+.badge--status-new {
+  background: var(--status-new-bg);
+  color: var(--status-new);
 }
 
-.badge--status-awaiting_info,
+.badge--status-in_review {
+  background: var(--status-in_review-bg);
+  color: var(--status-in_review);
+}
+
+.badge--status-awaiting_info {
+  background: var(--status-awaiting_info-bg);
+  color: var(--status-awaiting_info);
+}
+
+.badge--status-in_progress {
+  background: var(--status-in_progress-bg);
+  color: var(--status-in_progress);
+}
+
+.badge--status-implemented {
+  background: var(--status-implemented-bg);
+  color: var(--status-implemented);
+}
+
+.badge--status-rejected {
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected);
+}
+
+.badge--status-closed {
+  background: var(--status-closed-bg);
+  color: var(--status-closed);
+}
+
 .badge--due-due_soon {
   background: var(--warn-bg);
   color: var(--warn);
 }
 
-.badge--status-in_progress {
-  background: var(--info-bg);
-  color: var(--accent);
-}
-
-.badge--status-implemented,
 .badge--due-answered {
   background: var(--success-bg);
   color: var(--success);
 }
 
-.badge--status-rejected,
 .badge--due-overdue {
   background: var(--danger-bg);
   color: var(--danger);
@@ -501,13 +694,14 @@ a.btn {
   display: inline-block;
 }
 
+/* Счётчик непрочитанного — фирменный красный, как «зрачок» логотипа. */
 .unread {
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
-  border-radius: 999px;
-  background: var(--danger);
-  color: #fff;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-text);
   font-size: 12px;
   font-weight: 700;
   display: inline-grid;
@@ -535,7 +729,8 @@ a.btn {
 }
 
 .appeal-row:hover {
-  border-color: var(--accent);
+  border-color: var(--border-input);
+  box-shadow: var(--shadow-md);
 }
 
 .appeal-row__top {
@@ -547,6 +742,8 @@ a.btn {
 
 .appeal-row__number {
   font-weight: 700;
+  color: var(--heading);
+  font-variant-numeric: tabular-nums;
 }
 
 .appeal-row__date {
@@ -605,10 +802,11 @@ a.btn {
   width: 100%;
   font: inherit;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  min-height: var(--control-h);
 }
 
 textarea.input {
@@ -616,8 +814,9 @@ textarea.input {
 }
 
 .input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: -1px;
+  border-color: var(--focus);
 }
 
 .input[aria-invalid='true'] {
@@ -638,20 +837,21 @@ textarea.input {
 
 .segmented__item span {
   display: inline-block;
-  padding: 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 8px 14px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
   cursor: pointer;
 }
 
 .segmented__item input:checked + span {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
 }
 
 .segmented__item input:focus-visible + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -668,7 +868,7 @@ textarea.input {
 }
 
 .file-pick:focus-within .btn {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -692,7 +892,7 @@ textarea.input {
   border: 0;
   background: none;
   padding: 0;
-  color: var(--accent);
+  color: var(--link);
   cursor: pointer;
   text-decoration: underline;
   text-align: left;
@@ -762,7 +962,7 @@ textarea.input {
   height: 10px;
   border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--primary);
 }
 
 .timeline__head {
@@ -823,15 +1023,18 @@ textarea.input {
   border-left: 4px solid var(--danger);
 }
 
-.btn--danger {
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
-}
-
+/* Опасное действие — обводка, не заливка: красная заливка закреплена за главным действием. */
+.btn--danger,
 .btn--ghost.btn--danger {
   background: transparent;
   color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn--danger:hover:not(:disabled),
+.btn--ghost.btn--danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
 }
 
 .btn:disabled {
@@ -888,6 +1091,8 @@ textarea.input {
 }
 
 .tile__value {
+  font-family: var(--font-heading);
+  color: var(--heading);
   font-size: 28px;
   font-weight: 700;
   line-height: 1.2;
@@ -931,7 +1136,7 @@ textarea.input {
 }
 
 .ref-link:hover {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: underline;
 }
 
@@ -968,7 +1173,7 @@ textarea.input {
   display: block;
   height: 100%;
   min-width: 2px;
-  background: var(--accent);
+  background: var(--primary);
   border-radius: 0 4px 4px 0;
 }
 
@@ -1017,7 +1222,7 @@ textarea.input {
 }
 
 .block--hint {
-  border-color: var(--accent);
+  border-color: var(--info);
 }
 
 .suggestions {
@@ -1074,7 +1279,7 @@ textarea.input {
 .vote-score__for {
   display: block;
   height: 100%;
-  background: var(--accent);
+  background: var(--primary);
   border-right: 2px solid var(--surface);
 }
 
@@ -1142,7 +1347,7 @@ textarea.input {
 .quote {
   margin: 0;
   padding: 8px 12px;
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--primary);
   background: var(--surface-2);
   border-radius: 0 var(--radius) var(--radius) 0;
   font-style: italic;
@@ -1162,7 +1367,7 @@ details.block > summary {
   width: 14px;
   height: 14px;
   border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--primary);
   border-radius: 50%;
   vertical-align: -2px;
   animation: spin 0.8s linear infinite;
@@ -1177,5 +1382,37 @@ details.block > summary {
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+}
+
+/* ---------- фирменный стиль (W-11): тени по роли, крупнее касания на телефоне */
+.appeal-row,
+.tile,
+.feed__item {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+@media (max-width: 720px) {
+  .btn {
+    min-height: var(--control-h);
+  }
+
+  .icon-btn {
+    width: var(--control-h);
+    height: var(--control-h);
+  }
+
+  .page__title {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .appeal-row,
+  .tile,
+  .feed__item {
+    transition: none;
   }
 }

@@ -18,7 +18,7 @@ export function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="topbar__brand">Обращения</span>
+        <span className="topbar__brand brand-mark">Модус Трейд · Обращения</span>
         <div className="topbar__user">
           <span className="topbar__name">{me.full_name}</span>
           <span className="muted topbar__role">
