@@ -444,7 +444,6 @@ input:focus-visible,
   gap: 12px;
   padding: 0 max(var(--gutter), calc((100% - var(--container)) / 2));
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
 }
 
 .topbar__brand {

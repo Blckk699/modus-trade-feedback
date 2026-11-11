@@ -110,6 +110,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
       {/* Описание — просто текст под заголовком, без карточки; решение — строкой с подписью. */}
       {(a.text || a.proposed_solution) && (
         <div className="appeal__body">
+          {/* Видимого заголовка нет, но диктору нужен: иначе текст отнесётся к разделу «Результат» или «Причина отказа». */}
+          <h2 className="sr-only">Описание</h2>
           {a.text && <p className="prose appeal__text">{a.text}</p>}
           {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
           {a.proposed_solution && (
@@ -162,7 +164,6 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         <dt>Подано</dt>
         <dd>{formatDateTime(a.created_at)}</dd>
       </dl>
-
 
       {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
       {show.attachments && <AttachmentsSection appeal={a} />}
