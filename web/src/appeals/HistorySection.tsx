@@ -21,7 +21,7 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
       {history.state.status === 'loading' && <p className="muted">Загружаем…</p>}
       {history.state.status === 'error' && <p className="error-text">{history.state.message}</p>}
       {history.state.status === 'ready' && (
-        <ol className="timeline">
+        <ol className="timeline" aria-label="История">
           {history.state.data.map((ev) => (
             <HistoryItem key={ev.id} ev={ev} />
           ))}

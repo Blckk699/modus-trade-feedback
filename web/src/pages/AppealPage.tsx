@@ -86,7 +86,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
           {a.number}
           {a.summary ? ` · ${a.summary}` : ''}
         </h1>
-        <div className="appeal-row__meta">
+        <div className="appeal-row__meta" role="group" aria-label="Состояние обращения">
           <StatusBadge status={a.status} />
           {a.status !== 'closed' && <DueBadge state={a.due_state} dueAt={a.first_response_due_at} />}
           {show.participantsCounter && (
@@ -184,7 +184,7 @@ function Outcome({ appeal: a }: { appeal: Appeal }) {
   }
   if (a.status === 'implemented' && a.result) {
     return (
-      <div className="notice notice--success">
+      <div className="notice notice--success" role="region" aria-label="Результат">
         <h2 className="block__title">Результат</h2>
         <p className="prose">{a.result}</p>
       </div>
