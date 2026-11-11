@@ -20,6 +20,7 @@
   --link: #1a66c9;
   --focus: #2f80ed;
   --focus-ring: 0 0 0 4px color-mix(in srgb, var(--focus) 32%, transparent);
+  --shadow-card: 0 1px 2px rgba(8, 39, 66, 0.05), 0 2px 10px rgba(8, 39, 66, 0.05);
   --menu-bg: var(--surface);
   --menu-shadow: 0 2px 6px rgba(8, 39, 66, 0.08), 0 12px 32px rgba(8, 39, 66, 0.16);
   /* поле: состояния только заливкой, без рамок и полос */
@@ -83,6 +84,7 @@
     --accent-text: #ffffff;
     --link: #8dbbf5;
     --focus: #8dbbf5;
+    --shadow-card: none;
     --menu-bg: var(--surface-2);
     --menu-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
     --danger: #ff8a80;
@@ -130,6 +132,7 @@
   --accent-text: #ffffff;
   --link: #8dbbf5;
   --focus: #8dbbf5;
+  --shadow-card: none;
   --menu-bg: var(--surface-2);
   --menu-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
   --danger: #ff8a80;
@@ -1586,8 +1589,7 @@ details.block > summary {
 .appeal-row,
 .tile,
 .feed__item {
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.15s, border-color 0.15s;
+  transition: box-shadow 0.15s;
 }
 
 @media (max-width: 720px) {
@@ -1920,3 +1922,32 @@ details.block > summary {
   }
 }
 
+/* ---------- карточки без обводок: от фона их отделяют цвет и мягкая тень */
+.block,
+.form,
+.notice,
+.appeal-row,
+.tile,
+.feed__item,
+.login__card {
+  border-color: transparent;
+  box-shadow: var(--shadow-card);
+}
+
+.appeal-row:hover {
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+}
+
+/* вложенные плашки лежат на белой карточке, поэтому держатся на заливке */
+.quote,
+.upload-card__file,
+.dev-login__user {
+  border-color: transparent;
+  background: var(--field-bg);
+}
+
+/* в большом окне фон как у страницы, чтобы карточки внутри читались так же */
+.modal--wide {
+  background: var(--bg);
+}
