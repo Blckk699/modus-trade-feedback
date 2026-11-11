@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
 import 'badges.dart';
+import '../../theme/modus_theme.dart';
 
 /// «человек / человека / человек» для числа.
 String plural(int n, (String, String, String) forms) {
@@ -97,7 +98,7 @@ class _DuplicatesSectionState extends State<DuplicatesSection> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(ModusRadius.lg),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Похожие обращения', style: theme.textTheme.titleMedium),

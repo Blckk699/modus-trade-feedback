@@ -8,6 +8,7 @@ import '../../app.dart';
 import '../../format.dart';
 import '../appeals/appeal_screen.dart';
 import 'meetings_screen.dart' show MeetingStatusBadge;
+import '../../theme/modus_theme.dart';
 
 /// Совещание: ход обработки, черновики с цитатами, расшифровка (истории 49–51).
 class MeetingScreen extends StatefulWidget {
@@ -153,7 +154,7 @@ class _Notice extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: danger ? scheme.errorContainer : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(ModusRadius.lg),
       ),
       child: Row(children: [
         if (progress) ...[

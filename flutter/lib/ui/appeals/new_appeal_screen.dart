@@ -7,6 +7,7 @@ import '../../app.dart';
 import '../../appeals/attachment_files.dart';
 import '../../format.dart';
 import 'appeal_screen.dart';
+import '../../theme/modus_theme.dart';
 
 /// Выбор файлов вынесен, чтобы подменять его в тестах.
 typedef FilesPicker = Future<List<PickedFile>> Function();
@@ -277,6 +278,7 @@ class _NewAppealScreenState extends State<NewAppealScreen> {
               const SizedBox(height: 16),
               FilledButton(
                 key: const Key('submit-appeal'),
+                style: accentButtonStyle(context),
                 onPressed: _busy ? null : _submit,
                 child: Text(_busy ? 'Отправляем…' : 'Отправить'),
               ),

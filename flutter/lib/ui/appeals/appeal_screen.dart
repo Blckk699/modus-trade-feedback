@@ -12,6 +12,7 @@ import 'badges.dart';
 import 'duplicates_bitrix.dart';
 import '../discussions/discussion_screen.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
+import '../../theme/modus_theme.dart';
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
 /// Действия показываются только из `allowed_actions`.
@@ -219,7 +220,7 @@ class _DiscussionLink extends StatelessWidget {
       padding: const EdgeInsets.only(top: 12),
       child: ListTile(
         tileColor: scheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ModusRadius.lg)),
         leading: const Icon(Icons.forum_outlined),
         title: Text(open ? 'Вынесено на общее обсуждение' : 'Общее обсуждение завершено'),
         trailing: const Icon(Icons.chevron_right),
@@ -291,7 +292,7 @@ class _Notice extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ModusRadius.lg)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         if (title != null)
           Padding(
@@ -337,7 +338,7 @@ class _Outcome extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ModusRadius.lg),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(closedReasonLabel(a.closedReason ?? ClosedReason.merged), style: theme.textTheme.titleSmall),
@@ -510,7 +511,7 @@ class _MessageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 320),
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ModusRadius.lg)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(
             [

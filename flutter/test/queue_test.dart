@@ -184,10 +184,10 @@ void main() {
     await tester.tap(find.byKey(const Key('action-reject')));
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
-    expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    expect(tester.widget<ButtonStyleButton>(submit).onPressed, isNull);
     await tester.enterText(find.byKey(const Key('action-text')), '  Нет бюджета.  ');
     await tester.pump();
-    expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+    expect(tester.widget<ButtonStyleButton>(submit).onPressed, isNotNull);
 
     server.routes['POST /api/v1/appeals/21/reject'] = (_) => json(
         errorJson('invalid_transition', 'Обращение уже в другом статусе.'), 409);
