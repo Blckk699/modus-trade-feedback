@@ -2294,7 +2294,7 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
 }
 
 .comment-form__box:focus-within {
-  background: var(--field-bg-focus);
+  background: var(--field-bg-hover);
 }
 
 .comment-form__input {
@@ -2355,6 +2355,11 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
   .comment-form > .avatar,
   .comment-form__hint {
     display: none;
+  }
+
+  /* подсказка скрыта — кнопка остаётся справа */
+  .comment-form__foot {
+    justify-content: flex-end;
   }
 }
 
