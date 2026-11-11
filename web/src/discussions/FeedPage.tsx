@@ -30,7 +30,7 @@ export function FeedPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title">Общая лента</h1>
+      <h1 className="page__title sr-only">Общая лента</h1>
       <div className="segmented" role="tablist" aria-label="Раздел ленты">
         {TABS.map((t) => (
           <label key={t.id} className="segmented__item">

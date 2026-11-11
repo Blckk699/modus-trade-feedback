@@ -27,7 +27,7 @@ export function SettingsPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title">Настройки</h1>
+      <h1 className="page__title sr-only">Настройки</h1>
       <div className="segmented settings-tabs" role="tablist" aria-label="Разделы настроек">
         {(Object.keys(TABS) as TabId[]).map((id) => (
           <label key={id} className="segmented__item">

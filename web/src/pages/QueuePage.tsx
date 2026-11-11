@@ -119,7 +119,7 @@ export function QueuePage() {
 
   return (
     <section className="page page--wide">
-      <h1 className="page__title">Обработка</h1>
+      <h1 className="page__title sr-only">Обработка</h1>
 
       {scopes.length > 1 && (
         <div className="segmented" role="tablist" aria-label="Какие обращения показать">

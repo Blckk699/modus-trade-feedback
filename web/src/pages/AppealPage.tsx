@@ -106,7 +106,6 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <Outcome appeal={a} />
 
-
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
 
       {a.discussion && (
