@@ -965,14 +965,12 @@ textarea.input {
   pointer-events: none;
 }
 
+/* позиция и высота задаются из Select.tsx (fixed относительно экрана) */
 .select__menu {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 100%;
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: 288px;
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
   margin: 0;
   padding: 6px;
   overflow-y: auto;
@@ -981,11 +979,6 @@ textarea.input {
   background: var(--menu-bg);
   box-shadow: var(--menu-shadow);
   animation: select-in 0.12s ease-out;
-}
-
-.select__menu--up {
-  top: auto;
-  bottom: calc(100% + 6px);
 }
 
 @keyframes select-in {
@@ -1000,6 +993,7 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  white-space: nowrap;
   padding: 9px 10px;
   border-radius: var(--radius-md);
   color: var(--text);
@@ -2402,3 +2396,96 @@ button.vote__option:hover:not(:disabled) .vote__pct {
 .comment-form__box:focus-within {
   box-shadow: var(--focus-ring);
 }
+
+/* ---------- длинная форма в окне (новое обращение): белый фон, поля без вложенной карточки */
+.modal--form {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.modal--form .page {
+  max-width: none;
+  gap: 16px;
+}
+
+.modal--form .back-link {
+  display: none;
+}
+
+.modal--form .page__title {
+  padding-right: 44px;
+  font-size: 20px;
+}
+
+.modal--form .form {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.modal--form .form__actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .modal--form {
+    max-height: calc(100dvh - 24px);
+  }
+
+  .modal--form .form__actions .btn {
+    width: 100%;
+  }
+}
+
+/* ---------- чекбокс: заливка как у полей, отмеченный — тёмно-синий с белой галочкой.
+   Тумблеры (.switch) рисуются отдельно. */
+input[type='checkbox']:not(.switch) {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  border: 1.5px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+input[type='checkbox']:not(.switch):hover {
+  border-color: var(--primary);
+}
+
+input[type='checkbox']:not(.switch):checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+input[type='checkbox']:not(.switch):checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary-text);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+}
+
+input[type='checkbox']:not(.switch):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* строка с чекбоксом в настройках: подпись кликабельна целиком */
+.settings-checks label {
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.settings-checks input[type='checkbox'] {
+  margin: 0;
+}
+

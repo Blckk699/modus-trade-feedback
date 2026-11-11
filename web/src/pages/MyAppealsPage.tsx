@@ -23,6 +23,7 @@ function fetchPage(page: number) {
 
 export function MyAppealsPage() {
   const first = useAsync(() => fetchPage(1), []);
+  const location = useLocation();
   useReloadOnCardClose(first.reload);
   const [more, setMore] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
@@ -50,7 +51,7 @@ export function MyAppealsPage() {
         <h1 className="page__title sr-only">Мои обращения</h1>
         {/* В пустом списке кнопка стоит в центре, под подсказкой. */}
         {!(s.status === 'ready' && s.data.total === 0) && (
-          <Link to="/my/new" className="btn btn--accent">
+          <Link to="/my/new" state={{ background: location }} className="btn btn--accent">
             Подать обращение
           </Link>
         )}
@@ -70,7 +71,7 @@ export function MyAppealsPage() {
           icon="inbox"
           title="Вы ещё не подавали обращений"
           action={
-            <Link to="/my/new" className="btn btn--accent">
+            <Link to="/my/new" state={{ background: location }} className="btn btn--accent">
               Подать обращение
             </Link>
           }
