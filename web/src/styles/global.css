@@ -2358,3 +2358,9 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
   }
 }
 
+
+/* доля голосов на тонированной плитке: --muted не добирает AA на 13% и 22%, берём основной цвет текста */
+.vote__option--mine .vote__pct,
+button.vote__option:hover:not(:disabled) .vote__pct {
+  color: var(--text);
+}
