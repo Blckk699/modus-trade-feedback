@@ -1994,3 +1994,64 @@ details.block > summary {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---------- пустой список: без карточки, всё по центру */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.empty__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 7%, transparent);
+  color: var(--muted);
+}
+
+.empty__title {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.empty__text {
+  margin: 0;
+  max-width: 420px;
+  color: var(--muted);
+}
+
+.empty__action {
+  margin-top: 12px;
+}
+
+/* Пустой список занимает всё свободное место под шапкой и стоит по центру по вертикали.
+   .content растягивается на высоту экрана, страница с пустым состоянием — тоже. */
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.content > .page {
+  width: 100%;
+}
+
+.page:has(> .empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page > .empty {
+  flex: 1;
+  align-content: center;
+}

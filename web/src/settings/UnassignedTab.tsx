@@ -8,6 +8,7 @@ import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, type User } from './shared';
 import { Select } from '../app/Select';
+import { EmptyState } from '../app/EmptyState';
 
 type Item = Schemas['AppealListItem'];
 
@@ -50,10 +51,9 @@ export function UnassignedTab() {
         </p>
       ))}
       {page.items.length === 0 ? (
-        <div className="notice">
-          <p>Нераспределённых обращений нет.</p>
-          <p className="muted">Сюда попадают обращения без категории или из категории без ответственного.</p>
-        </div>
+        <EmptyState icon="inbox" title="Нераспределённых обращений нет">
+          Сюда попадают обращения без категории или из категории без ответственного.
+        </EmptyState>
       ) : (
         <ul className="settings-list">
           {page.items.map((item) => (
