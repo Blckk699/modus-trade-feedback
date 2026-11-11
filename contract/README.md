@@ -66,6 +66,15 @@ npx -y @stoplight/prism-cli@5.15.11 mock -h 0.0.0.0 -p 4010 contract/openapi.yam
   `{id}` — повтор, а в ответе — **основное** обращение с новым `participants_count`.
 - **Совещание** обрабатывается в фоне: `POST /api/v1/meetings` отвечает `202` со `status=processing`,
   клиент опрашивает `GET /api/v1/meetings/{id}`, пока не `ready` или `failed`.
+- **Заявки на доступ и приглашения** (без сессии, тег `access`). Незнакомый аккаунт опознаётся одним способом:
+  бот — `X-Service-Key` + `X-Telegram-Id`, Mini App — поле `init_data`, веб — поле `telegram_login` (колбэк Telegram Login как есть).
+  - `GET /api/v1/access-requests/departments` — подразделения для формы;
+  - `POST /api/v1/access-requests` — подать или обновить заявку (`409 already_registered`, `403 user_disabled`, `429`);
+  - `POST /api/v1/access-requests/mine` — что показать: `state` = `none` | `pending` | `rejected` | `registered` | `disabled`;
+  - `GET /api/v1/invites/{token}` — что за приглашение; `POST /api/v1/invites/accept` — принять, в ответе `session`
+    для Mini App и веба (`null` для бота). Недействительное приглашение — `410 invite_invalid`.
+  - Администратор и собственник (`Me.permissions.can_manage_access`): `/api/v1/admin/access-requests` (+ `/{id}/approve`, `/{id}/reject`),
+    `/api/v1/admin/invites` (+ `/{id}/revoke`). Токен приглашения и ссылки — только в ответе на создание.
 
 ## Согласованные продуктовые решения
 

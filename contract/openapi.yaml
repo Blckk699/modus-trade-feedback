@@ -92,6 +92,8 @@ tags:
     description: Служебные маршруты бота
   - name: admin
     description: Настройки администратора
+  - name: access
+    description: Заявки на доступ и приглашения
 security:
   - bearerAuth: []
   - serviceKey: []
@@ -310,6 +312,258 @@ paths:
           description: Сессия закрыта
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- access (заявки и приглашения)
+  /api/v1/access-requests/departments:
+    get:
+      tags: [access]
+      summary: Подразделения для формы заявки (без входа)
+      description: Короткий список для выбора подразделения незнакомым аккаунтом. Сессия не нужна.
+      operationId: listAccessDepartments
+      security: []
+      responses:
+        '200':
+          description: Подразделения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DepartmentRef'
+              example:
+                - {id: 1, name: Закупки}
+                - {id: 2, name: Бухгалтерия}
+                - {id: 3, name: Продажи}
+                - {id: 6, name: IT}
+  /api/v1/access-requests:
+    post:
+      tags: [access]
+      summary: Подать или обновить заявку на доступ
+      description: |
+        Вызывает незнакомый системе Telegram-аккаунт. Кто он, бэкенд узнаёт одним из трёх способов:
+        - **бот** — заголовки `X-Service-Key` и `X-Telegram-Id`, имя из профиля в `full_name`, ник в `telegram_username`;
+        - **Mini App** — `init_data` (`Telegram.WebApp.initData` без изменений);
+        - **веб** — `telegram_login`, поля колбэка Telegram Login как есть.
+
+        Ровно один способ, иначе `401 unauthorized` (ни одного) или `422 validation_error` (оба поля сразу).
+        У аккаунта одна заявка `pending`: повторная подача её обновляет (`200`), новая — `201`.
+        После отказа можно подать новую. Уже заведённый пользователь — `409 already_registered`,
+        отключённый — `403 user_disabled`. Не больше 5 подач с аккаунта в час — `429 too_many_requests`.
+      operationId: submitAccessRequest
+      security:
+        - {}
+        - serviceKey: []
+          telegramId: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRequestSubmit'
+            examples:
+              mini_app:
+                summary: Mini App
+                value:
+                  init_data: 'query_id=AAH...&user=%7B%22id%22%3A100000021%7D&auth_date=1794300000&hash=3f2a...'
+                  full_name: Сергей Ким
+                  department_id: 3
+                  comment: Менеджер по продажам, вышел 10 ноября
+              web:
+                summary: Веб, Telegram Login
+                value:
+                  telegram_login: {id: 100000021, first_name: Сергей, last_name: Ким, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
+                  full_name: Сергей Ким
+                  department_id: 3
+                  comment: Менеджер по продажам
+              bot:
+                summary: Бот (заголовки X-Service-Key и X-Telegram-Id)
+                value:
+                  full_name: Сергей Ким
+                  telegram_username: sergey_kim
+                  department_id: 3
+                  comment: null
+      responses:
+        '200':
+          description: Заявка на рассмотрении обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+              examples:
+                AccessRequestPending:
+                  $ref: '#/components/examples/AccessRequestPending'
+        '201':
+          description: Заявка подана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+              examples:
+                AccessRequestPending:
+                  $ref: '#/components/examples/AccessRequestPending'
+        '401':
+          description: Нет данных Telegram (`unauthorized`) или подпись не прошла проверку (`invalid_telegram_auth`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: invalid_telegram_auth
+                  message: Не удалось подтвердить вход через Telegram.
+                  details: null
+        '403':
+          $ref: '#/components/responses/UserDisabled'
+        '409':
+          $ref: '#/components/responses/AlreadyRegistered'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/access-requests/mine:
+    post:
+      tags: [access]
+      summary: Состояние доступа и своей заявки
+      description: |
+        Что показать незнакомому аккаунту: форму заявки, «на рассмотрении», отказ с причиной или вход.
+        Опознание такое же, как при подаче: бот — заголовки и пустое тело `{}`, Mini App — `init_data`, веб — `telegram_login`.
+        `request` — последняя заявка аккаунта или `null`.
+      operationId: getMyAccessRequest
+      security:
+        - {}
+        - serviceKey: []
+          telegramId: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramIdentity'
+            example:
+              init_data: 'query_id=AAH...&user=%7B%22id%22%3A100000021%7D&auth_date=1794300000&hash=3f2a...'
+      responses:
+        '200':
+          description: Состояние доступа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessStatus'
+              examples:
+                pending:
+                  summary: Заявка на рассмотрении
+                  value:
+                    state: pending
+                    request: {id: 7, status: pending, full_name: Сергей Ким, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                none:
+                  summary: Заявки нет — показать форму
+                  value:
+                    state: none
+                    request: null
+                rejected:
+                  summary: Отказ
+                  value:
+                    state: rejected
+                    request: {id: 5, status: rejected, full_name: Олег Петров, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
+        '401':
+          $ref: '#/components/responses/InvalidTelegramAuth'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/invites/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [access]
+      summary: Что за приглашение (без входа)
+      description: Для страницы `/invite/<токен>` в вебе до входа. Недействительное — `410 invite_invalid`.
+      operationId: getInvitePreview
+      security: []
+      responses:
+        '200':
+          description: Приглашение действует
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitePreview'
+              example:
+                role: employee
+                department: {id: 3, name: Продажи}
+                full_name: Сергей Ким
+                expires_at: '2026-11-18T10:00:00+05:00'
+        '410':
+          $ref: '#/components/responses/InviteInvalid'
+  /api/v1/invites/accept:
+    post:
+      tags: [access]
+      summary: Принять приглашение
+      description: |
+        Опознание как у заявки: бот (`/start inv_<токен>`) — заголовки `X-Service-Key` и `X-Telegram-Id`,
+        Mini App — `init_data`, веб (`/invite/<токен>`) — `telegram_login`.
+
+        - Незнакомый аккаунт и действующее приглашение — пользователь создаётся с ролью и подразделением
+          из приглашения, `created=true`. Имя: из приглашения, иначе `full_name`, иначе из профиля Telegram.
+        - Уже заведённый пользователь — ничего не меняется, `created=false`, приглашение не расходуется.
+        - Отключённый — `403 user_disabled`.
+        - Просроченное, отозванное или исчерпанное приглашение — `410 invite_invalid` (предложить заявку).
+
+        `session` — сессия для Mini App и веба (как у `/auth/*`). Боту сессия не нужна, ему `session=null`.
+      operationId: acceptInvite
+      security:
+        - {}
+        - serviceKey: []
+          telegramId: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteAccept'
+            examples:
+              web:
+                summary: Веб, Telegram Login
+                value:
+                  token: Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
+                  telegram_login: {id: 100000021, first_name: Сергей, last_name: Ким, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
+              bot:
+                summary: Бот (заголовки X-Service-Key и X-Telegram-Id)
+                value:
+                  token: Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
+                  full_name: Сергей Ким
+                  telegram_username: sergey_kim
+      responses:
+        '200':
+          description: Доступ есть
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteAccepted'
+              examples:
+                web:
+                  summary: Пользователь создан, веб получил сессию
+                  value:
+                    created: true
+                    user: {id: 21, telegram_id: 100000021, full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    session:
+                      access_token: eyJhbGciOiJIUzI1NiJ9.mock.session
+                      token_type: bearer
+                      expires_at: '2026-12-11T10:00:00+05:00'
+                bot:
+                  summary: Пользователь создан, бот — без сессии
+                  value:
+                    created: true
+                    user: {id: 21, telegram_id: 100000021, full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    session: null
+        '401':
+          $ref: '#/components/responses/InvalidTelegramAuth'
+        '403':
+          $ref: '#/components/responses/UserDisabled'
+        '410':
+          $ref: '#/components/responses/InviteInvalid'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   # ---------------------------------------------------------------- me
   /api/v1/me:
@@ -2549,6 +2803,220 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/v1/admin/access-requests:
+    get:
+      tags: [access]
+      summary: Заявки на доступ
+      description: Администратор и собственник (`Me.permissions.can_manage_access`), остальным — `403`. Новые первыми.
+      operationId: listAccessRequests
+      parameters:
+        - name: status
+          in: query
+          description: Без параметра — все заявки
+          schema:
+            $ref: '#/components/schemas/AccessRequestStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Страница заявок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequestPage'
+              example:
+                items:
+                  - {id: 7, status: pending, full_name: Сергей Ким, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                  - {id: 6, status: approved, full_name: Лаура Беккер, telegram_username: laura_b, department: {id: 2, name: Бухгалтерия}, comment: Бухгалтер, created_at: '2026-11-10T17:40:00+05:00', updated_at: '2026-11-10T18:05:00+05:00', assigned_role: employee, assigned_department: {id: 2, name: Бухгалтерия}, decided_by: {id: 1, full_name: Ержан Касымов, role: owner, department: null}, decided_at: '2026-11-10T18:05:00+05:00', reject_reason: null, user_id: 20}
+                total: 2
+                page: 1
+                page_size: 50
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/admin/access-requests/{request_id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/AccessRequestId'
+    post:
+      tags: [access]
+      summary: Одобрить заявку — создаёт пользователя
+      description: |
+        Администратор и собственник. Роль по умолчанию `employee`, `owner` не выдаётся (`422`).
+        Подразделение по умолчанию — выбранное в заявке. Заявителю уходит уведомление `access_request_approved`.
+        Заявка уже решена или Telegram ID уже заведён — `409 conflict`.
+      operationId: approveAccessRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRequestApprove'
+            example:
+              role: employee
+              department_id: 3
+      responses:
+        '200':
+          description: Заявка одобрена, `user_id` — созданный пользователь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+              example:
+                {id: 7, status: approved, full_name: Сергей Ким, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:30:00+05:00', assigned_role: employee, assigned_department: {id: 3, name: Продажи}, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-11T09:30:00+05:00', reject_reason: null, user_id: 21}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/access-requests/{request_id}/reject:
+    parameters:
+      - $ref: '#/components/parameters/AccessRequestId'
+    post:
+      tags: [access]
+      summary: Отклонить заявку
+      description: |
+        Администратор и собственник. Причина необязательна, заявитель увидит её в уведомлении
+        `access_request_rejected` и в `POST /access-requests/mine`. Заявка уже решена — `409 conflict`.
+      operationId: rejectAccessRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRequestReject'
+            example:
+              reason: Подрядчикам доступ не выдаём, обратитесь к руководителю проекта
+      responses:
+        '200':
+          description: Заявка отклонена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+              examples:
+                AccessRequestRejected:
+                  $ref: '#/components/examples/AccessRequestRejected'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/invites:
+    get:
+      tags: [access]
+      summary: Приглашения
+      description: |
+        Администратор и собственник, остальным — `403`. Все приглашения, новые первыми; `include_inactive=false`
+        оставляет только действующие. Токена в списке нет — он показывается один раз при создании.
+      operationId: listInvites
+      parameters:
+        - name: include_inactive
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Приглашения
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invite'
+              example:
+                - {id: 4, state: active, role: employee, department: {id: 3, name: Продажи}, full_name: Сергей Ким, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: null}
+                - {id: 3, state: exhausted, role: head, department: {id: 6, name: IT}, full_name: null, created_by: {id: 1, full_name: Ержан Касымов, role: owner, department: null}, created_at: '2026-11-09T12:00:00+05:00', expires_at: '2026-11-16T12:00:00+05:00', max_uses: 1, used_count: 1, revoked_at: null}
+                - {id: 2, state: revoked, role: employee, department: null, full_name: null, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-08T09:00:00+05:00', expires_at: '2026-11-15T09:00:00+05:00', max_uses: 10, used_count: 3, revoked_at: '2026-11-09T08:00:00+05:00'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [access]
+      summary: Создать приглашение
+      description: |
+        Администратор и собственник. Роль кроме `owner`, срок по умолчанию 7 дней, использований по умолчанию 1.
+        `token`, `bot_link` и `web_link` есть только в этом ответе: в базе хранится хеш токена.
+      operationId: createInvite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteCreate'
+            example:
+              role: employee
+              department_id: 3
+              full_name: Сергей Ким
+              expires_in_days: 7
+              max_uses: 1
+      responses:
+        '201':
+          description: Приглашение создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCreated'
+              example:
+                id: 4
+                state: active
+                role: employee
+                department: {id: 3, name: Продажи}
+                full_name: Сергей Ким
+                created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}
+                created_at: '2026-11-11T10:00:00+05:00'
+                expires_at: '2026-11-18T10:00:00+05:00'
+                max_uses: 1
+                used_count: 0
+                revoked_at: null
+                token: Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
+                bot_link: https://t.me/modus_feedback_bot?start=inv_Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
+                web_link: https://modus.example.kz/invite/Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/admin/invites/{invite_id}/revoke:
+    parameters:
+      - name: invite_id
+        in: path
+        required: true
+        schema:
+          type: integer
+    post:
+      tags: [access]
+      summary: Отозвать приглашение
+      description: Администратор и собственник. Повторный отзыв ничего не меняет. Уже созданные по ссылке пользователи остаются.
+      operationId: revokeInvite
+      responses:
+        '200':
+          description: Приглашение отозвано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+              example:
+                {id: 4, state: revoked, role: employee, department: {id: 3, name: Продажи}, full_name: Сергей Ким, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: '2026-11-11T11:00:00+05:00'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearerAuth:
@@ -2593,6 +3061,12 @@ components:
         type: integer
     NotificationId:
       name: notification_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    AccessRequestId:
+      name: request_id
       in: path
       required: true
       schema:
@@ -2674,6 +3148,50 @@ components:
             error:
               code: dev_login_disabled
               message: Dev-вход выключен.
+              details: null
+    UserDisabled:
+      description: Доступ пользователя отключён (`user_disabled`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: user_disabled
+              message: Доступ отключён. Обратитесь к администратору.
+              details: null
+    AlreadyRegistered:
+      description: Этот Telegram-аккаунт уже есть в системе — нужно просто войти (`already_registered`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: already_registered
+              message: Вы уже есть в системе. Войдите.
+              details: null
+    TooManyRequests:
+      description: Слишком часто (`too_many_requests`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: too_many_requests
+              message: Слишком много попыток. Подождите и попробуйте снова.
+              details: null
+    InviteInvalid:
+      description: Приглашение просрочено, отозвано, исчерпано или не существует (`invite_invalid`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: invite_invalid
+              message: Приглашение недействительно. Подайте заявку на доступ.
               details: null
     Forbidden:
       description: Действие недоступно роли пользователя или обращение ему не видно
@@ -2807,7 +3325,7 @@ components:
       description: |
         `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 ·
         `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
-        `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
+        `not_found` 404 · `conflict` 409 · `already_registered` 409 · `invite_invalid` 410 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
         `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
         `too_many_requests` 429 ·
         `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
@@ -2822,6 +3340,8 @@ components:
         - not_found
         - conflict
         - invalid_transition
+        - already_registered
+        - invite_invalid
         - merge_not_allowed
         - voting_closed
         - file_too_large
@@ -2921,6 +3441,9 @@ components:
         - name_consent_request
         - discussion_closed
         - digest
+        - access_request_created
+        - access_request_approved
+        - access_request_rejected
       description: |
         appeal_assigned — ответственному: новое назначение (в т. ч. переназначение);
         appeal_created — автору: номер, ответственный, срок;
@@ -2928,10 +3451,13 @@ components:
         clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке;
         deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил;
         appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение;
-        discussion_closed — автору: итог обсуждения; digest — утренняя сводка
+        discussion_closed — автору: итог обсуждения; digest — утренняя сводка;
+        access_request_created — администраторам и собственнику: новая заявка на доступ (`path=/settings/access-requests`);
+        access_request_approved — заявителю: доступ открыт, бот показывает меню и вход;
+        access_request_rejected — заявителю: отказ с причиной (у получателя нет `user_id`)
     NotificationButtonType:
       type: string
-      enum: [open_appeal, open_analytics, open_discussion, reply_clarification, name_consent_show, name_consent_hide]
+      enum: [open_appeal, open_analytics, open_discussion, reply_clarification, name_consent_show, name_consent_hide, open_access_requests]
 
     # ------------------------------------------------ refs
     DepartmentRef:
@@ -3081,6 +3607,7 @@ components:
         - can_upload_meetings
         - can_manage_settings
         - can_view_unassigned
+        - can_manage_access
       properties:
         can_create_appeal:
           type: boolean
@@ -3100,6 +3627,9 @@ components:
           type: boolean
         can_view_unassigned:
           type: boolean
+        can_manage_access:
+          type: boolean
+          description: Заявки на доступ и приглашения — администратор и собственник
     Me:
       allOf:
         - $ref: '#/components/schemas/User'
@@ -4248,6 +4778,8 @@ components:
               properties:
                 user_id:
                   type: integer
+                  nullable: true
+                  description: '`null` — получатель ещё не пользователь (отказ по заявке на доступ)'
                 telegram_id:
                   type: integer
                   format: int64
@@ -4272,7 +4804,325 @@ components:
           items:
             type: integer
 
+    # ------------------------------------------------ access requests / invites
+    AssignableRole:
+      type: string
+      enum: [employee, head, admin]
+      description: Роль, которую можно выдать по заявке или приглашению — любая, кроме `owner`
+    AccessRequestStatus:
+      type: string
+      enum: [pending, approved, rejected]
+      description: pending — на рассмотрении, approved — одобрена, rejected — отклонена
+    TelegramIdentity:
+      type: object
+      description: |
+        Кто обращается без сессии. Бот передаёт заголовки `X-Service-Key` и `X-Telegram-Id` и пустое тело;
+        Mini App — `init_data`; веб — `telegram_login`. Указать можно только одно из двух полей.
+      properties:
+        init_data:
+          type: string
+          description: '`Telegram.WebApp.initData` без изменений'
+        telegram_login:
+          $ref: '#/components/schemas/TelegramWidgetLoginRequest'
+    AccessRequestSubmit:
+      allOf:
+        - $ref: '#/components/schemas/TelegramIdentity'
+        - type: object
+          required: [full_name]
+          properties:
+            full_name:
+              type: string
+              minLength: 1
+              maxLength: 120
+              description: По умолчанию клиент подставляет имя из профиля Telegram
+            department_id:
+              type: integer
+              nullable: true
+              description: Из `GET /access-requests/departments`
+            comment:
+              type: string
+              nullable: true
+              maxLength: 500
+              description: Должность или комментарий
+            telegram_username:
+              type: string
+              nullable: true
+              maxLength: 64
+              description: Только бот (ник из профиля). Mini App и веб — ник берётся из подписанных данных
+    AccessRequest:
+      type: object
+      required:
+        - id
+        - status
+        - full_name
+        - telegram_username
+        - department
+        - comment
+        - created_at
+        - updated_at
+        - assigned_role
+        - assigned_department
+        - decided_by
+        - decided_at
+        - reject_reason
+        - user_id
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/AccessRequestStatus'
+        full_name:
+          type: string
+        telegram_username:
+          type: string
+          nullable: true
+        department:
+          type: object
+          nullable: true
+          description: Подразделение, которое выбрал заявитель
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        comment:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        assigned_role:
+          type: string
+          nullable: true
+          enum: [employee, head, admin]
+          description: Роль, выданная при одобрении
+        assigned_department:
+          type: object
+          nullable: true
+          description: Подразделение, назначенное при одобрении
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        decided_by:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/UserBrief'
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        reject_reason:
+          type: string
+          nullable: true
+        user_id:
+          type: integer
+          nullable: true
+          description: Созданный пользователь (после одобрения)
+    AccessRequestPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessRequest'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+    AccessStatus:
+      type: object
+      required: [state, request]
+      properties:
+        state:
+          type: string
+          enum: [none, pending, rejected, registered, disabled]
+          description: |
+            none — заявки нет, показать форму; pending — на рассмотрении; rejected — последняя заявка отклонена
+            (можно подать новую); registered — пользователь заведён, нужно войти; disabled — доступ отключён
+        request:
+          type: object
+          nullable: true
+          description: Последняя заявка аккаунта
+          allOf:
+            - $ref: '#/components/schemas/AccessRequest'
+    AccessRequestApprove:
+      type: object
+      properties:
+        role:
+          allOf:
+            - $ref: '#/components/schemas/AssignableRole'
+          default: employee
+        department_id:
+          type: integer
+          nullable: true
+          description: Не передано — подразделение из заявки
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Не передано — имя из заявки
+        position:
+          type: string
+          nullable: true
+          maxLength: 120
+    AccessRequestReject:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+          maxLength: 500
+    InviteState:
+      type: string
+      enum: [active, expired, revoked, exhausted]
+      description: active — действует; expired — истёк срок; revoked — отозвано; exhausted — использования кончились
+    Invite:
+      type: object
+      required: [id, state, role, department, full_name, created_by, created_at, expires_at, max_uses, used_count, revoked_at]
+      properties:
+        id:
+          type: integer
+        state:
+          $ref: '#/components/schemas/InviteState'
+        role:
+          $ref: '#/components/schemas/AssignableRole'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        full_name:
+          type: string
+          nullable: true
+        created_by:
+          $ref: '#/components/schemas/UserBrief'
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        max_uses:
+          type: integer
+        used_count:
+          type: integer
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+    InviteCreate:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/AssignableRole'
+        department_id:
+          type: integer
+          nullable: true
+        full_name:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Имя нового сотрудника; не задано — из профиля Telegram
+        expires_in_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 7
+        max_uses:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 1
+    InviteCreated:
+      allOf:
+        - $ref: '#/components/schemas/Invite'
+        - type: object
+          required: [token, bot_link, web_link]
+          properties:
+            token:
+              type: string
+              description: Показывается один раз, в базе — только хеш
+            bot_link:
+              type: string
+              description: '`https://t.me/<бот>?start=inv_<токен>`'
+            web_link:
+              type: string
+              description: '`https://<домен>/invite/<токен>`'
+    InvitePreview:
+      type: object
+      required: [role, department, full_name, expires_at]
+      properties:
+        role:
+          $ref: '#/components/schemas/AssignableRole'
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        full_name:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+    InviteAccept:
+      allOf:
+        - $ref: '#/components/schemas/TelegramIdentity'
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              minLength: 1
+              maxLength: 200
+            full_name:
+              type: string
+              nullable: true
+              maxLength: 120
+              description: Имя, если его нет в приглашении (бот — из профиля Telegram)
+            telegram_username:
+              type: string
+              nullable: true
+              maxLength: 64
+              description: Только бот
+    SessionToken:
+      type: object
+      required: [access_token, token_type, expires_at]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_at:
+          type: string
+          format: date-time
+    InviteAccepted:
+      type: object
+      required: [created, user, session]
+      properties:
+        created:
+          type: boolean
+          description: true — пользователь создан по приглашению; false — уже был, ничего не изменилось
+        user:
+          $ref: '#/components/schemas/Me'
+        session:
+          type: object
+          nullable: true
+          description: Для Mini App и веба; боту — `null`
+          allOf:
+            - $ref: '#/components/schemas/SessionToken'
   examples:
+    AccessRequestPending:
+      summary: Заявка на рассмотрении
+      value: {id: 7, status: pending, full_name: Сергей Ким, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+    AccessRequestRejected:
+      summary: Заявка отклонена
+      value: {id: 5, status: rejected, full_name: Олег Петров, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
     MeEmployee:
       summary: Сотрудник закупок
       value:
@@ -4297,6 +5147,7 @@ components:
           can_upload_meetings: false
           can_manage_settings: false
           can_view_unassigned: false
+          can_manage_access: false
     MeOwner:
       summary: Собственник
       value:
@@ -4320,6 +5171,7 @@ components:
           can_upload_meetings: true
           can_manage_settings: false
           can_view_unassigned: true
+          can_manage_access: true
     SessionEmployee:
       summary: Сессия сотрудника
       value:
@@ -4348,6 +5200,7 @@ components:
             can_upload_meetings: false
             can_manage_settings: false
             can_view_unassigned: false
+            can_manage_access: false
     AppealPageExample:
       summary: Очередь руководителя закупок
       value:
