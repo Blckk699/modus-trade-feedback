@@ -241,6 +241,13 @@ async def submit(message: Message, user: User, state: FSMContext, api: Api, comm
     await message.answer(texts.request_sent(updated=updated))
 
 
+async def on_form_non_text(message: Message, state: FSMContext) -> None:
+    """Фото, голос или стикер посреди формы: форму не сбрасываем, просим ответить текстом."""
+    current = await state.get_state()
+    hint = texts.CHOOSE_DEPARTMENT if current == Registration.department.state else texts.FORM_NEEDS_TEXT
+    await message.answer(hint)
+
+
 # ------------------------------------------------------------------ всё остальное от незнакомого
 
 
@@ -268,6 +275,11 @@ def build_router() -> Router:
     router.message.register(on_name_text, StateFilter(Registration.name), F.text, ~F.text.startswith("/"))
     router.message.register(on_department_text, StateFilter(Registration.department), F.text, ~F.text.startswith("/"))
     router.message.register(on_comment_text, StateFilter(Registration.comment), F.text, ~F.text.startswith("/"))
+    router.message.register(
+        on_form_non_text,
+        StateFilter(Registration.name, Registration.department, Registration.comment),
+        ~F.text,
+    )
     router.message.register(on_other_message)
     router.callback_query.register(on_other_callback)
     return router

@@ -316,3 +316,15 @@ async def test_old_request_button_after_approval_shows_menu(harness):
     reply = harness.telegram.sent()[-1]
     assert reply.text == texts.ALREADY_IN
     assert reply_texts(reply.reply_markup) == [texts.BTN_SUBMIT, texts.BTN_MY_APPEALS, texts.BTN_LOGIN_CODE]
+
+
+async def test_voice_in_the_middle_of_form_keeps_it(harness, backend):
+    await harness.send_text("/start", user_id=STRANGER)
+    await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
+    await harness.send_voice(b"ogg", duration=3, user_id=STRANGER)
+
+    assert harness.telegram.sent()[-1].text == texts.FORM_NEEDS_TEXT
+    assert backend.calls("POST", "/api/v1/drafts/voice") == []
+
+    await harness.send_text("Сергей Ким", user_id=STRANGER)
+    assert harness.telegram.sent()[-1].text == texts.ASK_DEPARTMENT
