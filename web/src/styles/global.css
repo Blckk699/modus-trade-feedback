@@ -1972,7 +1972,6 @@ details.block > summary {
   border: 0;
 }
 
-<<<<<<< HEAD
 /* ---------- заявки и приглашения (W-12) */
 .form--plain {
   background: none;
@@ -1996,7 +1995,6 @@ details.block > summary {
     grid-template-columns: 1fr;
   }
 }
-=======
 /* ---------- пустой список: без карточки, всё по центру */
 .empty {
   display: grid;
@@ -2389,4 +2387,3 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
 button.vote__option:hover:not(:disabled) .vote__pct {
   color: var(--text);
 }
->>>>>>> origin/main
