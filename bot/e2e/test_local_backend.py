@@ -48,13 +48,13 @@ async def appeal_by_number(backend, telegram_id: int, number: str) -> dict:
     return (await backend.get(f"/api/v1/appeals/{item['id']}", headers=as_user(telegram_id))).json()
 
 
-async def test_employee_is_recognised_and_stranger_refused(bot, people):
+async def test_employee_is_recognised_and_stranger_offered_request(bot, people):
     await bot.send_text("/start", user_id=people[EMPLOYEE])
     await bot.send_text("/start", user_id=STRANGER)
 
-    greeting, refusal = bot.telegram.sent()
+    greeting, offer = bot.telegram.sent()
     assert greeting.text.startswith("Здравствуйте")
-    assert "нет в списке сотрудников" in refusal.text
+    assert offer.text == texts.REQUEST_INTRO  # T-09: вместо отказа — заявка на доступ
 
 
 async def test_login_code_from_bot_is_accepted_once(bot, backend, people):
