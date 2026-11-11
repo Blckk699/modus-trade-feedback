@@ -1951,3 +1951,9 @@ details.block > summary {
 .modal--wide {
   background: var(--bg);
 }
+
+/* подсказка («Похожие обращения»): акцент заливкой вместо синей обводки */
+.block.block--hint {
+  background: var(--info-bg);
+  box-shadow: none;
+}
