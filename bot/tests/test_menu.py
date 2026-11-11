@@ -181,3 +181,13 @@ def test_without_token_bot_reports_not_configured(monkeypatch, capsys):
 
     assert main() == 2
     assert "TELEGRAM_BOT_TOKEN" in capsys.readouterr().err
+
+
+async def test_default_menu_button_opens_mini_app_for_everyone(harness):
+    from app.main import setup_menu_button
+
+    await setup_menu_button(harness.bot, harness.settings)
+
+    [menu] = [c for c in harness.telegram.calls if isinstance(c, SetChatMenuButton)]
+    assert menu.chat_id is None  # по умолчанию для всех чатов
+    assert menu.menu_button.web_app.url == MINI_APP_URL
