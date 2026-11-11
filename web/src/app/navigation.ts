@@ -30,7 +30,8 @@ export function buildNav(me: Me): NavItem[] {
   }
   if (p.analytics_scope !== 'none') ids.push('digest');
   if (p.can_upload_meetings) ids.push('meetings');
-  if (p.can_manage_settings) ids.push('settings');
+  // Настройки: администратор — все вкладки, собственник — только заявки и приглашения (can_manage_access).
+  if (p.can_manage_settings || p.can_manage_access) ids.push('settings');
   return ids.map((id) => ITEMS[id]);
 }
 

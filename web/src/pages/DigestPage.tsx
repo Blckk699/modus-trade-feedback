@@ -58,7 +58,7 @@ export function DigestPage() {
   return (
     <section className="page page--wide">
       <div className="page__head">
-        <h1 className="page__title">{title}</h1>
+        <h1 className="page__title sr-only">{title}</h1>
         {s.status === 'ready' && <span className="muted">Обновлено {formatDateTime(s.data.generated_at)}</span>}
       </div>
 

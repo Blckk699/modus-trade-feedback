@@ -1,0 +1,160 @@
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { api, unwrap } from '../api/client';
+import { ApiError, errorMessage } from '../api/errors';
+import type { Schemas, Session } from '../api/types';
+import { BrandLogo } from '../app/BrandLogo';
+import { useDictionaries } from '../app/dictionaries';
+import { useAuth, type TelegramIdentity } from '../auth';
+import { TelegramWidget, unregisteredFromWidget } from '../auth/methods/telegramWidget';
+import { config } from '../config';
+import { formatDateTime } from '../lib/format';
+import { useAsync } from '../lib/useAsync';
+import { getWebApp } from '../telegram/webApp';
+
+/** Сессия из ответа POST /invites/accept в форму, которую принимает AuthProvider. */
+export function sessionFromAccepted(a: Schemas['InviteAccepted']): Session | null {
+  return a.session ? { ...a.session, user: a.user } : null;
+}
+
+/**
+ * Ссылка-приглашение https://<домен>/invite/<токен> (история 73): показать, куда приглашают,
+ * войти через Telegram и принять приглашение. Недействительное — сообщение и путь к заявке.
+ */
+export function InvitePage() {
+  const token = useParams().token ?? '';
+  const navigate = useNavigate();
+  const dict = useDictionaries();
+  const { state, acceptSession, needAccess } = useAuth();
+  const preview = useAsync(() => unwrap(api.GET('/api/v1/invites/{token}', { params: { path: { token } } })), [token]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const webApp = getWebApp();
+
+  async function accept(identity: TelegramIdentity, onInvalid?: () => void) {
+    setBusy(true);
+    setError('');
+    try {
+      const res = await unwrap(api.POST('/api/v1/invites/accept', { body: { token, ...identity } }));
+      const session = sessionFromAccepted(res);
+      if (session) acceptSession(session);
+      navigate('/', { replace: true });
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'invite_invalid') {
+        preview.reload();
+        onInvalid?.();
+      } else setError(errorMessage(e));
+      setBusy(false);
+    }
+  }
+
+  const p = preview.state;
+  const invalid = p.status === 'error' && p.error instanceof ApiError && p.error.status === 410;
+
+  return (
+    <main className="login">
+      <BrandLogo className="login__logo" />
+      <div className="login__card">
+        <h1 className="login__title">Приглашение</h1>
+
+        {state.status === 'authenticated' && (
+          <>
+            <p>Вы уже вошли как {state.me.full_name}. Приглашение не нужно.</p>
+            <Link to="/" className="btn">
+              Открыть приложение
+            </Link>
+          </>
+        )}
+
+        {state.status !== 'authenticated' && p.status === 'loading' && <p className="muted">Проверяем приглашение…</p>}
+
+        {state.status !== 'authenticated' && invalid && (
+          <>
+            <div className="notice notice--danger">Приглашение недействительно: срок истёк, его отозвали или оно уже использовано.</div>
+            <p className="muted">Войдите через Telegram — и подайте заявку на доступ.</p>
+            {webApp ? (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => navigate('/', { replace: true })}
+              >
+                Подать заявку
+              </button>
+            ) : (
+              config.telegramBotUsername && (
+                <TelegramWidget
+                  onUser={(user) => {
+                    // Незнакомому — сразу заявка; уже заведённый просто войдёт.
+                    unwrap(api.POST('/api/v1/auth/telegram/widget', { body: user }))
+                      .then((s) => {
+                        acceptSession(s);
+                        navigate('/', { replace: true });
+                      })
+                      .catch((e) => {
+                        if (e instanceof ApiError && e.code === 'user_not_registered') {
+                          needAccess(unregisteredFromWidget(user));
+                          navigate('/', { replace: true });
+                        } else setError(errorMessage(e));
+                      });
+                  }}
+                />
+              )
+            )}
+          </>
+        )}
+
+        {state.status !== 'authenticated' && p.status === 'error' && !invalid && (
+          <>
+            <p className="error-text">{p.message}</p>
+            <button type="button" className="btn btn--ghost" onClick={preview.reload}>
+              Повторить
+            </button>
+          </>
+        )}
+
+        {state.status !== 'authenticated' && p.status === 'ready' && (
+          <>
+            <p>Вас приглашают в систему обращений Модус Трейд.</p>
+            <dl className="facts">
+              {p.data.full_name && (
+                <>
+                  <dt>Для</dt>
+                  <dd>{p.data.full_name}</dd>
+                </>
+              )}
+              <dt>Роль</dt>
+              <dd>{dict.roleLabel(p.data.role)}</dd>
+              <dt>Подразделение</dt>
+              <dd>{p.data.department?.name ?? 'Не указано'}</dd>
+              <dt>Действует до</dt>
+              <dd>{formatDateTime(p.data.expires_at)}</dd>
+            </dl>
+            {webApp ? (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => accept({ init_data: webApp.initData })}
+              >
+                {busy ? 'Принимаем…' : 'Принять приглашение'}
+              </button>
+            ) : config.telegramBotUsername ? (
+              <>
+                <p className="muted">Войдите через Telegram, чтобы принять приглашение.</p>
+                {busy ? <p className="muted">Принимаем приглашение…</p> : <TelegramWidget onUser={(user) => accept({ telegram_login: user })} />}
+              </>
+            ) : (
+              <p className="error-text">Вход не настроен: не указан бот для Telegram Login.</p>
+            )}
+          </>
+        )}
+
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    </main>
+  );
+}

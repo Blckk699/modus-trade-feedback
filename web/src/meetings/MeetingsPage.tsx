@@ -8,6 +8,7 @@ import { useAsync } from '../lib/useAsync';
 import { Modal } from '../app/Modal';
 import { MeetingStatusBadge } from './MeetingStatusBadge';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 const ACCEPT = '.mp3,.m4a,.wav,.ogg,.webm,audio/*';
 const EXTENSIONS = ['mp3', 'm4a', 'wav', 'ogg', 'webm'];
@@ -105,7 +106,7 @@ export function MeetingsPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title">Совещания</h1>
+      <h1 className="page__title sr-only">Совещания</h1>
       <p className="muted">
         Загрузите запись встречи: система расшифрует её и предложит черновики обращений с цитатами. Без вашего
         подтверждения обращения не создаются.
@@ -208,7 +209,11 @@ export function MeetingsPage() {
       <h2 className="block__title">Загруженные записи</h2>
       {list.state.status === 'loading' && <p className="muted">Загружаем…</p>}
       {list.state.status === 'error' && <p className="error-text">{list.state.message}</p>}
-      {list.state.status === 'ready' && list.state.data.length === 0 && <p className="muted">Вы ещё не загружали записи.</p>}
+      {list.state.status === 'ready' && list.state.data.length === 0 && (
+        <EmptyState icon="audio" title="Вы ещё не загружали записи">
+          Загруженные совещания и черновики обращений из них появятся здесь.
+        </EmptyState>
+      )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
         <ul className="appeal-list">
           {list.state.data.map((m) => (

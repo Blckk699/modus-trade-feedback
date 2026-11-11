@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Me, Schemas } from '../api/types';
@@ -10,6 +10,7 @@ import { timeLeftLabel } from '../appeals/timeLeft';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 type Scope = Schemas['AppealScope'];
 type Status = Schemas['AppealStatus'];
@@ -119,7 +120,7 @@ export function QueuePage() {
 
   return (
     <section className="page page--wide">
-      <h1 className="page__title">Обработка</h1>
+      <h1 className="page__title sr-only">Обработка</h1>
 
       {scopes.length > 1 && (
         <div className="segmented" role="tablist" aria-label="Какие обращения показать">
@@ -194,10 +195,9 @@ export function QueuePage() {
         </div>
       )}
       {s.status === 'ready' && s.data.total === 0 && (
-        <div className="notice">
-          <p>Обращений нет.</p>
-          <p className="muted">Измените фильтры или загляните позже.</p>
-        </div>
+        <EmptyState icon="search" title="Обращений нет">
+          Измените фильтры или загляните позже.
+        </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (
         <>
@@ -223,12 +223,11 @@ export function QueuePage() {
 
 function QueueRow({ item, now }: { item: Item; now: Date }) {
   const dict = useDictionaries();
-  const location = useLocation();
   const overdue = item.due_state === 'overdue';
   const waitingAnswer = item.first_response_due_at && item.due_state !== 'answered' && item.due_state !== 'no_deadline';
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/queue', background: location }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
+      <Link to={`/appeals/${item.id}`} state={{ from: '/queue' }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}

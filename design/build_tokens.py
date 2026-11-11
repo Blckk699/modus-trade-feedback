@@ -58,6 +58,7 @@ light={
  "warn":t("#9A4A00"),"warn-bg":t("#FFEFE0"),
  "success":t("#17703A"),"success-bg":t("#E5F4EA"),
  "info":t(a("blue.600")),"info-bg":t("#E6F0FC"),
+ "people":t("#7A5300","Жёлтый чип «Об этом сказали N человек» в карточке обращения"),"people-bg":t("#FFF1C2"),
 }
 dark={
  "bg":t("#071521","Фон: тёмно-синий из navy.900"),
@@ -80,6 +81,7 @@ dark={
  "warn":t("#F7B57A"),"warn-bg":t("#3A2614"),
  "success":t("#7FD39A"),"success-bg":t("#143222"),
  "info":t("#8DBBF5"),"info-bg":t("#12304F"),
+ "people":t("#F5D06B"),"people-bg":t("#3A3010"),
 }
 ST=[("new","Новое"),("in_review","На рассмотрении"),("awaiting_info","Ожидает уточнения"),("in_progress","В работе"),("implemented","Реализовано"),("rejected","Отклонено"),("closed","Закрыто")]
 SL={"new":("#1A62C4","#E6F0FC"),"in_review":("#082742","#E3EAF2"),"awaiting_info":("#9A4A00","#FFEFE0"),"in_progress":("#5A3DB8","#EEE9FB"),"implemented":("#17703A","#E5F4EA"),"rejected":("#B3261E","#FDECEA"),"closed":("#4F5B6B","#EDEFF2")}
@@ -145,7 +147,7 @@ for name,th in (("light",light),("dark",dark)):
     for fg in ["text","heading","muted","link","danger","warn","success","info"]:
         for bg in ["bg","surface","surface-2"]:
             checks.append((fg,bg,4.5))
-    for fg,bg in [("danger","danger-bg"),("warn","warn-bg"),("success","success-bg"),("info","info-bg"),("on-accent","accent"),("on-accent","accent-hover"),("on-primary","primary"),("on-primary","primary-hover")]:
+    for fg,bg in [("danger","danger-bg"),("warn","warn-bg"),("people","people-bg"),("success","success-bg"),("info","info-bg"),("on-accent","accent"),("on-accent","accent-hover"),("on-primary","primary"),("on-primary","primary-hover")]:
         checks.append((fg,bg,4.5))
     for fg in ["border-input","accent","primary","focus"]:
         for bg in ["bg","surface"]:

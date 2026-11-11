@@ -86,3 +86,129 @@
 .settings-checks input {
   margin-top: 3px;
 }
+
+/* ---------- сотрудник: форма в модальном окне */
+.user-form {
+  display: grid;
+  gap: 18px;
+}
+
+.user-form__head {
+  display: grid;
+  gap: 2px;
+  padding-right: 44px;
+}
+
+.user-form__head p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.user-form__title {
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.user-form .settings-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 12px;
+}
+
+/* отрицательный отступ: текст строк стоит на одной линии с полями, подсветка при наведении шире */
+.user-form__toggles {
+  display: grid;
+  gap: 4px;
+  margin-inline: -12px;
+}
+
+/* строка-переключатель: название и пояснение слева, тумблер справа */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.toggle-row:hover {
+  background: var(--field-bg);
+}
+
+.toggle-row__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.toggle-row__title {
+  color: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.switch {
+  flex: none;
+  appearance: none;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: 999px;
+  /* --border-input даёт 3:1 к фону: выключенный тумблер виден как элемент управления */
+  background: var(--border-input);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(8, 39, 66, 0.25);
+  transition: transform 0.15s;
+}
+
+.switch:checked {
+  background: var(--primary);
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+.user-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .user-form .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-form__actions {
+    display: grid;
+  }
+
+  .user-form__actions .btn:last-child {
+    order: -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::after {
+    transition: none;
+  }
+}
+

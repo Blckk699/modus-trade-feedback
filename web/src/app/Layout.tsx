@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { BrandLogo } from './BrandLogo';
 import { useAuth, useMe } from '../auth';
@@ -15,10 +16,11 @@ export function Layout() {
   const theme = useTheme();
   const nav = buildNav(me);
   const unread = useUnread();
+  const scrolled = useScrolled();
 
   return (
     <div className="shell">
-      <header className="topbar">
+      <header className={scrolled ? 'topbar topbar--scrolled' : 'topbar'}>
         <BrandLogo className="topbar__brand" />
         <nav className="mainnav" aria-label="Разделы">
           {nav.map((item) => (
@@ -58,4 +60,16 @@ export function Layout() {
       </main>
     </div>
   );
+}
+
+/** Страница прокручена вниз: под прилипшей шапкой появляется тень, иначе её край сливается с белыми карточками. */
+function useScrolled(): boolean {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const update = () => setScrolled(window.scrollY > 4);
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
+  }, []);
+  return scrolled;
 }

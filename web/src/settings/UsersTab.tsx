@@ -4,6 +4,7 @@ import { errorMessage } from '../api/errors';
 import { useDictionaries } from '../app/dictionaries';
 import { useAsync } from '../lib/useAsync';
 import { byName, changes, fieldErrors, idOrNull, type Department, type Role, type User } from './shared';
+import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 
 const ROLES: Role[] = ['employee', 'head', 'owner', 'admin'];
@@ -21,6 +22,8 @@ export function UsersTab() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
+  const [saving, setSaving] = useState(false);
 
   const s = data.state;
   if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
@@ -41,48 +44,45 @@ export function UsersTab() {
     .filter((u) => !needle || `${u.full_name} ${u.position ?? ''} ${u.telegram_id ?? ''}`.toLowerCase().includes(needle))
     .sort(byName);
 
+  const editedUser = editing === null ? undefined : users.find((u) => u.id === editing);
+  const formOpen = adding || editedUser !== undefined;
+  const closeForm = () => {
+    setAdding(false);
+    setEditing(null);
+  };
+
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
         <input className="input" type="search" placeholder="Поиск по имени, должности, Telegram ID" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Поиск сотрудника" />
-        {!adding && (
-          <button type="button" className="btn" onClick={() => setAdding(true)}>
-            Добавить сотрудника
-          </button>
-        )}
+        <button type="button" className="btn" onClick={() => setAdding(true)}>
+          Добавить сотрудника
+        </button>
       </div>
 
-      {adding && (
-        <UserForm
-          departments={departments}
-          onCancel={() => setAdding(false)}
-          onSaved={(u) => {
-            replace(u);
-            setAdding(false);
-          }}
-        />
-      )}
-
       <ul className="settings-list">
-        {shown.map((u) =>
-          editing === u.id ? (
-            <li key={u.id}>
-              <UserForm
-                user={u}
-                departments={departments}
-                onCancel={() => setEditing(null)}
-                onSaved={(saved) => {
-                  replace(saved);
-                  setEditing(null);
-                }}
-              />
-            </li>
-          ) : (
-            <UserRow key={u.id} user={u} onEdit={() => setEditing(u.id)} />
-          ),
-        )}
+        {shown.map((u) => (
+          <UserRow key={u.id} user={u} onEdit={() => setEditing(u.id)} />
+        ))}
         {shown.length === 0 && <li className="muted">Никого не нашли.</li>}
       </ul>
+
+      {/* Добавление и правка сотрудника — в окне поверх списка. key сбрасывает поля при смене сотрудника. */}
+      <Modal open={formOpen} onClose={closeForm} labelledBy="user-form-title" locked={saving}>
+        {formOpen && (
+          <UserForm
+            key={editedUser?.id ?? 'new'}
+            user={editedUser}
+            departments={departments}
+            onBusy={setSaving}
+            onCancel={closeForm}
+            onSaved={(saved) => {
+              replace(saved);
+              closeForm();
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -112,11 +112,13 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
 interface UserFormProps {
   user?: User;
   departments: Department[];
+  /** Сообщает родителю, что идёт сохранение. */
+  onBusy?: (busy: boolean) => void;
   onSaved: (user: User) => void;
   onCancel: () => void;
 }
 
-function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
+function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProps) {
   const dict = useDictionaries();
   const [telegramId, setTelegramId] = useState('');
   const [fullName, setFullName] = useState(user?.full_name ?? '');
@@ -139,6 +141,7 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
     if (Object.keys(local).length) return setErrors(local);
 
     setBusy(true);
+    onBusy?.(true);
     try {
       const fields = {
         full_name: fullName.trim(),
@@ -169,16 +172,29 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 
   return (
-    <form className="form settings-form" onSubmit={submit} noValidate>
-      <h3 className="block__title">{user ? user.full_name : 'Новый сотрудник'}</h3>
+    <form className="user-form" onSubmit={submit} noValidate>
+      <div className="user-form__head">
+        <h2 id="user-form-title" className="user-form__title">
+          {user ? user.full_name : 'Новый сотрудник'}
+        </h2>
+        {user && <p className="muted">Telegram ID: {user.telegram_id ?? 'не указан'}</p>}
+      </div>
       {!user && (
         <label className="field">
           <span className="field__label">Telegram ID</span>
-          <input className="input" inputMode="numeric" value={telegramId} onChange={(e) => setTelegramId(e.target.value)} aria-invalid={!!errors.telegram_id} />
+          <input
+            className="input"
+            inputMode="numeric"
+            value={telegramId}
+            onChange={(e) => setTelegramId(e.target.value)}
+            aria-invalid={!!errors.telegram_id}
+            data-autofocus
+          />
           <span className="field__hint muted">
             {errors.telegram_id ?? 'Числовой ID: сотрудник может узнать его у @userinfobot. По нему он войдёт в систему.'}
           </span>
@@ -187,7 +203,13 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
       <div className="settings-grid">
         <label className="field">
           <span className="field__label">Имя и фамилия</span>
-          <input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} aria-invalid={!!errors.full_name} />
+          <input
+            className="input"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            aria-invalid={!!errors.full_name}
+            data-autofocus={user ? true : undefined}
+          />
           {errors.full_name && <span className="field__hint error-text">{errors.full_name}</span>}
         </label>
         <label className="field">
@@ -218,25 +240,35 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
         </label>
       </div>
       {user && (
-        <div className="settings-checks">
-          <label>
-            <input type="checkbox" checked={absent} onChange={(e) => setAbsent(e.target.checked)} /> Отсутствует —
-            новые обращения его категорий получает заместитель
+        <div className="user-form__toggles">
+          <label className="toggle-row">
+            <span className="toggle-row__text">
+              <span className="toggle-row__title">Отсутствует</span>
+              <span className="muted">Новые обращения его категорий получает заместитель</span>
+            </span>
+            <input className="switch" type="checkbox" role="switch" checked={absent} onChange={(e) => setAbsent(e.target.checked)} />
           </label>
-          <label>
-            <input type="checkbox" checked={disabled} onChange={(e) => setDisabled(e.target.checked)} /> Отключить доступ —
-            вход запрещён, текущие сессии сбрасываются
+          <label className="toggle-row">
+            <span className="toggle-row__text">
+              <span className="toggle-row__title">Отключить доступ</span>
+              <span className="muted">Вход запрещён, текущие сессии сбрасываются</span>
+            </span>
+            <input className="switch" type="checkbox" role="switch" checked={disabled} onChange={(e) => setDisabled(e.target.checked)} />
           </label>
         </div>
       )}
-      <div className="form__actions">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="user-form__actions">
+        <button type="button" className="btn btn--soft" onClick={onCancel} disabled={busy}>
+          Отмена
+        </button>
         <button type="submit" className="btn" disabled={busy}>
           {busy ? 'Сохраняем…' : user ? 'Сохранить' : 'Добавить'}
         </button>
-        <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={busy}>
-          Отмена
-        </button>
-        {error && <span className="error-text">{error}</span>}
       </div>
     </form>
   );

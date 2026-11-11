@@ -4,7 +4,9 @@ import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
+import { useMe } from '../auth';
 import { formatDateTime } from '../lib/format';
+import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 
 type Discussion = Schemas['Discussion'];
@@ -44,18 +46,20 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
 
   return (
     <article className="discussion">
-      <header className="appeal__head">
-        <h1 className="page__title">{d.public_text}</h1>
+      <header className="discussion__head">
         <div className="appeal-row__meta">
-          <span className={`badge${open ? ' badge--status-in_review' : ''}`}>{open ? 'Идёт обсуждение' : 'Обсуждение завершено'}</span>
-          <span className="muted">
-            {dict.typeLabel(d.appeal.type)} · {d.author_display}
-          </span>
-          <span className="muted">
-            {open ? 'Голосование до ' : 'Срок был '}
+          <span className={`badge${open ? ' badge--status-new' : ''}`}>{open ? 'Идёт обсуждение' : 'Обсуждение завершено'}</span>
+          <span className="badge">{dict.typeLabel(d.appeal.type)}</span>
+        </div>
+        <h1 className="page__title">{d.public_text}</h1>
+        <p className="discussion__meta">
+          <span>{d.author_display}</span>
+          <span aria-hidden="true">·</span>
+          <span>
+            {open ? 'голосование до ' : 'срок был '}
             {formatDateTime(d.deadline)}
           </span>
-        </div>
+        </p>
         {isAuthorView && (
           <Link to={`/appeals/${d.appeal.id}`} className="muted">
             Ваше обращение {d.appeal.number}
@@ -73,9 +77,12 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
         </div>
       )}
 
-      <Votes discussion={d} onUpdated={onUpdated} />
-      {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
-      <Comments discussion={d} />
+      {/* Голосование, итог и комментарии — одна карточка, части разделены линией. */}
+      <div className="discussion__card">
+        <Votes discussion={d} onUpdated={onUpdated} />
+        {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
+        <Comments discussion={d} />
+      </div>
     </article>
   );
 }
@@ -155,48 +162,93 @@ function Votes({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated
     }
   }
 
+  const againstPct = total ? 100 - forPct : 0;
+  const options = [
+    { value: 'for' as const, label: 'За', count: d.votes_for, pct: forPct },
+    { value: 'against' as const, label: 'Против', count: d.votes_against, pct: againstPct },
+  ];
+
   return (
-    <div className="block">
-      <h2 className="block__title">Голосование</h2>
-      <div className="vote-score" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
-        <span>
-          За <strong>{d.votes_for}</strong>
-        </span>
-        <span className="vote-score__bar" aria-hidden="true">
-          {total > 0 && <span className="vote-score__for" style={{ width: `${forPct}%` }} />}
-        </span>
-        <span>
-          Против <strong>{d.votes_against}</strong>
+    <div className="block vote">
+      <div className="vote__head">
+        <h2 className="block__title">Голосование</h2>
+        <span className="muted">
+          {total} {plural(total, ['голос', 'голоса', 'голосов'])}
         </span>
       </div>
-      {d.can_vote ? (
-        <div className="form__actions">
-          <button
-            type="button"
-            className={`btn${d.my_vote === 'for' ? '' : ' btn--ghost'}`}
-            aria-pressed={d.my_vote === 'for'}
-            disabled={busy}
-            onClick={() => vote('for')}
-          >
-            👍 За
-          </button>
-          <button
-            type="button"
-            className={`btn${d.my_vote === 'against' ? '' : ' btn--ghost'}`}
-            aria-pressed={d.my_vote === 'against'}
-            disabled={busy}
-            onClick={() => vote('against')}
-          >
-            👎 Против
-          </button>
-          {d.my_vote && <span className="muted">Нажмите на свой голос ещё раз, чтобы отозвать.</span>}
-        </div>
-      ) : (
-        d.status === 'open' && <p className="muted">Голосование для вас недоступно.</p>
-      )}
-      <p className="muted field__hint">Голосование совещательное: итог фиксирует руководитель.</p>
+
+      <div className="vote__options" role="group" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
+        {options.map((o) => {
+          const mine = d.my_vote === o.value;
+          const body = (
+            <>
+              <span className="vote__icon" aria-hidden="true">
+                <ThumbIcon down={o.value === 'against'} />
+              </span>
+              <span className="vote__label">{o.label}</span>
+              <span className="vote__count">{o.count}</span>
+              <span className="vote__pct">{total ? `${o.pct}%` : '—'}</span>
+            </>
+          );
+          return d.can_vote ? (
+            <button
+              key={o.value}
+              type="button"
+              className={`vote__option vote__option--${o.value}${mine ? ' vote__option--mine' : ''}`}
+              aria-pressed={mine}
+              disabled={busy}
+              onClick={() => vote(o.value)}
+            >
+              {body}
+            </button>
+          ) : (
+            <div key={o.value} className={`vote__option vote__option--${o.value} vote__option--static`}>
+              {body}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="vote__bar" aria-hidden="true">
+        {total > 0 ? (
+          <>
+            {d.votes_for > 0 && <span className="vote__bar-for" style={{ flexGrow: d.votes_for }} />}
+            {d.votes_against > 0 && <span className="vote__bar-against" style={{ flexGrow: d.votes_against }} />}
+          </>
+        ) : (
+          <span className="vote__bar-empty" />
+        )}
+      </div>
+
+      <p className="vote__note">
+        {d.can_vote && d.my_vote
+          ? 'Ваш голос учтён. Нажмите на него ещё раз, чтобы отозвать. '
+          : !d.can_vote && d.status === 'open'
+            ? 'Голосование для вас недоступно. '
+            : ''}
+        Голосование совещательное: итог фиксирует руководитель.
+      </p>
       {error && <p className="error-text">{error}</p>}
     </div>
+  );
+}
+
+function ThumbIcon({ down }: { down: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={down ? { transform: 'scaleY(-1)' } : undefined}
+    >
+      <path d="M7 10.5v9H4.5a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1H7z" />
+      <path d="M7 10.5l3.6-6.3a1.6 1.6 0 0 1 2.95 1.1L12.8 9h5.6a2 2 0 0 1 1.96 2.4l-1.3 6.5a2 2 0 0 1-1.96 1.6H7" />
+    </svg>
   );
 }
 
@@ -249,13 +301,14 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
       unwrap(api.GET('/api/v1/discussions/{discussion_id}/comments', { params: { path: { discussion_id: d.id } } })),
     [d.id],
   );
+  const me = useMe();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -275,44 +328,77 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
     }
   }
 
+  const count = list.state.status === 'ready' ? list.state.data.length : null;
+
   return (
-    <div className="block">
-      <h2 className="block__title">Комментарии</h2>
+    <div className="block comments">
+      <div className="vote__head">
+        <h2 className="block__title">Комментарии</h2>
+        {count !== null && count > 0 && <span className="muted">{count}</span>}
+      </div>
       {list.state.status === 'loading' && <p className="muted">Загружаем…</p>}
       {list.state.status === 'error' && <p className="error-text">{list.state.message}</p>}
-      {list.state.status === 'ready' && list.state.data.length === 0 && <p className="muted">Комментариев пока нет.</p>}
+      {count === 0 && (
+        <p className="comments__empty">{d.status === 'open' ? 'Комментариев пока нет. Напишите первым.' : 'Комментариев не было.'}</p>
+      )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
-        <ul className="thread">
+        <ul className="comments__list">
           {list.state.data.map((c) => (
-            <li key={c.id} className="thread__msg">
-              <div className="thread__meta">
-                <span>{c.author.full_name}</span>
-                {c.author.department && <span className="muted">{c.author.department.name}</span>}
-                <span className="muted">{formatDateTime(c.created_at)}</span>
+            <li key={c.id} className="comment">
+              <Avatar name={c.author.full_name} />
+              <div className="comment__body">
+                <div className="comment__meta">
+                  <span className="comment__author">{c.author.full_name}</span>
+                  {c.author.department && <span className="muted">{c.author.department.name}</span>}
+                  <span className="comment__time">{formatDateTime(c.created_at)}</span>
+                </div>
+                <p className="prose">{c.text}</p>
               </div>
-              <p className="prose">{c.text}</p>
             </li>
           ))}
         </ul>
       )}
       {d.status === 'open' && (
-        <form className="composer" onSubmit={send}>
-          <textarea
-            className="input"
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Поделитесь опытом или мнением"
-            aria-label="Комментарий"
-          />
-          <div className="form__actions">
-            <button type="submit" className="btn" disabled={busy || !text.trim()}>
-              {busy ? 'Отправляем…' : 'Комментировать'}
-            </button>
-            {error && <span className="error-text">{error}</span>}
+        <form className="comment-form" onSubmit={send}>
+          <Avatar name={me.full_name} />
+          <div className="comment-form__box">
+            <textarea
+              className="comment-form__input"
+              rows={2}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                // Ctrl/⌘ + Enter отправляет комментарий.
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.currentTarget.form?.requestSubmit();
+              }}
+              placeholder="Поделитесь опытом или мнением"
+              aria-label="Комментарий"
+            />
+            <div className="comment-form__foot">
+              {error ? <span className="error-text">{error}</span> : <span className="comment-form__hint">Ctrl + Enter — отправить</span>}
+              <button type="submit" className="btn comment-form__send" disabled={busy || !text.trim()}>
+                {busy ? 'Отправляем…' : 'Отправить'}
+              </button>
+            </div>
           </div>
         </form>
       )}
     </div>
+  );
+}
+
+const AVATAR_TONES = ['new', 'in_progress', 'implemented', 'awaiting_info', 'in_review', 'closed'] as const;
+
+/** Кружок с инициалами. Цвет — из палитры статусов, выбирается по имени, чтобы у человека он был всегда один. */
+function Avatar({ name }: { name: string }) {
+  const parts = name.trim().split(/\s+/);
+  const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  const tone = AVATAR_TONES[hash % AVATAR_TONES.length];
+  return (
+    <span className="avatar" style={{ background: `var(--status-${tone}-bg)`, color: `var(--status-${tone})` }} aria-hidden="true">
+      {initials}
+    </span>
   );
 }

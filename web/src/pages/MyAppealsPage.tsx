@@ -8,6 +8,7 @@ import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { formatDate } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 type Item = Schemas['AppealListItem'];
 const PAGE_SIZE = 20;
@@ -22,6 +23,7 @@ function fetchPage(page: number) {
 
 export function MyAppealsPage() {
   const first = useAsync(() => fetchPage(1), []);
+  const location = useLocation();
   useReloadOnCardClose(first.reload);
   const [more, setMore] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
@@ -46,10 +48,13 @@ export function MyAppealsPage() {
   return (
     <section className="page">
       <div className="page__head">
-        <h1 className="page__title">Мои обращения</h1>
-        <Link to="/my/new" className="btn btn--accent">
-          Подать обращение
-        </Link>
+        <h1 className="page__title sr-only">Мои обращения</h1>
+        {/* В пустом списке кнопка стоит в центре, под подсказкой. */}
+        {!(s.status === 'ready' && s.data.total === 0) && (
+          <Link to="/my/new" state={{ background: location }} className="btn btn--accent">
+            Подать обращение
+          </Link>
+        )}
       </div>
 
       {s.status === 'loading' && <p className="muted">Загружаем…</p>}
@@ -62,10 +67,17 @@ export function MyAppealsPage() {
         </div>
       )}
       {s.status === 'ready' && s.data.total === 0 && (
-        <div className="notice">
-          <p>Вы ещё не подавали обращений.</p>
-          <p className="muted">Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.</p>
-        </div>
+        <EmptyState
+          icon="inbox"
+          title="Вы ещё не подавали обращений"
+          action={
+            <Link to="/my/new" state={{ background: location }} className="btn btn--accent">
+              Подать обращение
+            </Link>
+          }
+        >
+          Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.
+        </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (
         <>
@@ -90,10 +102,9 @@ export function MyAppealsPage() {
 
 function AppealRow({ item }: { item: Item }) {
   const dict = useDictionaries();
-  const location = useLocation();
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/my', background: location }} className="appeal-row">
+      <Link to={`/appeals/${item.id}`} state={{ from: '/my' }} className="appeal-row">
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}

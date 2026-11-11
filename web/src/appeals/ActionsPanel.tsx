@@ -1,11 +1,13 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { PublishDiscussionForm } from '../discussions/PublishDiscussionForm';
 import { useAsync } from '../lib/useAsync';
+import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
+import { ActionModal, useActionModal } from './actionModal';
 
 type Appeal = Schemas['Appeal'];
 type Action = Schemas['AppealAction'];
@@ -30,6 +32,8 @@ interface Props {
 export function ActionsPanel({ appeal, onUpdated }: Props) {
   const dict = useDictionaries();
   const [open, setOpen] = useState<Action | null>(null);
+  const [busy, setBusy] = useState(false);
+  const modal = useMemo(() => ({ setBusy, cancel: () => setOpen(null) }), []);
   // Уже вынесенное обращение второй раз не выносим: ссылка на обсуждение — в карточке.
   const actions = PROCESSING.filter(
     (a) => appeal.allowed_actions.includes(a) && !(a === 'publish_discussion' && appeal.discussion),
@@ -44,21 +48,25 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
   const id = { params: { path: { appeal_id: appeal.id } } };
 
   return (
-    <div className="block actions">
-      <h2 className="block__title">Действия</h2>
-      <div className="actions__buttons">
-        {actions.map((a) => (
+    <>
+      {/* Кнопки действий строкой, без карточки; форма выбранного действия — в окне. */}
+      <div className="actions__buttons" role="group" aria-label="Действия">
+        {actions.map((a, i) => (
           <button
             key={a}
             type="button"
-            className={`btn${open === a ? '' : ' btn--ghost'}${a === 'reject' ? ' btn--danger' : ''}`}
-            aria-expanded={open === a}
-            onClick={() => setOpen(open === a ? null : a)}
+            // «Отклонить» — красная обводка; первое действие — основное; остальные — тихие.
+            className={`btn${a === 'reject' ? ' btn--ghost btn--danger' : i === 0 ? '' : ' btn--soft'}`}
+            aria-haspopup="dialog"
+            onClick={() => setOpen(a)}
           >
             {label(a)}
           </button>
         ))}
       </div>
+
+      <Modal open={open !== null} onClose={() => setOpen(null)} labelledBy="action-title" locked={busy} closeOnBackdrop={false}>
+        <ActionModal.Provider value={modal}>
 
       {open === 'take' && (
         <TextAction
@@ -118,7 +126,9 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
           onDone={(d) => done({ ...appeal, discussion: { id: d.id, status: d.status } })}
         />
       )}
-    </div>
+        </ActionModal.Provider>
+      </Modal>
+    </>
   );
 }
 
@@ -250,6 +260,7 @@ function ActionForm(props: {
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const cancel = useActionModal(busy);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -267,17 +278,22 @@ function ActionForm(props: {
 
   return (
     <form className="actions__form" onSubmit={submit}>
-      <h3 className="actions__title">{props.title}</h3>
+      <h2 id="action-title" className="actions__title">
+        {props.title}
+      </h2>
       {props.children}
-      <div className="form__actions">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="actions__submit">
+        <button type="button" className="btn btn--soft" onClick={cancel} disabled={busy}>
+          Отмена
+        </button>
         <button type="submit" className={`btn${props.danger ? ' btn--danger' : ''}`} disabled={busy || !props.canSubmit}>
           {busy ? 'Сохраняем…' : props.submitLabel}
         </button>
-        {error && (
-          <span className="error-text" role="alert">
-            {error}
-          </span>
-        )}
       </div>
     </form>
   );

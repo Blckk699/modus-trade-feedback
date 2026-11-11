@@ -22,6 +22,7 @@
   --focus-ring: 0 0 0 4px color-mix(in srgb, var(--focus) 32%, transparent);
   --shadow-card: 0 1px 2px rgba(8, 39, 66, 0.05), 0 2px 10px rgba(8, 39, 66, 0.05);
   --menu-bg: var(--surface);
+  --topbar-shadow: 0 1px 0 rgba(8, 39, 66, 0.06), 0 4px 16px rgba(8, 39, 66, 0.08);
   --menu-shadow: 0 2px 6px rgba(8, 39, 66, 0.08), 0 12px 32px rgba(8, 39, 66, 0.16);
   /* поле: состояния только заливкой, без рамок и полос */
   --field-bg: color-mix(in srgb, var(--heading) 5%, var(--surface));
@@ -91,6 +92,7 @@
     --focus: #8dbbf5;
     --shadow-card: none;
     --menu-bg: var(--surface-2);
+    --topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.35);
     --menu-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
     --danger: #ff8a80;
     --danger-bg: #3d1b1b;
@@ -141,6 +143,7 @@
   --focus: #8dbbf5;
   --shadow-card: none;
   --menu-bg: var(--surface-2);
+  --topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.35);
   --menu-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
   --danger: #ff8a80;
   --danger-bg: #3d1b1b;
@@ -444,7 +447,6 @@ input:focus-visible,
   gap: 12px;
   padding: 0 max(var(--gutter), calc((100% - var(--container)) / 2));
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
 }
 
 .topbar__brand {
@@ -965,14 +967,12 @@ textarea.input {
   pointer-events: none;
 }
 
+/* позиция и высота задаются из Select.tsx (fixed относительно экрана) */
 .select__menu {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 100%;
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: 288px;
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
   margin: 0;
   padding: 6px;
   overflow-y: auto;
@@ -981,11 +981,6 @@ textarea.input {
   background: var(--menu-bg);
   box-shadow: var(--menu-shadow);
   animation: select-in 0.12s ease-out;
-}
-
-.select__menu--up {
-  top: auto;
-  bottom: calc(100% + 6px);
 }
 
 @keyframes select-in {
@@ -1000,6 +995,7 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  white-space: nowrap;
   padding: 9px 10px;
   border-radius: var(--radius-md);
   color: var(--text);
@@ -1219,11 +1215,6 @@ textarea.input {
   }
 }
 
-/* В Mini App цвета задаёт Telegram (src/telegram), переключатель темы там не нужен. */
-[data-telegram] .theme-toggle {
-  display: none;
-}
-
 /* ---------- очередь и действия (W-03) */
 .page--wide {
   max-width: var(--container);
@@ -1260,16 +1251,38 @@ textarea.input {
   gap: 8px;
 }
 
+/* форма действия — в модальном окне */
 .actions__form {
   display: grid;
-  gap: 10px;
-  border-top: 1px dashed var(--border);
-  padding-top: 12px;
+  gap: 14px;
 }
 
 .actions__title {
-  font-size: 15px;
   margin: 0;
+  padding-right: 44px;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.actions__form .field__hint {
+  margin: 0;
+}
+
+.actions__submit {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .actions__submit {
+    display: grid;
+  }
+
+  .actions__submit .btn:last-child {
+    order: -1;
+  }
 }
 
 .appeal-row__top {
@@ -1470,29 +1483,6 @@ textarea.input {
 .discussion {
   display: grid;
   gap: 14px;
-}
-
-.vote-score {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.vote-score__bar {
-  height: 10px;
-  border-radius: 4px;
-  background: var(--surface-2);
-  overflow: hidden;
-  display: block;
-}
-
-.vote-score__for {
-  display: block;
-  height: 100%;
-  background: var(--primary);
-  border-right: 2px solid var(--surface);
 }
 
 .feed {
@@ -1980,3 +1970,665 @@ details.block > summary {
 .segmented__item input:focus-visible + span {
   box-shadow: var(--focus-ring);
 }
+
+/* Название раздела уже стоит в шапке (активный пункт меню): на разделах заголовок прячем,
+   но оставляем для экранного диктора. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- заявки и приглашения (W-12) */
+.form--plain {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.invite-links {
+  gap: 8px;
+}
+
+/* в окне: подпись над строкой «поле + Копировать» */
+.invite-links__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.invite-links__row .field__label {
+  grid-column: 1 / -1;
+}
+
+.invite-links .upload-modal__head p {
+  margin: 0;
+}
+
+
+/* ---------- пустой список: без карточки, всё по центру */
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+.empty__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--heading) 7%, transparent);
+  color: var(--muted);
+}
+
+.empty__title {
+  margin: 0;
+  color: var(--heading);
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.empty__text {
+  margin: 0;
+  max-width: 420px;
+  color: var(--muted);
+}
+
+.empty__action {
+  margin-top: 12px;
+}
+
+/* Пустой список занимает всё свободное место под шапкой и стоит по центру по вертикали.
+   .content растягивается на высоту экрана, страница с пустым состоянием — тоже. */
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.content > .page {
+  width: 100%;
+}
+
+.page:has(> .empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page > .empty {
+  flex: 1;
+  align-content: center;
+}
+
+/* ---------- обсуждение: шапка, голосование, комментарии */
+.discussion {
+  gap: 16px;
+}
+
+.discussion__head {
+  display: grid;
+  gap: 10px;
+  padding-right: 44px;
+}
+
+.discussion__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.discussion .block {
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-xl);
+}
+
+.vote__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vote__options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* плитка варианта: значок, подпись, число голосов и доля */
+.vote__option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'icon label count'
+    'icon pct count';
+  align-items: center;
+  column-gap: 12px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--field-bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+button.vote__option {
+  cursor: pointer;
+}
+
+button.vote__option:hover:not(:disabled) {
+  background: var(--field-bg-focus);
+}
+
+.vote__option:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.vote__icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.vote__option--for .vote__icon {
+  color: var(--success);
+}
+
+.vote__option--against .vote__icon {
+  color: var(--danger);
+}
+
+.vote__label {
+  grid-area: label;
+  align-self: end;
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.vote__pct {
+  grid-area: pct;
+  align-self: start;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vote__count {
+  grid-area: count;
+  color: var(--heading);
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* плитки тонированы цветом варианта: покой 8%, наведение 13%, свой голос 22% и сплошной значок */
+.vote__option--for {
+  --vote-tone: var(--success);
+}
+
+.vote__option--against {
+  --vote-tone: var(--danger);
+}
+
+.vote__option--for,
+.vote__option--against {
+  background: color-mix(in srgb, var(--vote-tone) 8%, var(--surface));
+}
+
+button.vote__option--for:hover:not(:disabled),
+button.vote__option--against:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vote-tone) 13%, var(--surface));
+}
+
+.vote__option--mine.vote__option--for,
+.vote__option--mine.vote__option--against,
+button.vote__option--mine.vote__option--for:hover:not(:disabled),
+button.vote__option--mine.vote__option--against:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vote-tone) 22%, var(--surface));
+}
+
+.vote__option--mine.vote__option--for .vote__icon {
+  background: var(--success);
+  color: var(--surface);
+}
+
+.vote__option--mine.vote__option--against .vote__icon {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.vote__bar {
+  display: flex;
+  gap: 3px;
+  height: 6px;
+}
+
+.vote__bar > span {
+  border-radius: 3px;
+  min-width: 6px;
+}
+
+.vote__bar-for {
+  background: var(--success);
+}
+
+.vote__bar-against {
+  background: var(--danger);
+}
+
+.vote__bar-empty {
+  flex: 1;
+  background: var(--field-bg);
+}
+
+.vote__note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* комментарии: лента с аватарами, без пузырей */
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.comments__list {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comments__empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.comment {
+  display: flex;
+  gap: 12px;
+}
+
+.comment__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.comment__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-size: 13px;
+}
+
+.comment__author {
+  color: var(--heading);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.comment__time {
+  margin-left: auto;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.comment .prose {
+  margin: 0;
+}
+
+/* поле комментария: одна заливка на текст и нижнюю строку с кнопкой */
+.comment-form {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--heading) 8%, transparent);
+}
+
+.comment-form__box {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  border-radius: 12px;
+  background: var(--field-bg);
+  transition: background-color 0.15s;
+}
+
+.comment-form__box:focus-within {
+  background: var(--field-bg-hover);
+}
+
+.comment-form__input {
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 14px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--heading);
+  font: inherit;
+  resize: none;
+  caret-color: var(--primary);
+}
+
+.comment-form__input:focus,
+.comment-form__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.comment-form__input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.comment-form__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px 8px 14px;
+}
+
+.comment-form__hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.comment-form__send {
+  min-height: 36px;
+  padding: 6px 14px;
+}
+
+@media (max-width: 720px) {
+  .discussion .block {
+    padding: 16px;
+  }
+
+  .vote__option {
+    padding: 12px;
+    column-gap: 10px;
+  }
+
+  .vote__count {
+    font-size: 22px;
+  }
+
+  .comment-form > .avatar,
+  .comment-form__hint {
+    display: none;
+  }
+
+  /* подсказка скрыта — кнопка остаётся справа */
+  .comment-form__foot {
+    justify-content: flex-end;
+  }
+}
+
+
+/* доля голосов на тонированной плитке: --muted не добирает AA на 13% и 22%, берём основной цвет текста */
+.vote__option--mine .vote__pct,
+button.vote__option:hover:not(:disabled) .vote__pct {
+  color: var(--text);
+}
+
+/* табы раздела отделены от списка под ними заметнее, чем строки списка друг от друга */
+.page > .segmented {
+  margin-bottom: 8px;
+}
+
+/* фокус поля комментария — кольцо вокруг всей формы (у самого поля outline снят) */
+.comment-form__box:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+/* ---------- длинная форма в окне (новое обращение): белый фон, поля без вложенной карточки */
+.modal--form {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.modal--form .page {
+  max-width: none;
+  gap: 16px;
+}
+
+.modal--form .back-link {
+  display: none;
+}
+
+.modal--form .page__title {
+  padding-right: 44px;
+  font-size: 20px;
+}
+
+.modal--form .form {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.modal--form .form__actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .modal--form {
+    max-height: calc(100dvh - 24px);
+  }
+
+  .modal--form .form__actions .btn {
+    width: 100%;
+  }
+}
+
+/* ---------- чекбокс: заливка как у полей, отмеченный — тёмно-синий с белой галочкой.
+   Тумблеры (.switch) рисуются отдельно. */
+input[type='checkbox']:not(.switch) {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  border: 1.5px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+input[type='checkbox']:not(.switch):hover {
+  border-color: var(--primary);
+}
+
+input[type='checkbox']:not(.switch):checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+input[type='checkbox']:not(.switch):checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--primary-text);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 16px no-repeat;
+}
+
+input[type='checkbox']:not(.switch):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* строка с чекбоксом в настройках: подпись кликабельна целиком */
+.settings-checks label {
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.settings-checks input[type='checkbox'] {
+  margin: 0;
+}
+
+/* ---------- обсуждение: голосование, итог и комментарии в одной карточке с разделителями */
+.discussion__card {
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.discussion .discussion__card > .block {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  padding: 20px;
+}
+
+.discussion__card > .block + .block {
+  border-top: 1px solid color-mix(in srgb, var(--heading) 8%, transparent);
+}
+
+/* разделитель уже есть между частями — у формы комментария своя линия не нужна */
+.discussion__card .comment-form {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+@media (max-width: 720px) {
+  .discussion .discussion__card > .block {
+    padding: 16px;
+  }
+}
+
+/* ---------- обращение подано: галочка с заголовком, факты в заливке, кнопки справа */
+.created {
+  gap: 20px;
+}
+
+.created .upload-modal__head p {
+  margin: 0;
+}
+
+.created__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--field-bg);
+}
+
+.created__facts > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.created__facts dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.created__facts dd {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 600;
+}
+
+.created__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .created__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .created__actions {
+    display: grid;
+  }
+
+  .created__actions .btn:last-child {
+    order: -1;
+  }
+}
+
+/* заголовок получает фокус программно — без рамки, это не элемент управления */
+.created .upload-modal__title:focus {
+  outline: none;
+}
+
+/* ---------- карточка обращения: описание текстом, без контейнера */
+.appeal__body {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.appeal__body p {
+  margin: 0;
+}
+
+.appeal__text {
+  color: var(--heading);
+  font-size: 16px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+/* ---------- шапка: без линии; при прокрутке — мягкая тень, чтобы край не сливался с карточками */
+.topbar {
+  transition: box-shadow 0.2s;
+}
+
+.topbar--scrolled {
+  box-shadow: var(--topbar-shadow);
+}
+

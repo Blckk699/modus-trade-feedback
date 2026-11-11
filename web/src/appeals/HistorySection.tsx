@@ -3,6 +3,7 @@ import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { historyValue } from './historyValue';
 import { historyKindLabel } from './labels';
 
 type HistoryEvent = Schemas['HistoryEvent'];
@@ -20,7 +21,7 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
       {history.state.status === 'loading' && <p className="muted">Загружаем…</p>}
       {history.state.status === 'error' && <p className="error-text">{history.state.message}</p>}
       {history.state.status === 'ready' && (
-        <ol className="timeline">
+        <ol className="timeline" aria-label="История">
           {history.state.data.map((ev) => (
             <HistoryItem key={ev.id} ev={ev} />
           ))}
@@ -32,7 +33,7 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
 
 function HistoryItem({ ev }: { ev: HistoryEvent }) {
   const dict = useDictionaries();
-  const value = (v: string | null) => (v && ev.field === 'status' ? dict.statusLabel(v) : v);
+  const value = (v: string | null) => historyValue(ev.field, v, dict);
   const change =
     ev.old_value || ev.new_value
       ? [value(ev.old_value), value(ev.new_value)].filter(Boolean).join(' → ')

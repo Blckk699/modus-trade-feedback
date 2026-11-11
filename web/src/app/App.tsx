@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom';
-import { LoginScreen, useAuth } from '../auth';
+import { AccessRequestScreen, LoginScreen, useAuth } from '../auth';
+import { InvitePage } from '../access/InvitePage';
 import type { ReactNode } from 'react';
 import { CardModal } from '../pages/CardModal';
 import { AppealPage } from '../pages/AppealPage';
@@ -60,7 +61,16 @@ function AuthGate() {
       </div>
     );
   }
+  // Ссылка-приглашение открывается до входа: сама страница входит через Telegram и принимает приглашение.
+  if (location.pathname.startsWith('/invite/')) {
+    return (
+      <Routes>
+        <Route path="/invite/:token" element={<InvitePage />} />
+      </Routes>
+    );
+  }
   if (state.status === 'anonymous') return <LoginScreen />;
+  if (state.status === 'unregistered') return <AccessRequestScreen who={state.who} />;
 
   const nav = buildNav(state.me);
   return (
@@ -76,19 +86,23 @@ function AuthGate() {
           {state.me.permissions.can_upload_meetings && <Route path="/meetings/:id" element={<MeetingPage />} />}
           {/* Ссылки из уведомлений бота (Notification.path) ведут на /analytics, у веба сводка — /digest. */}
           <Route path="/analytics" element={<Navigate to="/digest" replace />} />
+          {/* Уведомление о новой заявке (access_request_created) ведёт на /settings/access-requests. */}
+          <Route path="/settings/access-requests" element={<Navigate to="/settings?tab=requests" replace />} />
           <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
         </Route>
       </Routes>
       {background && (
         <Routes>
-          <Route
-            path="/appeals/:id"
-            element={
-              <CardModal label="Обращение">
-                <AppealPage />
-              </CardModal>
-            }
-          />
+          {state.me.permissions.can_create_appeal && (
+            <Route
+              path="/my/new"
+              element={
+                <CardModal label="Новое обращение" size="form">
+                  <NewAppealPage />
+                </CardModal>
+              }
+            />
+          )}
           <Route
             path="/discussions/:id"
             element={
