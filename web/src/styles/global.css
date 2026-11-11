@@ -2603,3 +2603,21 @@ input[type='checkbox']:not(.switch):disabled {
   outline: none;
 }
 
+/* ---------- карточка обращения: описание текстом, без контейнера */
+.appeal__body {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.appeal__body p {
+  margin: 0;
+}
+
+.appeal__text {
+  color: var(--heading);
+  font-size: 16px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+

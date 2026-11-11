@@ -106,6 +106,21 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <Outcome appeal={a} />
 
+      {/* Суть обращения — сразу под заголовком, до кнопок действий: сначала читают, потом решают. */}
+      {/* Описание — просто текст под заголовком, без карточки; решение — строкой с подписью. */}
+      {(a.text || a.proposed_solution) && (
+        <div className="appeal__body">
+          {a.text && <p className="prose appeal__text">{a.text}</p>}
+          {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
+          {a.proposed_solution && (
+            <p className="prose">
+              <span className="muted">Предлагаемое решение: </span>
+              {a.proposed_solution}
+            </p>
+          )}
+        </div>
+      )}
+
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
 
       {a.discussion && (
@@ -148,19 +163,6 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         <dd>{formatDateTime(a.created_at)}</dd>
       </dl>
 
-      {a.text && (
-        <div className="block">
-          <h2 className="block__title">Описание</h2>
-          <p className="prose">{a.text}</p>
-          {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
-        </div>
-      )}
-      {a.proposed_solution && (
-        <div className="block">
-          <h2 className="block__title">Предлагаемое решение</h2>
-          <p className="prose">{a.proposed_solution}</p>
-        </div>
-      )}
 
       {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
       {show.attachments && <AttachmentsSection appeal={a} />}
