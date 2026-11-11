@@ -216,6 +216,17 @@ void main() {
               'comment': null,
               'created_at': '2026-11-10T11:02:00+05:00',
             },
+            {
+              'id': 102,
+              'appeal_id': 21,
+              'kind': 'deadline_set',
+              'actor': null,
+              'field': 'first_response_due_at',
+              'old_value': null,
+              'new_value': '2026-11-18T09:55:15.058981+05:00',
+              'comment': null,
+              'created_at': '2026-11-10T11:01:00+05:00',
+            },
           ]),
       'GET /api/v1/appeals/21/messages': (_) => json([messageJson(501, 'Здравствуйте, посмотрю сегодня.')]),
       'GET /api/v1/notifications/unread-count': (_) => json({'count': 1}),
@@ -237,6 +248,8 @@ void main() {
     expect(find.byKey(const Key('upload-attachment')), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Статус изменён'), 200, scrollable: list);
     expect(find.text('Новое → На рассмотрении'), findsOneWidget);
+    expect(find.text('18 ноября 2026, 09:55'), findsWidgets, reason: 'срок в истории — датой, а не строкой ISO');
+    expect(find.textContaining('2026-11-18T'), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
   });
