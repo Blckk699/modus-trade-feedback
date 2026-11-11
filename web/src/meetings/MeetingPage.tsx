@@ -7,6 +7,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { MeetingStatusBadge } from './MeetingStatusBadge';
+import { Select } from '../app/Select';
 
 type Meeting = Schemas['Meeting'];
 type Draft = Schemas['MeetingDraft'];
@@ -282,17 +283,17 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
       <div className="filters">
         <label className="field">
           <span className="field__label">Тип</span>
-          <select className="input" value={form.type} onChange={(e) => set({ type: e.target.value as Form['type'] })}>
+          <Select value={form.type} onChange={(e) => set({ type: e.target.value as Form['type'] })}>
             {(dict.data?.appeal_types ?? []).map((t) => (
               <option key={t.code} value={t.code}>
                 {t.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Категория</span>
-          <select className="input" value={form.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
+          <Select value={form.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
             <option value="">Не указана</option>
             {categories.state.status === 'ready' &&
               categories.state.data
@@ -302,21 +303,21 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
                     {c.name}
                   </option>
                 ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Приоритет</span>
-          <select className="input" value={form.priority} onChange={(e) => set({ priority: e.target.value as Form['priority'] })}>
+          <Select value={form.priority} onChange={(e) => set({ priority: e.target.value as Form['priority'] })}>
             {(dict.data?.priorities ?? []).map((p) => (
               <option key={p.code} value={p.code}>
                 {p.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Автор</span>
-          <select className="input" value={form.authorId} onChange={(e) => set({ authorId: e.target.value })}>
+          <Select value={form.authorId} onChange={(e) => set({ authorId: e.target.value })}>
             <option value="">Я (загрузивший)</option>
             {users.state.status === 'ready' &&
               users.state.data
@@ -327,7 +328,7 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
                     {u.department ? ` — ${u.department.name}` : ''}
                   </option>
                 ))}
-          </select>
+          </Select>
         </label>
       </div>
       <label className="field">

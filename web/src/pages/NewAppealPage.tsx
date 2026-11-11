@@ -8,6 +8,7 @@ import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime, formatSize } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { Select } from '../app/Select';
 
 type AppealType = Schemas['AppealType'];
 type Priority = Schemas['Priority'];
@@ -106,14 +107,14 @@ export function NewAppealPage() {
         <div className="form__row">
           <label className="field">
             <span className="field__label">Категория</span>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input">
+            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">Не знаю — распределит администратор</option>
               {activeCategories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
             {categories.state.status === 'error' && (
               <span className="error-text field__hint">Категории не загрузились: {categories.state.message}</span>
             )}
@@ -122,13 +123,13 @@ export function NewAppealPage() {
 
           <label className="field">
             <span className="field__label">Приоритет</span>
-            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input">
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
               {(dict.data?.priorities ?? []).map((p) => (
                 <option key={p.code} value={p.code}>
                   {p.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
 
@@ -169,7 +170,7 @@ export function NewAppealPage() {
                 e.target.value = '';
               }}
             />
-            <span className="btn btn--ghost">Выбрать файлы</span>
+            <span className="btn btn--soft">Выбрать файлы</span>
           </label>
           {files.length > 0 && (
             <ul className="file-list">

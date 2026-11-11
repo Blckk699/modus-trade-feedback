@@ -5,6 +5,7 @@ import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { PublishDiscussionForm } from '../discussions/PublishDiscussionForm';
 import { useAsync } from '../lib/useAsync';
+import { Select } from '../app/Select';
 
 type Appeal = Schemas['Appeal'];
 type Action = Schemas['AppealAction'];
@@ -217,7 +218,7 @@ function ReassignForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal) 
     >
       <label className="field">
         <span className="field__label">Новый ответственный</span>
-        <select className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} required>
+        <Select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} required>
           <option value="">Выберите сотрудника</option>
           {candidates.map((u) => (
             <option key={u.id} value={u.id}>
@@ -226,7 +227,7 @@ function ReassignForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal) 
               {u.is_absent ? ' (отсутствует)' : ''}
             </option>
           ))}
-        </select>
+        </Select>
         {users.state.status === 'error' && <span className="error-text field__hint">{users.state.message}</span>}
       </label>
       <label className="field">

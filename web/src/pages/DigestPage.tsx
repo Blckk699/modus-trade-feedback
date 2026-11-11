@@ -7,6 +7,7 @@ import { useMe } from '../auth';
 import { StatusBadge } from '../appeals/Badges';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { Select } from '../app/Select';
 
 type Summary = Schemas['AnalyticsSummary'];
 type AppealRef = Schemas['AppealRef'];
@@ -65,7 +66,7 @@ export function DigestPage() {
         {company && (
           <label className="field">
             <span className="field__label">Подразделение</span>
-            <select className="input" value={f.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
+            <Select value={f.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
               <option value="">Вся компания</option>
               {departments.state.status === 'ready' &&
                 departments.state.data.map((d) => (
@@ -73,12 +74,12 @@ export function DigestPage() {
                     {d.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         )}
         <label className="field">
           <span className="field__label">Категория</span>
-          <select className="input" value={f.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
+          <Select value={f.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
             <option value="">Все</option>
             {categories.state.status === 'ready' &&
               categories.state.data.map((c) => (
@@ -86,29 +87,29 @@ export function DigestPage() {
                   {c.name}
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Статус</span>
-          <select className="input" value={f.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
+          <Select value={f.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
             <option value="">Любой</option>
             {(dict.data?.statuses ?? []).map((st) => (
               <option key={st.code} value={st.code}>
                 {st.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Срок</span>
-          <select className="input" value={f.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
+          <Select value={f.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
             <option value="">Любой</option>
             {(dict.data?.due_filters ?? []).map((d) => (
               <option key={d.code} value={d.code}>
                 {d.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
 

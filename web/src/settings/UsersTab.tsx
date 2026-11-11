@@ -4,6 +4,7 @@ import { errorMessage } from '../api/errors';
 import { useDictionaries } from '../app/dictionaries';
 import { useAsync } from '../lib/useAsync';
 import { byName, changes, fieldErrors, idOrNull, type Department, type Role, type User } from './shared';
+import { Select } from '../app/Select';
 
 const ROLES: Role[] = ['employee', 'head', 'owner', 'admin'];
 
@@ -195,24 +196,24 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
         </label>
         <label className="field">
           <span className="field__label">Роль</span>
-          <select className="input" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {ROLES.map((r) => (
               <option key={r} value={r}>
                 {dict.roleLabel(r)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Подразделение</span>
-          <select className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
+          <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
             <option value="">Без подразделения</option>
             {[...departments].sort(byName).map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
           {errors.department_id && <span className="field__hint error-text">{errors.department_id}</span>}
         </label>
       </div>

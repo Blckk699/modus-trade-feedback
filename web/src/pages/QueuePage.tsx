@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Me, Schemas } from '../api/types';
@@ -8,6 +8,7 @@ import { useMe } from '../auth';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { timeLeftLabel } from '../appeals/timeLeft';
 import { useAsync } from '../lib/useAsync';
+import { Select } from '../app/Select';
 
 type Scope = Schemas['AppealScope'];
 type Status = Schemas['AppealStatus'];
@@ -132,7 +133,7 @@ export function QueuePage() {
       <div className="filters">
         <label className="field">
           <span className="field__label">Статус</span>
-          <select className="input" value={filters.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
+          <Select value={filters.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
             <option value="open">Все открытые</option>
             {(dict.data?.statuses ?? []).map((st) => (
               <option key={st.code} value={st.code}>
@@ -140,22 +141,22 @@ export function QueuePage() {
               </option>
             ))}
             <option value="any">Любой</option>
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Срок</span>
-          <select className="input" value={filters.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
+          <Select value={filters.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
             <option value="">Любой</option>
             {(dict.data?.due_filters ?? []).map((d) => (
               <option key={d.code} value={d.code}>
                 {d.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="field">
           <span className="field__label">Категория</span>
-          <select className="input" value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
+          <Select value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
             <option value="">Все</option>
             {categories.state.status === 'ready' &&
               categories.state.data.map((c) => (
@@ -163,12 +164,12 @@ export function QueuePage() {
                   {c.name}
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         {showDepartments && (
           <label className="field">
             <span className="field__label">Подразделение</span>
-            <select className="input" value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
+            <Select value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
               <option value="">Все</option>
               {departments.state.status === 'ready' &&
                 departments.state.data.map((d) => (
@@ -176,7 +177,7 @@ export function QueuePage() {
                     {d.name}
                   </option>
                 ))}
-            </select>
+            </Select>
           </label>
         )}
       </div>
@@ -220,11 +221,12 @@ export function QueuePage() {
 
 function QueueRow({ item, now }: { item: Item; now: Date }) {
   const dict = useDictionaries();
+  const location = useLocation();
   const overdue = item.due_state === 'overdue';
   const waitingAnswer = item.first_response_due_at && item.due_state !== 'answered' && item.due_state !== 'no_deadline';
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/queue' }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
+      <Link to={`/appeals/${item.id}`} state={{ from: '/queue', background: location }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
@@ -88,9 +88,10 @@ export function MyAppealsPage() {
 
 function AppealRow({ item }: { item: Item }) {
   const dict = useDictionaries();
+  const location = useLocation();
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} className="appeal-row">
+      <Link to={`/appeals/${item.id}`} state={{ from: '/my', background: location }} className="appeal-row">
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}

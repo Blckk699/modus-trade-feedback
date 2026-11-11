@@ -1,6 +1,7 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { LoginScreen, useAuth } from '../auth';
 import type { ReactNode } from 'react';
+import { CardModal } from '../pages/CardModal';
 import { AppealPage } from '../pages/AppealPage';
 import { DigestPage } from '../pages/DigestPage';
 import { MeetingPage } from '../meetings/MeetingPage';
@@ -38,6 +39,9 @@ const SECTIONS: Record<NavId, { title: string; lead: string }> = {
 
 function AuthGate() {
   const { state, retry } = useAuth();
+  const location = useLocation();
+  // Список передаёт себя в state.background: тогда он остаётся на экране, а обращение открывается окном поверх.
+  const background = (location.state as { background?: Location } | null)?.background;
 
   if (state.status === 'loading') {
     return (
@@ -61,7 +65,7 @@ function AuthGate() {
   const nav = buildNav(state.me);
   return (
     <UnreadProvider>
-      <Routes>
+      <Routes location={background ?? location}>
         <Route element={<Layout />}>
           {nav.map((item) => (
             <Route key={item.id} path={item.path} element={PAGES[item.id] ?? <SectionPage {...SECTIONS[item.id]} />} />
@@ -75,6 +79,26 @@ function AuthGate() {
           <Route path="*" element={<Navigate to={startPath(state.me)} replace />} />
         </Route>
       </Routes>
+      {background && (
+        <Routes>
+          <Route
+            path="/appeals/:id"
+            element={
+              <CardModal label="Обращение">
+                <AppealPage />
+              </CardModal>
+            }
+          />
+          <Route
+            path="/discussions/:id"
+            element={
+              <CardModal label="Обсуждение">
+                <DiscussionPage />
+              </CardModal>
+            }
+          />
+        </Routes>
+      )}
     </UnreadProvider>
   );
 }
