@@ -3,6 +3,7 @@ import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
+import { EmptyState } from '../app/EmptyState';
 import { Select } from '../app/Select';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -52,9 +53,9 @@ export function AccessRequestsTab() {
         </div>
       )}
       {s.status === 'ready' && s.data.items.length === 0 && (
-        <div className="notice">
-          {status === 'pending' ? 'Новых заявок нет. Бот сообщит, когда кто-то подаст заявку.' : 'Заявок нет.'}
-        </div>
+        <EmptyState icon="inbox" title={status === 'pending' ? 'Новых заявок нет' : 'Заявок нет'}>
+          {status === 'pending' ? 'Бот сообщит, когда кто-то подаст заявку на доступ.' : undefined}
+        </EmptyState>
       )}
       {s.status === 'ready' && s.data.items.length > 0 && (
         <ul className="settings-list">
