@@ -124,6 +124,17 @@ class VotingClosed(Conflict):
     message = "Обсуждение завершено."
 
 
+class AlreadyRegistered(Conflict):
+    code = "already_registered"
+    message = "Вы уже есть в системе. Войдите."
+
+
+class InviteInvalid(AppError):
+    status_code = 410
+    code = "invite_invalid"
+    message = "Приглашение недействительно. Подайте заявку на доступ."
+
+
 class ExternalServiceError(AppError):
     """Внешний сервис (Claude, ElevenLabs, Telegram, Битрикс24) не ответил или ответил ошибкой."""
 

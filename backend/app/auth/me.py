@@ -22,6 +22,7 @@ class Permissions(BaseModel):
     can_upload_meetings: bool
     can_manage_settings: bool
     can_view_unassigned: bool
+    can_manage_access: bool
 
 
 class MeOut(UserOut):
@@ -76,6 +77,7 @@ def permissions_for(role: Role, *, has_assignments: bool, heads_department: bool
         can_upload_meetings=role in (Role.HEAD, Role.OWNER),
         can_manage_settings=role == Role.ADMIN,
         can_view_unassigned=role in (Role.ADMIN, Role.OWNER),
+        can_manage_access=role in (Role.ADMIN, Role.OWNER),
     )
 
 

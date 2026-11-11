@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 
 from app.api.deps import BotKeyDep, ClockDep, CurrentUserDep, SessionDep
 from app.appeals.schemas import AppealRef
@@ -50,7 +50,7 @@ class NotificationPage(BaseModel):
 
 
 class Recipient(BaseModel):
-    user_id: int
+    user_id: int | None
     telegram_id: int
 
 
@@ -158,15 +158,19 @@ async def pending(_: BotKeyDep, session: SessionDep, clock: ClockDep, limit: Ann
     """Неподтверждённые уведомления, у которых пришло время попытки. Получатели без Telegram пропускаются."""
     rows = (
         await session.execute(
-            select(Notification, User.telegram_id)
-            .join(User, User.id == Notification.user_id)
+            select(Notification, func.coalesce(User.telegram_id, Notification.telegram_id))
+            .outerjoin(User, User.id == Notification.user_id)
             .where(
                 Notification.delivered_at.is_(None),
                 Notification.failed_permanently.is_(False),
                 Notification.next_attempt_at <= clock.now(),
                 Notification.created_at > clock.now() - PENDING_MAX_AGE,
-                User.telegram_id.is_not(None),
-                User.is_disabled.is_(False),
+                # Пользователю — если у него есть Telegram и доступ не отключён;
+                # незаведённому заявителю (user_id пуст) — по telegram_id уведомления.
+                or_(
+                    and_(User.id.is_not(None), User.telegram_id.is_not(None), User.is_disabled.is_(False)),
+                    and_(Notification.user_id.is_(None), Notification.telegram_id.is_not(None)),
+                ),
             )
             .order_by(Notification.id)
             .limit(limit)

@@ -478,7 +478,9 @@ paths:
     get:
       tags: [access]
       summary: Что за приглашение (без входа)
-      description: Для страницы `/invite/<токен>` в вебе до входа. Недействительное — `410 invite_invalid`.
+      description: |
+        Для страницы `/invite/<токен>` в вебе до входа. Недействительное — `410 invite_invalid`.
+        Больше 10 недействительных токенов с одного адреса за 15 минут — `429 too_many_requests` (защита от перебора).
       operationId: getInvitePreview
       security: []
       responses:
@@ -495,6 +497,8 @@ paths:
                 expires_at: '2026-11-18T10:00:00+05:00'
         '410':
           $ref: '#/components/responses/InviteInvalid'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /api/v1/invites/accept:
     post:
       tags: [access]
@@ -508,6 +512,7 @@ paths:
         - Уже заведённый пользователь — ничего не меняется, `created=false`, приглашение не расходуется.
         - Отключённый — `403 user_disabled`.
         - Просроченное, отозванное или исчерпанное приглашение — `410 invite_invalid` (предложить заявку).
+        - Больше 10 недействительных токенов за 15 минут с одного адреса (у бота — с одного Telegram ID) — `429 too_many_requests`.
 
         `session` — сессия для Mini App и веба (как у `/auth/*`). Боту сессия не нужна, ему `session=null`.
       operationId: acceptInvite
@@ -564,6 +569,8 @@ paths:
           $ref: '#/components/responses/InviteInvalid'
         '422':
           $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   # ---------------------------------------------------------------- me
   /api/v1/me:

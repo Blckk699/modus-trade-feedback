@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import ForeignKey, Index, String, Text
+from sqlalchemy import BigInteger, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,7 +20,10 @@ class Notification(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    # Получатель — пользователь. Исключение: отказ по заявке на доступ уходит тому, кого ещё нет
+    # среди пользователей, — тогда user_id пуст, а адрес — telegram_id.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger)
     kind: Mapped[str] = mapped_column(String(40))  # NotificationKind
     text: Mapped[str] = mapped_column(Text)
     appeal_id: Mapped[int | None] = mapped_column(ForeignKey("appeals.id", ondelete="CASCADE"))
