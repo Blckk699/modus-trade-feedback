@@ -15,8 +15,16 @@ from app.api import Api, ApiError
 from app.config import Settings
 
 log = logging.getLogger(__name__)
+
+
 async def start(message: Message, bot: Bot, state: FSMContext, me: dict[str, Any], settings: Settings) -> None:
+    # Уже заведённый пользователь по ссылке-приглашению (/start inv_…) ничего не меняет: просто меню.
     await state.set_state(None)
+    await welcome(message, bot, me, settings)
+
+
+async def welcome(message: Message, bot: Bot, me: dict[str, Any], settings: Settings) -> None:
+    """Приветствие и меню роли. Общее для /start и входа по приглашению."""
     if settings.mini_app_url:
         # Кнопка меню чата открывает Mini App с initData — вход без экрана входа.
         await bot.set_chat_menu_button(

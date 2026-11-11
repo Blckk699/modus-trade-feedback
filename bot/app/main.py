@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
 
-from app import drafts, handlers, notifications, texts
+from app import drafts, handlers, notifications, registration, texts
 from app.api import Api
 from app.config import Settings
 from app.middleware import IdentifyUser
@@ -28,6 +28,7 @@ def build_dispatcher(api: Api, settings: Settings) -> Dispatcher:
     identify = IdentifyUser(api)
     dp.message.outer_middleware(identify)
     dp.callback_query.outer_middleware(identify)
+    dp.include_router(registration.build_router())  # незнакомый аккаунт — первым, дальше только сотрудники
     dp.include_router(handlers.build_router())
     dp.include_router(notifications.build_router())  # ответ на вопрос — раньше нового черновика
     dp.include_router(drafts.build_router())

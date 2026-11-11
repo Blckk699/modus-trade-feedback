@@ -13,11 +13,12 @@ from app.api import Api, ApiError
 
 log = logging.getLogger(__name__)
 
-ACCESS_DENIED_CODES = {"user_not_registered", "user_disabled"}
-
-
 class IdentifyUser(BaseMiddleware):
-    """Кладёт `me` в данные обработчика. Постороннему отвечает отказом из API и дальше не пускает."""
+    """Кладёт `me` в данные обработчика.
+
+    Незнакомый аккаунт (`user_not_registered`) пропускается дальше с `guest=True` — его ведёт роутер
+    регистрации (заявка или приглашение). Отключённому отвечает отказом из API и дальше не пускает.
+    """
 
     def __init__(self, api: Api):
         self.api = api
@@ -34,7 +35,10 @@ class IdentifyUser(BaseMiddleware):
         try:
             data["me"] = await self.api.me(user.id)
         except ApiError as exc:
-            if exc.code in ACCESS_DENIED_CODES:
+            if exc.code == "user_not_registered":
+                data["guest"] = True
+                return await handler(event, data)
+            if exc.code == "user_disabled":
                 await _reply(event, exc.message, remove_keyboard=True)
             else:
                 log.warning("GET /me failed for update: %s", exc)

@@ -1,7 +1,7 @@
 """T-01: запуск, опознание сотрудника, код входа, Mini App, сервисный ключ."""
 
 from aiogram.methods import SetChatMenuButton
-from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup
 
 from app import texts
 from app.config import Settings
@@ -33,19 +33,6 @@ async def test_digest_button_only_for_those_with_analytics(harness):
 
     [reply] = harness.telegram.sent()
     assert texts.BTN_DIGEST in buttons(reply.reply_markup)
-
-
-async def test_stranger_is_politely_refused(harness):
-    message = "Вас нет в списке сотрудников. Обратитесь к администратору."
-    harness.backend.error("GET", "/api/v1/me", 403, "user_not_registered", message)
-
-    await harness.send_text("/start", user_id=555)
-    await harness.send_text(texts.BTN_LOGIN_CODE, user_id=555)
-
-    replies = harness.telegram.sent()
-    assert [r.text for r in replies] == [message, message]
-    assert all(isinstance(r.reply_markup, ReplyKeyboardRemove) for r in replies)
-    assert harness.backend.calls("POST", "/api/v1/auth/login-codes") == []
 
 
 async def test_disabled_user_is_refused(harness):
