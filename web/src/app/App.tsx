@@ -97,6 +97,16 @@ function AuthGate() {
               </CardModal>
             }
           />
+          {state.me.permissions.can_upload_meetings && (
+            <Route
+              path="/meetings/:id"
+              element={
+                <CardModal label="Совещание">
+                  <MeetingPage />
+                </CardModal>
+              }
+            />
+          )}
         </Routes>
       )}
     </UnreadProvider>

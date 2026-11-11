@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { storage } from '../storage';
+import { useReloadOnCardClose } from '../app/cardClosed';
 
 type Tab = 'open' | 'closed' | 'implemented';
 const TAB_KEY = 'modus.feed.tab';
@@ -49,6 +50,7 @@ function DiscussionList({ status }: { status: 'open' | 'closed' }) {
     () => unwrap(api.GET('/api/v1/discussions', { params: { query: { status, page_size: 50 } } })),
     [status],
   );
+  useReloadOnCardClose(list.reload);
   const location = useLocation();
   const s = list.state;
   if (s.status === 'loading') return <p className="muted">Загружаем…</p>;

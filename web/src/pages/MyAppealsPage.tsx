@@ -7,6 +7,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { formatDate } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { useReloadOnCardClose } from '../app/cardClosed';
 
 type Item = Schemas['AppealListItem'];
 const PAGE_SIZE = 20;
@@ -21,6 +22,7 @@ function fetchPage(page: number) {
 
 export function MyAppealsPage() {
   const first = useAsync(() => fetchPage(1), []);
+  useReloadOnCardClose(first.reload);
   const [more, setMore] = useState<Item[]>([]);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);

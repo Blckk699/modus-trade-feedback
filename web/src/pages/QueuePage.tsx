@@ -9,6 +9,7 @@ import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { timeLeftLabel } from '../appeals/timeLeft';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
+import { useReloadOnCardClose } from '../app/cardClosed';
 
 type Scope = Schemas['AppealScope'];
 type Status = Schemas['AppealStatus'];
@@ -87,6 +88,7 @@ export function QueuePage() {
 
   const key = JSON.stringify(filters);
   const first = useAsync(() => fetchQueue(filters, 1), [key]);
+  useReloadOnCardClose(first.reload);
   const [extra, setExtra] = useState<{ key: string; page: number; items: Item[] }>({ key, page: 1, items: [] });
   const more = extra.key === key ? extra : { key, page: 1, items: [] };
   const [loadingMore, setLoadingMore] = useState(false);

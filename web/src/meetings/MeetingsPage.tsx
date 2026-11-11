@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { uploadMeeting } from '../api/files';
@@ -7,6 +7,7 @@ import { formatDateTime, formatSize } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { Modal } from '../app/Modal';
 import { MeetingStatusBadge } from './MeetingStatusBadge';
+import { useReloadOnCardClose } from '../app/cardClosed';
 
 const ACCEPT = '.mp3,.m4a,.wav,.ogg,.webm,audio/*';
 const EXTENSIONS = ['mp3', 'm4a', 'wav', 'ogg', 'webm'];
@@ -57,7 +58,9 @@ function titleFromName(name: string): string {
 /** Режим «совещание»: загрузка записи и список своих совещаний (истории 48, 62). */
 export function MeetingsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const list = useAsync(() => unwrap(api.GET('/api/v1/meetings')), []);
+  useReloadOnCardClose(list.reload);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
@@ -210,7 +213,7 @@ export function MeetingsPage() {
         <ul className="appeal-list">
           {list.state.data.map((m) => (
             <li key={m.id}>
-              <Link to={`/meetings/${m.id}`} className="appeal-row">
+              <Link to={`/meetings/${m.id}`} state={{ background: location }} className="appeal-row">
                 <div className="appeal-row__top">
                   <span className="appeal-row__number">{m.title}</span>
                   <span className="muted appeal-row__date">{formatDateTime(m.created_at)}</span>
