@@ -89,6 +89,11 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         <div className="appeal-row__meta">
           <StatusBadge status={a.status} />
           {a.status !== 'closed' && <DueBadge state={a.due_state} dueAt={a.first_response_due_at} />}
+          {show.participantsCounter && (
+            <span className="badge badge--people">
+              Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
+            </span>
+          )}
         </div>
       </header>
 
@@ -101,11 +106,6 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <Outcome appeal={a} />
 
-      {show.participantsCounter && (
-        <div className="notice notice--info">
-          Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
-        </div>
-      )}
 
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
 

@@ -32,6 +32,8 @@
   --danger-bg: #fdecea;
   --warn: #9a4a00;
   --warn-bg: #ffefe0;
+  --people: #7a5300;
+  --people-bg: #fff1c2;
   --success: #17703a;
   --success-bg: #e5f4ea;
   --info: #1a66c9;
@@ -94,6 +96,8 @@
     --danger-bg: #3d1b1b;
     --warn: #f7b57a;
     --warn-bg: #3a2614;
+    --people: #f5d06b;
+    --people-bg: #3a3010;
     --success: #7fd39a;
     --success-bg: #143222;
     --info: #8dbbf5;
@@ -142,6 +146,8 @@
   --danger-bg: #3d1b1b;
   --warn: #f7b57a;
   --warn-bg: #3a2614;
+  --people: #f5d06b;
+  --people-bg: #3a3010;
   --success: #7fd39a;
   --success-bg: #143222;
   --info: #8dbbf5;
@@ -1962,6 +1968,12 @@ details.block > summary {
 .block.block--hint {
   background: var(--info-bg);
   box-shadow: none;
+}
+
+/* «Об этом сказали N человек»: жёлтый чип рядом со статусом */
+.badge--people {
+  background: var(--people-bg);
+  color: var(--people);
 }
 
 /* фокус с клавиатуры у переключателя — кольцо, а не только смена заливки */
