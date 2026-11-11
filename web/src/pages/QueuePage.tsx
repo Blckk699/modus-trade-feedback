@@ -10,6 +10,7 @@ import { timeLeftLabel } from '../appeals/timeLeft';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 type Scope = Schemas['AppealScope'];
 type Status = Schemas['AppealStatus'];
@@ -194,10 +195,9 @@ export function QueuePage() {
         </div>
       )}
       {s.status === 'ready' && s.data.total === 0 && (
-        <div className="notice">
-          <p>Обращений нет.</p>
-          <p className="muted">Измените фильтры или загляните позже.</p>
-        </div>
+        <EmptyState icon="search" title="Обращений нет">
+          Измените фильтры или загляните позже.
+        </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (
         <>
