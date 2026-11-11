@@ -2150,15 +2150,32 @@ button.vote__option:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* свой голос: плитка залита цветом варианта, значок — сплошной */
-.vote__option--mine.vote__option--for,
-.vote__option--mine.vote__option--for:hover:not(:disabled) {
-  background: var(--success-bg);
+/* плитки тонированы цветом варианта: покой 8%, наведение 13%, свой голос 22% и сплошной значок */
+.vote__option--for {
+  --vote-tone: var(--success);
 }
 
+.vote__option--against {
+  --vote-tone: var(--danger);
+}
+
+.vote__option--for,
+.vote__option--against {
+  background: color-mix(in srgb, var(--vote-tone) 8%, var(--surface));
+}
+
+button.vote__option--for:hover:not(:disabled),
+button.vote__option--against:hover:not(:disabled),
+button.vote__option--for:focus-visible,
+button.vote__option--against:focus-visible {
+  background: color-mix(in srgb, var(--vote-tone) 13%, var(--surface));
+}
+
+.vote__option--mine.vote__option--for,
 .vote__option--mine.vote__option--against,
-.vote__option--mine.vote__option--against:hover:not(:disabled) {
-  background: var(--danger-bg);
+button.vote__option--mine.vote__option--for:hover:not(:disabled),
+button.vote__option--mine.vote__option--against:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vote-tone) 22%, var(--surface));
 }
 
 .vote__option--mine.vote__option--for .vote__icon {
