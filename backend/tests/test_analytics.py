@@ -199,3 +199,17 @@ async def test_unassigned_queue_is_visible_to_owner(client, login_as, fake_claud
     assert f"В очереди нераспределённых: {before + 1}" in text
     head_text = (await client.get(DIGEST, headers=await login_as(HEAD))).json()["text"]
     assert "нераспределённых" not in head_text
+
+
+async def test_saved_digest_time_beats_environment(client, app, login_as, time_machine) -> None:
+    """B-19: время из system_settings (в сиде 09:00), а не DIGEST_TIME из окружения."""
+    from datetime import time
+
+    app.state.settings.digest_time = time(7, 0)
+    owner = await login_as("owner")
+    await time_machine.travel_to(next_morning(time_machine.now, 6, 58))
+    await time_machine.advance(minutes=20, step=timedelta(minutes=1))
+    assert await digests(client, owner) == []
+    await time_machine.travel_to(next_morning(time_machine.now) - timedelta(minutes=2))
+    await time_machine.advance(minutes=10, step=timedelta(minutes=1))
+    assert len(await digests(client, owner)) == 1
