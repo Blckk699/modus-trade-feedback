@@ -2369,3 +2369,13 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
 button.vote__option:hover:not(:disabled) .vote__pct {
   color: var(--text);
 }
+
+/* табы раздела отделены от списка под ними заметнее, чем строки списка друг от друга */
+.page > .segmented {
+  margin-bottom: 8px;
+}
+
+/* фокус поля комментария — кольцо вокруг всей формы (у самого поля outline снят) */
+.comment-form__box:focus-within {
+  box-shadow: var(--focus-ring);
+}
