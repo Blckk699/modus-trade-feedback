@@ -1013,10 +1013,17 @@ textarea.input {
   color: var(--primary);
 }
 
+/* ---------- переключатель: дорожка-подложка, внутри прозрачные пункты, выбранный — тёмно-синий.
+   Подложка — полупрозрачный тон поверх того, что под ней, поэтому видна и на фоне страницы, и на белой карточке. */
 .segmented {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 6px;
+  justify-self: start;
+  align-self: start;
+  gap: 2px;
+  padding: 4px;
+  border-radius: calc(var(--radius-md) + 4px);
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
 }
 
 .segmented__item input {
@@ -1027,10 +1034,10 @@ textarea.input {
 
 .segmented__item span {
   display: inline-block;
-  padding: 8px 14px;
-  border: 1px solid transparent;
+  padding: 7px 14px;
+  border: 0;
   border-radius: var(--radius-md);
-  background: var(--field-bg);
+  background: transparent;
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
@@ -1038,17 +1045,17 @@ textarea.input {
 }
 
 .segmented__item:hover input:not(:checked) + span {
-  background: var(--field-bg-hover);
+  background: color-mix(in srgb, var(--heading) 7%, transparent);
+  color: var(--heading);
 }
 
 .segmented__item input:checked + span {
   background: var(--primary);
-  border-color: var(--primary);
   color: var(--primary-text);
 }
 
 .segmented__item input:focus-visible:not(:checked) + span {
-  background: var(--field-bg-focus);
+  background: color-mix(in srgb, var(--heading) 12%, transparent);
   color: var(--heading);
 }
 
