@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Me, Session } from '../api/types';
+import type { Unregistered } from './types';
 import { authMethods } from './methods';
 import { tokenStore } from './tokenStore';
 
@@ -9,7 +10,8 @@ type AuthState =
   | { status: 'loading' }
   | { status: 'anonymous'; notice?: string }
   | { status: 'error'; message: string }
-  | { status: 'authenticated'; me: Me };
+  | { status: 'authenticated'; me: Me }
+  | { status: 'unregistered'; who: Unregistered };
 
 interface AuthContextValue {
   state: AuthState;
@@ -19,6 +21,10 @@ interface AuthContextValue {
   failLogin: (error: unknown) => void;
   logout: () => Promise<void>;
   retry: () => void;
+  /** Незнакомый аккаунт: перейти к заявке на доступ. */
+  needAccess: (who: Unregistered) => void;
+  /** Войти теми же данными Telegram (после одобрения заявки). */
+  loginAs: (who: Unregistered) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,7 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
         } catch (e) {
-          if (!cancelled) failLogin(e);
+          if (cancelled) return;
+          const who = e instanceof ApiError && e.code === 'user_not_registered' ? m.identity?.() : null;
+          if (who) setState({ status: 'unregistered', who });
+          else failLogin(e);
           return;
         }
       }
@@ -110,8 +119,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
+  const needAccess = useCallback((who: Unregistered) => setState({ status: 'unregistered', who }), []);
+
+  const loginAs = useCallback(
+    async (who: Unregistered) => {
+      const { telegram_login: login, init_data: initData } = who.identity;
+      const session = login
+        ? await unwrap(api.POST('/api/v1/auth/telegram/widget', { body: login }))
+        : await unwrap(api.POST('/api/v1/auth/telegram/mini-app', { body: { init_data: initData ?? '' } }));
+      acceptSession(session);
+    },
+    [acceptSession],
+  );
+
   return (
-    <AuthContext.Provider value={{ state, acceptSession, failLogin, logout, retry }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ state, acceptSession, failLogin, logout, retry, needAccess, loginAs }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

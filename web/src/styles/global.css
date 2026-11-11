@@ -1972,6 +1972,29 @@ details.block > summary {
   border: 0;
 }
 
+/* ---------- заявки и приглашения (W-12) */
+.form--plain {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.invite-links {
+  gap: 8px;
+}
+
+.invite-links__row {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .invite-links__row {
+    grid-template-columns: 1fr;
+  }
+}
 /* ---------- пустой список: без карточки, всё по центру */
 .empty {
   display: grid;

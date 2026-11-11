@@ -3,7 +3,7 @@ import { authMethods } from './methods';
 import { BrandLogo } from '../app/BrandLogo';
 
 export function LoginScreen() {
-  const { state, acceptSession, failLogin } = useAuth();
+  const { state, acceptSession, failLogin, needAccess } = useAuth();
   const notice = state.status === 'anonymous' ? state.notice : undefined;
   const methods = authMethods.filter((m) => m.LoginButton && m.isAvailable());
 
@@ -23,7 +23,7 @@ export function LoginScreen() {
         )}
         {methods.map((m) => {
           const Button = m.LoginButton!;
-          return <Button key={m.id} onSession={acceptSession} onError={failLogin} />;
+          return <Button key={m.id} onSession={acceptSession} onError={failLogin} onUnregistered={needAccess} />;
         })}
       </div>
     </main>

@@ -10,6 +10,7 @@ const none: Permissions = {
   analytics_scope: 'none',
   can_upload_meetings: false,
   can_manage_settings: false,
+  can_manage_access: false,
   can_view_unassigned: false,
 };
 
