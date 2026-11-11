@@ -8,6 +8,7 @@ import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { formatDate } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 type Item = Schemas['AppealListItem'];
 const PAGE_SIZE = 20;
@@ -47,9 +48,12 @@ export function MyAppealsPage() {
     <section className="page">
       <div className="page__head">
         <h1 className="page__title sr-only">Мои обращения</h1>
-        <Link to="/my/new" className="btn btn--accent">
-          Подать обращение
-        </Link>
+        {/* В пустом списке кнопка стоит в центре, под подсказкой. */}
+        {!(s.status === 'ready' && s.data.total === 0) && (
+          <Link to="/my/new" className="btn btn--accent">
+            Подать обращение
+          </Link>
+        )}
       </div>
 
       {s.status === 'loading' && <p className="muted">Загружаем…</p>}
@@ -62,10 +66,17 @@ export function MyAppealsPage() {
         </div>
       )}
       {s.status === 'ready' && s.data.total === 0 && (
-        <div className="notice">
-          <p>Вы ещё не подавали обращений.</p>
-          <p className="muted">Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.</p>
-        </div>
+        <EmptyState
+          icon="inbox"
+          title="Вы ещё не подавали обращений"
+          action={
+            <Link to="/my/new" className="btn btn--accent">
+              Подать обращение
+            </Link>
+          }
+        >
+          Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.
+        </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (
         <>

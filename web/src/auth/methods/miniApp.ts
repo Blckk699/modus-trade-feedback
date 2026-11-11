@@ -1,6 +1,7 @@
 import { api, unwrap } from '../../api/client';
 import type { Session } from '../../api/types';
 import { getWebApp } from '../../telegram/webApp';
+import type { AuthMethod, Unregistered } from '../types';
 
 /** Профиль из initData (поле user — JSON). Только для подстановки имени в заявку; подпись проверяет бэкенд. */
 function profileFromInitData(initData: string): { name: string; username: string | null } {
@@ -12,7 +13,6 @@ function profileFromInitData(initData: string): { name: string; username: string
     return { name: '', username: null };
   }
 }
-import type { AuthMethod, Unregistered } from '../types';
 
 /**
  * Вход Mini App (T-06): подписанные initData Telegram → POST /api/v1/auth/telegram/mini-app.

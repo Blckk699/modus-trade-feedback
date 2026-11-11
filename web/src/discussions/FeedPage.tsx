@@ -7,6 +7,7 @@ import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { storage } from '../storage';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { EmptyState } from '../app/EmptyState';
 
 type Tab = 'open' | 'closed' | 'implemented';
 const TAB_KEY = 'modus.feed.tab';
@@ -57,9 +58,11 @@ function DiscussionList({ status }: { status: 'open' | 'closed' }) {
   if (s.status === 'error') return <p className="error-text">{s.message}</p>;
   if (s.data.items.length === 0) {
     return (
-      <div className="notice">
-        {status === 'open' ? 'Сейчас нет открытых обсуждений.' : 'Завершённых обсуждений пока нет.'}
-      </div>
+      <EmptyState icon="chat" title={status === 'open' ? 'Сейчас нет открытых обсуждений' : 'Завершённых обсуждений пока нет'}>
+        {status === 'open'
+          ? 'Когда ответственный вынесет предложение на общее обсуждение, оно появится здесь.'
+          : 'Здесь будут обсуждения с подведённым итогом.'}
+      </EmptyState>
     );
   }
   return (
@@ -99,7 +102,13 @@ function ImplementedList() {
   const s = list.state;
   if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
   if (s.status === 'error') return <p className="error-text">{s.message}</p>;
-  if (s.data.items.length === 0) return <div className="notice">Реализованных улучшений пока нет.</div>;
+  if (s.data.items.length === 0) {
+    return (
+      <EmptyState icon="done" title="Реализованных улучшений пока нет">
+        Сюда попадают предложения сотрудников, которые компания воплотила.
+      </EmptyState>
+    );
+  }
   return (
     <ul className="feed">
       {s.data.items.map((f) => (

@@ -119,7 +119,12 @@ function RegisteredBlock({ who, loginAs }: { who: Unregistered; loginAs: (w: Unr
             setBusy(true);
             setError('');
             loginAs(who).catch((e) => {
-              setError(errorMessage(e));
+              // Подписанные данные Telegram живут недолго: если заявку одобрили позже, нужен свежий вход.
+              setError(
+                e instanceof ApiError && e.status === 401
+                  ? 'Данные входа устарели. Нажмите «Войти другим аккаунтом» и войдите через Telegram заново.'
+                  : errorMessage(e),
+              );
               setBusy(false);
             });
           }}
