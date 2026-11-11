@@ -93,12 +93,19 @@ class BotHarness:
         self.dp = build_dispatcher(self.api, self.settings)
         self._update_ids = itertools.count(1)
 
-    async def send_text(self, text: str, user_id: int = 100000004, first_name: str = "Айгерим") -> None:
+    async def send_text(
+        self,
+        text: str,
+        user_id: int = 100000004,
+        first_name: str = "Айгерим",
+        last_name: str | None = None,
+        username: str | None = None,
+    ) -> None:
         message = Message(
             message_id=next(self._update_ids),
             date=datetime.now(),
             chat=Chat(id=user_id, type="private"),
-            from_user=User(id=user_id, is_bot=False, first_name=first_name),
+            from_user=User(id=user_id, is_bot=False, first_name=first_name, last_name=last_name, username=username),
             text=text,
             entities=_command_entity(text),
         )

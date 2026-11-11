@@ -108,3 +108,62 @@ VOICE_DOWNLOAD_FAILED = "Не удалось получить голосовое
 # ---- сводка (T-05)
 BTN_OPEN_ANALYTICS = "Открыть аналитику"
 DIGEST_UNAVAILABLE = "Сводка доступна руководителям подразделений и собственнику."
+
+# ---- заявка на доступ и приглашение (T-09)
+BTN_REQUEST_ACCESS = "Подать заявку"
+BTN_REQUEST_AGAIN = "Подать заявку снова"
+BTN_EDIT_REQUEST = "Изменить заявку"
+BTN_SKIP = "Пропустить"
+BTN_NO_DEPARTMENT = "Не знаю / другое"
+
+REQUEST_INTRO = (
+    "Вас пока нет в списке сотрудников «Модус Трейд».\n\n"
+    "Подайте заявку на доступ: администратор проверит её, а решение придёт сюда."
+)
+ASK_DEPARTMENT = "В каком подразделении вы работаете?"
+ASK_COMMENT = "Напишите должность или короткий комментарий для администратора. Или нажмите «Пропустить»."
+NAME_INVALID = "Имя должно быть от 1 до 120 символов. Напишите имя и фамилию одним сообщением."
+COMMENT_TOO_LONG = "Комментарий длиннее 500 символов. Напишите покороче."
+CHOOSE_DEPARTMENT = "Выберите подразделение кнопкой под вопросом."
+ALREADY_REGISTERED = "Вы уже зарегистрированы. Нажмите /start, чтобы открыть меню."
+INVITE_INVALID = (
+    "Приглашение недействительно: истёк срок, его отозвали или оно уже использовано.\n\n"
+    "Можно подать заявку на доступ — администратор рассмотрит её."
+)
+
+
+def ask_name(default_name: str) -> str:
+    return (
+        "Как вас записать? Напишите имя и фамилию одним сообщением"
+        + (f" или нажмите «Оставить: {default_name}»." if default_name else ".")
+    )
+
+
+def keep_name_button(name: str) -> str:
+    short = name if len(name) <= 40 else name[:39] + "…"
+    return f"Оставить: {short}"
+
+
+def request_sent(updated: bool) -> str:
+    head = "Заявка обновлена." if updated else "Заявка отправлена."
+    return head + " Администратор рассмотрит её, решение придёт сюда."
+
+
+def request_pending(full_name: str, department: str | None, created: str) -> str:
+    lines = ["Ваша заявка на доступ на рассмотрении.", "", f"Имя: {full_name}"]
+    if department:
+        lines.append(f"Подразделение: {department}")
+    lines.append(f"Подана: {created}")
+    lines += ["", "Решение придёт сюда. Можно поправить заявку, пока её не рассмотрели."]
+    return "\n".join(lines)
+
+
+def request_rejected(reason: str | None) -> str:
+    text = "Ваша заявка на доступ отклонена."
+    if reason:
+        text += f"\nПричина: {reason}"
+    return text + "\n\nМожно подать заявку снова."
+ACCESS_DISABLED = "Доступ отключён. Обратитесь к администратору."
+BTN_OPEN_ACCESS_REQUESTS = "Открыть заявки"
+ALREADY_IN = "Доступ уже открыт. Выберите действие в меню ниже."
+FORM_NEEDS_TEXT = "Ответьте, пожалуйста, текстом — заявка ещё не отправлена."

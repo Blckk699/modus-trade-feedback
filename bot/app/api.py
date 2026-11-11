@@ -143,6 +143,36 @@ class Api:
         path = f"/api/v1/discussions/{discussion_id}/name-consent"
         return await self.request("POST", path, telegram_id=telegram_id, json={"show_name": show_name})
 
+    # ---- заявка на доступ и приглашение: незнакомый аккаунт, опознание заголовками бота
+
+    async def access_departments(self) -> list[dict[str, Any]]:
+        return await self.request("GET", "/api/v1/access-requests/departments")
+
+    async def access_status(self, telegram_id: int) -> dict[str, Any]:
+        return await self.request("POST", "/api/v1/access-requests/mine", telegram_id=telegram_id, json={})
+
+    async def submit_access_request(
+        self,
+        telegram_id: int,
+        full_name: str,
+        department_id: int | None,
+        comment: str | None,
+        telegram_username: str | None,
+    ) -> dict[str, Any]:
+        body = {
+            "full_name": full_name,
+            "department_id": department_id,
+            "comment": comment,
+            "telegram_username": telegram_username,
+        }
+        return await self.request("POST", "/api/v1/access-requests", telegram_id=telegram_id, json=body)
+
+    async def accept_invite(
+        self, telegram_id: int, token: str, full_name: str | None, telegram_username: str | None
+    ) -> dict[str, Any]:
+        body = {"token": token, "full_name": full_name, "telegram_username": telegram_username}
+        return await self.request("POST", "/api/v1/invites/accept", telegram_id=telegram_id, json=body)
+
     # ---- очередь уведомлений: только сервисный ключ
 
     async def pending_notifications(self, limit: int = 50) -> list[dict[str, Any]]:

@@ -22,16 +22,27 @@ from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyKeyboardMarkup,
+    WebAppInfo,
+)
 
-from app import texts
+from app import keyboards, texts
 from app.api import Api, ApiError
 from app.config import Settings
+from app.registration import RegCb
 
 log = logging.getLogger(__name__)
 
 APPEAL_KEY = "reply_appeal_id"
 NUMBER_KEY = "reply_appeal_number"
+
+
+ACCESS_REQUESTS_PATH = "/settings/access-requests"
 
 
 class NotifCb(CallbackData, prefix="n"):
@@ -61,6 +72,8 @@ def notification_keyboard(notification: dict[str, Any], settings: Settings) -> I
             url = settings.mini_app_link(f"/discussions/{button['discussion_id']}")
         elif kind == "open_analytics":
             url = settings.mini_app_link("/analytics")
+        elif kind == "open_access_requests":
+            url = settings.mini_app_link(notification.get("path") or ACCESS_REQUESTS_PATH)
         elif kind == "reply_clarification" and button.get("appeal_id"):
             data = NotifCb(action="reply", appeal_id=button["appeal_id"], number=number)
             rows.append([InlineKeyboardButton(text=text, callback_data=data.pack())])
@@ -90,7 +103,25 @@ def notification_keyboard(notification: dict[str, Any], settings: Settings) -> I
     if appeal and not has_open_button and settings.mini_app_url:
         url = settings.mini_app_link(f"/appeals/{appeal['id']}")
         rows.append([InlineKeyboardButton(text=texts.BTN_OPEN_APPEAL, web_app=WebAppInfo(url=url))])
+    # Новая заявка на доступ ведёт на экран заявок, даже если бэкенд не прислал кнопку.
+    if notification.get("kind") == "access_request_created" and not has_open_button and settings.mini_app_url:
+        url = settings.mini_app_link(notification.get("path") or ACCESS_REQUESTS_PATH)
+        rows.append([InlineKeyboardButton(text=texts.BTN_OPEN_ACCESS_REQUESTS, web_app=WebAppInfo(url=url))])
+    # Отказ по заявке: человек ещё не сотрудник, предлагаем подать заявку снова прямо из уведомления.
+    if notification.get("kind") == "access_request_rejected":
+        data = RegCb(action="start").pack()
+        rows.append([InlineKeyboardButton(text=texts.BTN_REQUEST_AGAIN, callback_data=data)])
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+
+async def approved_menu(api: Api, settings: Settings, telegram_id: int) -> ReplyKeyboardMarkup | None:
+    """После одобрения заявки — меню роли под уведомлением. Нет ответа /me — уведомление уходит без меню."""
+    try:
+        me = await api.me(telegram_id)
+    except ApiError as exc:
+        log.warning("menu for approved user unavailable: %s", exc)
+        return None
+    return keyboards.main_menu(me, settings.mini_app_url)
 
 
 async def deliver(bot: Bot, api: Api, settings: Settings, notification: dict[str, Any]) -> bool:
@@ -98,6 +129,8 @@ async def deliver(bot: Bot, api: Api, settings: Settings, notification: dict[str
     nid = notification["id"]
     chat_id = notification["recipient"]["telegram_id"]
     markup = notification_keyboard(notification, settings)
+    if markup is None and notification.get("kind") == "access_request_approved":
+        markup = await approved_menu(api, settings, chat_id)
     try:
         try:
             sent = await bot.send_message(chat_id=chat_id, text=notification["text"], reply_markup=markup)
