@@ -33,6 +33,9 @@ services:
       # Caddy ходит к API из сети qazmap_default — доверяем X-Forwarded-For только от неё.
       TRUSTED_PROXIES: 127.0.0.1,::1,172.18.0.0/16
       SEED_ACCOUNTS_FILE: /run/modus/seed-accounts.json
+      # Ссылки-приглашения: диплинк бота и адрес веба.
+      TELEGRAM_BOT_USERNAME: modus_fb_bot
+      PUBLIC_WEB_URL: https://modus.systm.kz
     volumes:
       - ./seed:/run/modus:ro
     depends_on:
