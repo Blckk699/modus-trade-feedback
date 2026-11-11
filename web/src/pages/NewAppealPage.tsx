@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
@@ -211,6 +211,9 @@ export function NewAppealPage() {
 
 function CreatedPanel({ appeal, failedFiles }: Created) {
   const due = appeal.first_response_due_at;
+  // После подачи фокус на заголовке: диктор объявит результат, а не «тело страницы».
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => title.current?.focus(), []);
   return (
     <section className="page created">
       <div className="upload-modal__top" role="status">
@@ -220,7 +223,9 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
           </svg>
         </span>
         <div className="upload-modal__head">
-          <h1 className="upload-modal__title">Обращение {appeal.number} подано</h1>
+          <h1 ref={title} tabIndex={-1} className="upload-modal__title">
+            Обращение {appeal.number} подано
+          </h1>
           <p className="muted">{due ? `Первый ответ придёт до ${formatDateTime(due)}.` : 'Статусы будут приходить в бот и сюда.'}</p>
         </div>
       </div>
@@ -250,10 +255,10 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
       )}
 
       <div className="created__actions">
-        <Link to="/my" className="btn btn--soft">
+        <Link to="/my" replace className="btn btn--soft">
           К моим обращениям
         </Link>
-        <Link to={`/appeals/${appeal.id}`} className="btn">
+        <Link to={`/appeals/${appeal.id}`} replace className="btn">
           Открыть обращение
         </Link>
       </div>

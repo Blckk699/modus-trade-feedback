@@ -102,10 +102,9 @@ export function MyAppealsPage() {
 
 function AppealRow({ item }: { item: Item }) {
   const dict = useDictionaries();
-  const location = useLocation();
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/my', background: location }} className="appeal-row">
+      <Link to={`/appeals/${item.id}`} state={{ from: '/my' }} className="appeal-row">
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}

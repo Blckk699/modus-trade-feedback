@@ -2581,3 +2581,8 @@ input[type='checkbox']:not(.switch):disabled {
   }
 }
 
+/* заголовок получает фокус программно — без рамки, это не элемент управления */
+.created .upload-modal__title:focus {
+  outline: none;
+}
+

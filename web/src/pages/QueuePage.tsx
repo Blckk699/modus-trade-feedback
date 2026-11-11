@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Me, Schemas } from '../api/types';
@@ -223,12 +223,11 @@ export function QueuePage() {
 
 function QueueRow({ item, now }: { item: Item; now: Date }) {
   const dict = useDictionaries();
-  const location = useLocation();
   const overdue = item.due_state === 'overdue';
   const waitingAnswer = item.first_response_due_at && item.due_state !== 'answered' && item.due_state !== 'no_deadline';
   return (
     <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/queue', background: location }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
+      <Link to={`/appeals/${item.id}`} state={{ from: '/queue' }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
         <div className="appeal-row__top">
           <span className="appeal-row__number">{item.number}</span>
           {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}
