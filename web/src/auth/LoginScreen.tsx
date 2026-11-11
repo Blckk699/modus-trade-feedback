@@ -1,5 +1,6 @@
 import { useAuth } from './AuthProvider';
 import { authMethods } from './methods';
+import { BrandLogo } from '../app/BrandLogo';
 
 export function LoginScreen() {
   const { state, acceptSession, failLogin } = useAuth();
@@ -8,8 +9,8 @@ export function LoginScreen() {
 
   return (
     <main className="login">
+      <BrandLogo className="login__logo" />
       <div className="login__card">
-        <span className="brand-mark">Модус Трейд</span>
         <h1 className="login__title">Обращения и предложения</h1>
         <p className="muted">Войдите через Telegram, чтобы подать обращение или посмотреть свои.</p>
         {notice && (

@@ -71,7 +71,7 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
               e.target.value = '';
             }}
           />
-          <span className="btn btn--ghost">{busy ? 'Загружаем…' : 'Приложить файл'}</span>
+          <span className="btn btn--soft">{busy ? 'Загружаем…' : 'Приложить файл'}</span>
         </label>
       )}
       {error && <p className="error-text">{error}</p>}

@@ -3,6 +3,7 @@ import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Category, type Department, type User } from './shared';
+import { Select } from '../app/Select';
 
 function loadAll() {
   return Promise.all([
@@ -156,7 +157,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
 
   const personSelect = (value: string, set: (v: string) => void, empty: string, field: string) => (
     <>
-      <select className="input" value={value} onChange={(e) => set(e.target.value)} aria-invalid={!!errors[field]}>
+      <Select value={value} onChange={(e) => set(e.target.value)} aria-invalid={!!errors[field]}>
         <option value="">{empty}</option>
         {people.map((u) => (
           <option key={u.id} value={u.id}>
@@ -165,7 +166,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
             {u.is_absent ? ' (отсутствует)' : ''}
           </option>
         ))}
-      </select>
+      </Select>
       {errors[field] && <span className="field__hint error-text">{errors[field]}</span>}
     </>
   );
@@ -180,14 +181,14 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
         </label>
         <label className="field">
           <span className="field__label">Подразделение</span>
-          <select className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
+          <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
             <option value="">Выберите…</option>
             {[...departments].sort(byName).map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
           {errors.department_id && <span className="field__hint error-text">{errors.department_id}</span>}
         </label>
         <label className="field">

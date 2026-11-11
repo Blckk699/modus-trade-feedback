@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { useDictionaries } from '../app/dictionaries';
 import { formatDate, formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { storage } from '../storage';
+import { useReloadOnCardClose } from '../app/cardClosed';
 
 type Tab = 'open' | 'closed' | 'implemented';
 const TAB_KEY = 'modus.feed.tab';
@@ -49,6 +50,8 @@ function DiscussionList({ status }: { status: 'open' | 'closed' }) {
     () => unwrap(api.GET('/api/v1/discussions', { params: { query: { status, page_size: 50 } } })),
     [status],
   );
+  useReloadOnCardClose(list.reload);
+  const location = useLocation();
   const s = list.state;
   if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
   if (s.status === 'error') return <p className="error-text">{s.message}</p>;
@@ -63,7 +66,7 @@ function DiscussionList({ status }: { status: 'open' | 'closed' }) {
     <ul className="appeal-list">
       {s.data.items.map((d) => (
         <li key={d.id}>
-          <Link to={`/discussions/${d.id}`} className="appeal-row">
+          <Link to={`/discussions/${d.id}`} state={{ background: location }} className="appeal-row">
             <div className="appeal-row__top">
               <span className="muted">
                 {dict.typeLabel(d.appeal.type)} · {d.author_display}

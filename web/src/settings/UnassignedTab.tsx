@@ -7,6 +7,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, type User } from './shared';
+import { Select } from '../app/Select';
 
 type Item = Schemas['AppealListItem'];
 
@@ -112,7 +113,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
         <div className="settings-grid">
           <label className="field">
             <span className="field__label">Ответственный</span>
-            <select className="input" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+            <Select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
               <option value="">Выберите…</option>
               {people.map((u) => (
                 <option key={u.id} value={u.id}>
@@ -121,7 +122,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
                   {u.is_absent ? ' (отсутствует)' : ''}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label className="field">
             <span className="field__label">Причина</span>

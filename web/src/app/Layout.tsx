@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { BrandLogo } from './BrandLogo';
 import { useAuth, useMe } from '../auth';
 import { useDictionaries } from './dictionaries';
 import { buildNav } from './navigation';
@@ -18,7 +19,15 @@ export function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="topbar__brand brand-mark">Модус Трейд · Обращения</span>
+        <BrandLogo className="topbar__brand" />
+        <nav className="mainnav" aria-label="Разделы">
+          {nav.map((item) => (
+            <NavLink key={item.id} to={item.path} className="mainnav__link">
+              <span className="mainnav__label">{item.label}</span>
+              <span className="mainnav__short">{item.short}</span>
+            </NavLink>
+          ))}
+        </nav>
         <div className="topbar__user">
           <span className="topbar__name">{me.full_name}</span>
           <span className="muted topbar__role">
@@ -44,14 +53,6 @@ export function Layout() {
           Выйти
         </button>
       </header>
-      <nav className="sidenav" aria-label="Разделы">
-        {nav.map((item) => (
-          <NavLink key={item.id} to={item.path} className="sidenav__link">
-            <span className="sidenav__label">{item.label}</span>
-            <span className="sidenav__short">{item.short}</span>
-          </NavLink>
-        ))}
-      </nav>
       <main className="content">
         <Outlet />
       </main>
