@@ -15,7 +15,8 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
-    channel: process.env.E2E_CHANNEL ?? 'chrome',
+    // Без установленного Chrome: E2E_CHANNEL=chromium и один раз `npx playwright install chromium`.
+    channel: process.env.E2E_CHANNEL === 'chromium' ? undefined : (process.env.E2E_CHANNEL ?? 'chrome'),
     locale: 'ru-RU',
     timezoneId: 'Asia/Almaty',
     trace: 'retain-on-failure',
