@@ -1,36 +1,66 @@
-import type { ThemeParams, WebApp } from './webApp';
+import type { WebApp } from './webApp';
 
 /**
- * Переменные темы веба (styles/global.css) ← цвета Telegram. Не заданный Telegram цвет остаётся из CSS.
- * Берём у Telegram только фон, текст, подсказки, разделители и ссылки — Mini App выглядит продолжением чата.
- * Фирменная красная кнопка (--accent), primary, статусы и danger/warn/success остаются нашими
- * и переключаются по colorScheme через data-theme (design/README.md, раздел про Mini App).
+ * Mini App рисуется нашими токенами без перекраски под тему Telegram: выглядит так же, как мобильный веб.
+ * Светлая или тёмная — по той же логике, что в вебе (useTheme: системная тема или выбор пользователя).
+ * Telegram только подкрашивает свою рамку вокруг приложения нашими цветами текущей темы,
+ * чтобы шапка и нижняя полоса Telegram не отличались от нашей шапки и фона (design/README.md, раздел про Mini App).
  */
-const MAPPING: [cssVar: string, key: keyof ThemeParams][] = [
-  ['--bg', 'secondary_bg_color'],
-  ['--surface', 'bg_color'],
-  ['--surface-2', 'secondary_bg_color'],
-  ['--text', 'text_color'],
-  ['--muted', 'hint_color'],
-  ['--border', 'section_separator_color'],
-  ['--link', 'link_color'],
-];
 
-export function themeVariables(params: ThemeParams): Record<string, string> {
-  const vars: Record<string, string> = {};
-  for (const [cssVar, key] of MAPPING) {
-    const value = params[key];
-    if (value) vars[cssVar] = value;
-  }
-  return vars;
+export interface FrameColors {
+  /** Шапка Telegram — как наша шапка (--surface). */
+  header?: string;
+  /** Фон под приложением — как фон страницы (--bg). */
+  background?: string;
+  /** Нижняя полоса Telegram — как наша нижняя панель разделов (--surface). */
+  bottomBar?: string;
 }
 
-/** Применить тему Telegram к <html>: inline-стиль сильнее правил :root и [data-theme]. */
-export function applyTelegramTheme(webApp: WebApp, root: HTMLElement = document.documentElement): void {
-  for (const [cssVar, value] of Object.entries(themeVariables(webApp.themeParams))) {
-    root.style.setProperty(cssVar, value);
-  }
-  root.style.setProperty('color-scheme', webApp.colorScheme);
-  root.setAttribute('data-theme', webApp.colorScheme);
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Цвета рамки из CSS-переменных текущей темы. Telegram принимает только '#RRGGBB' — остальное пропускаем. */
+export function frameColors(readVar: (name: string) => string): FrameColors {
+  const pick = (name: string) => {
+    const value = readVar(name).trim();
+    return HEX.test(value) ? value.toLowerCase() : undefined;
+  };
+  const surface = pick('--surface');
+  return { header: surface, background: pick('--bg'), bottomBar: surface };
+}
+
+/** Метод доступен в этой версии Telegram: старые клиенты пишут предупреждение в консоль вместо вызова. */
+function supports(webApp: WebApp, version: string): boolean {
+  return webApp.isVersionAtLeast ? webApp.isVersionAtLeast(version) : true;
+}
+
+/**
+ * Покрасить рамку Telegram цветами нашей текущей темы. Только читает переменные (readVar)
+ * и вызывает методы Telegram — наши CSS-переменные и data-theme не трогает.
+ */
+export function syncTelegramFrame(webApp: WebApp, readVar: (name: string) => string): void {
+  const c = frameColors(readVar);
+  if (c.header && webApp.setHeaderColor && supports(webApp, '6.9')) webApp.setHeaderColor(c.header);
+  if (c.background && webApp.setBackgroundColor && supports(webApp, '6.1')) webApp.setBackgroundColor(c.background);
+  if (c.bottomBar && webApp.setBottomBarColor && supports(webApp, '7.10')) webApp.setBottomBarColor(c.bottomBar);
+}
+
+/**
+ * Держать рамку Telegram в цвет нашей темы: сейчас и при каждой смене — пользователь переключил тему
+ * (data-theme на <html>) или сменилась системная тема (prefers-color-scheme). Возвращает отписку.
+ */
+export function watchTelegramFrame(webApp: WebApp, root: HTMLElement = document.documentElement): () => void {
   root.setAttribute('data-telegram', webApp.platform || 'unknown');
+  const sync = () => {
+    const style = getComputedStyle(root);
+    syncTelegramFrame(webApp, (name) => style.getPropertyValue(name));
+  };
+  sync();
+  const observer = new MutationObserver(sync);
+  observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+  const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+  media?.addEventListener('change', sync);
+  return () => {
+    observer.disconnect();
+    media?.removeEventListener('change', sync);
+  };
 }

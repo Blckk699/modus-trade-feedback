@@ -42,8 +42,16 @@ export interface WebApp {
   platform: string;
   colorScheme: 'light' | 'dark';
   themeParams: ThemeParams;
+  version?: string;
   ready(): void;
   expand(): void;
+  isVersionAtLeast?(version: string): boolean;
+  /** Цвет шапки Telegram над приложением: '#RRGGBB' с версии 6.9. */
+  setHeaderColor?(color: string): void;
+  /** Фон под приложением (виден при оттягивании): '#RRGGBB' с версии 6.1. */
+  setBackgroundColor?(color: string): void;
+  /** Нижняя полоса Telegram под приложением: с версии 7.10. */
+  setBottomBarColor?(color: string): void;
   onEvent(event: 'themeChanged', cb: () => void): void;
   offEvent(event: 'themeChanged', cb: () => void): void;
   BackButton: BackButton;

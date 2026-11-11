@@ -1213,11 +1213,6 @@ textarea.input {
   }
 }
 
-/* В Mini App цвета задаёт Telegram (src/telegram), переключатель темы там не нужен. */
-[data-telegram] .theme-toggle {
-  display: none;
-}
-
 /* ---------- очередь и действия (W-03) */
 .page--wide {
   max-width: var(--container);

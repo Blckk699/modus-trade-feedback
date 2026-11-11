@@ -2,13 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { pathFromStartParam } from './startParam';
-import { applyTelegramTheme } from './theme';
+import { watchTelegramFrame } from './theme';
 import { getWebApp } from './webApp';
 
 /**
  * Оболочка Mini App (T-06). Вне Telegram ничего не делает и ничего не рисует.
  * - ready() и expand(): Telegram убирает заглушку загрузки и раскрывает окно на всю высоту;
- * - тема: переменные CSS из themeParams, обновляются по themeChanged;
+ * - тема: наши токены без перекраски под Telegram (как мобильный веб); рамку Telegram (шапка, фон,
+ *   нижняя полоса) красим цветами нашей текущей темы и перекрашиваем при её смене;
  * - кнопка «Назад» Telegram: видна, когда есть куда вернуться внутри приложения, ведёт на шаг назад;
  * - ссылка из бота (start_param): открывает нужный экран, например appeals_21 → /appeals/21.
  * Экраны остаются за пачкой фронта: оболочка работает через роутер и не знает о них.
@@ -22,12 +23,10 @@ export function MiniAppShell() {
 
   useEffect(() => {
     if (!webApp) return;
-    const theme = () => applyTelegramTheme(webApp);
-    theme();
-    webApp.onEvent('themeChanged', theme);
+    const stop = watchTelegramFrame(webApp);
     webApp.ready();
     webApp.expand();
-    return () => webApp.offEvent('themeChanged', theme);
+    return stop;
   }, [webApp]);
 
   // Ссылка из бота: один раз при открытии, пока идёт вход. Так маршрут уже на месте, когда AuthGate
