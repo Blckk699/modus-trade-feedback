@@ -174,7 +174,7 @@ function Votes({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated
         </span>
       </div>
 
-      <div className="vote__options" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
+      <div className="vote__options" role="group" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
         {options.map((o) => {
           const mine = d.my_vote === o.value;
           const body = (
@@ -305,7 +305,7 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || busy) return;
     setBusy(true);
     setError('');
     try {

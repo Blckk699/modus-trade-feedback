@@ -2095,10 +2095,8 @@ button.vote__option {
   cursor: pointer;
 }
 
-button.vote__option:hover:not(:disabled),
-button.vote__option:focus-visible {
+button.vote__option:hover:not(:disabled) {
   background: var(--field-bg-focus);
-  box-shadow: none;
 }
 
 .vote__option:disabled {
@@ -2165,9 +2163,7 @@ button.vote__option:focus-visible {
 }
 
 button.vote__option--for:hover:not(:disabled),
-button.vote__option--against:hover:not(:disabled),
-button.vote__option--for:focus-visible,
-button.vote__option--against:focus-visible {
+button.vote__option--against:hover:not(:disabled) {
   background: color-mix(in srgb, var(--vote-tone) 13%, var(--surface));
 }
 
