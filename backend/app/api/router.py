@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter
 
+from app.access import router as access
 from app.admin import router as admin
 from app.analytics import router as analytics
 from app.api import dictionaries, health
@@ -33,6 +34,7 @@ api_router.include_router(directory.router)
 api_router.include_router(discussions.router)
 api_router.include_router(notifications.router)
 api_router.include_router(admin.router)
+api_router.include_router(access.router)
 api_router.include_router(analytics.router)
 api_router.include_router(drafts.router)
 api_router.include_router(meetings.router)

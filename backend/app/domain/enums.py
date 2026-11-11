@@ -144,3 +144,6 @@ class NotificationKind(StrEnum):
     NAME_CONSENT_REQUEST = "name_consent_request"
     DISCUSSION_CLOSED = "discussion_closed"
     DIGEST = "digest"
+    ACCESS_REQUEST_CREATED = "access_request_created"
+    ACCESS_REQUEST_APPROVED = "access_request_approved"
+    ACCESS_REQUEST_REJECTED = "access_request_rejected"

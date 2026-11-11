@@ -54,7 +54,7 @@ def _local(moment: datetime | None, tz) -> str:
 
 def add(
     session: AsyncSession,
-    user_id: int,
+    user_id: int | None,
     kind: NotificationKind,
     text: str,
     now: datetime,
@@ -62,9 +62,12 @@ def add(
     appeal: Appeal | None = None,
     path: str | None = None,
     buttons: list[dict] | None = None,
+    telegram_id: int | None = None,
 ) -> Notification:
+    """Уведомление пользователю `user_id` или, если его ещё нет в системе, Telegram-аккаунту `telegram_id`."""
     notification = Notification(
         user_id=user_id,
+        telegram_id=telegram_id,
         kind=kind,
         text=text,
         appeal_id=appeal.id if appeal else None,

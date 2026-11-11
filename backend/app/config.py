@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     login_code_max_failures_per_ip: int = 5
     login_code_failure_window_seconds: int = 900
     login_code_burn_after_failures: int = 30
+    # Заявки на доступ и приглашения (B-18): не больше N подач с одного Telegram-аккаунта за окно.
+    access_request_max_per_window: int = 5
+    access_request_window_seconds: int = 3600
+    # Ссылки приглашений: диплинк бота и страница веба.
+    telegram_bot_username: str = "modus_feedback_bot"
+    public_web_url: str = "http://localhost:5173"
     # Кому верить в X-Forwarded-For (Caddy). Через запятую, можно подсети.
     trusted_proxies: str = "127.0.0.1,::1"
 
