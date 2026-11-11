@@ -164,6 +164,133 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/access-requests/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Подразделения для формы заявки (без входа)
+         * @description Короткий список для выбора подразделения незнакомым аккаунтом. Сессия не нужна.
+         */
+        get: operations["listAccessDepartments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подать или обновить заявку на доступ
+         * @description Вызывает незнакомый системе Telegram-аккаунт. Кто он, бэкенд узнаёт одним из трёх способов:
+         *     - **бот** — заголовки `X-Service-Key` и `X-Telegram-Id`, имя из профиля в `full_name`, ник в `telegram_username`;
+         *     - **Mini App** — `init_data` (`Telegram.WebApp.initData` без изменений);
+         *     - **веб** — `telegram_login`, поля колбэка Telegram Login как есть.
+         *
+         *     Ровно один способ, иначе `401 unauthorized` (ни одного) или `422 validation_error` (оба поля сразу).
+         *     У аккаунта одна заявка `pending`: повторная подача её обновляет (`200`), новая — `201`.
+         *     После отказа можно подать новую. Уже заведённый пользователь — `409 already_registered`,
+         *     отключённый — `403 user_disabled`. Не больше 5 подач с аккаунта в час — `429 too_many_requests`.
+         *
+         */
+        post: operations["submitAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/access-requests/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Состояние доступа и своей заявки
+         * @description Что показать незнакомому аккаунту: форму заявки, «на рассмотрении», отказ с причиной или вход.
+         *     Опознание такое же, как при подаче: бот — заголовки и пустое тело `{}`, Mini App — `init_data`, веб — `telegram_login`.
+         *     `request` — последняя заявка аккаунта или `null`.
+         *
+         */
+        post: operations["getMyAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Что за приглашение (без входа)
+         * @description Для страницы `/invite/<токен>` в вебе до входа. Недействительное — `410 invite_invalid`.
+         *     Больше 10 недействительных токенов с одного адреса за 15 минут — `429 too_many_requests` (защита от перебора).
+         *
+         */
+        get: operations["getInvitePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invites/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Принять приглашение
+         * @description Опознание как у заявки: бот (`/start inv_<токен>`) — заголовки `X-Service-Key` и `X-Telegram-Id`,
+         *     Mini App — `init_data`, веб (`/invite/<токен>`) — `telegram_login`.
+         *
+         *     - Незнакомый аккаунт и действующее приглашение — пользователь создаётся с ролью и подразделением
+         *       из приглашения, `created=true`. Имя: из приглашения, иначе `full_name`, иначе из профиля Telegram.
+         *     - Уже заведённый пользователь — ничего не меняется, `created=false`, приглашение не расходуется.
+         *     - Отключённый — `403 user_disabled`.
+         *     - Просроченное, отозванное или исчерпанное приглашение — `410 invite_invalid` (предложить заявку).
+         *     - Больше 10 недействительных токенов за 15 минут с одного адреса (у бота — с одного Telegram ID) — `429 too_many_requests`.
+         *
+         *     `session` — сессия для Mini App и веба (как у `/auth/*`). Боту сессия не нужна, ему `session=null`.
+         *
+         */
+        post: operations["acceptInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -1366,6 +1493,125 @@ export interface paths {
         patch: operations["adminUpdateSettings"];
         trace?: never;
     };
+    "/api/v1/admin/access-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Заявки на доступ
+         * @description Администратор и собственник (`Me.permissions.can_manage_access`), остальным — `403`. Новые первыми.
+         */
+        get: operations["listAccessRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/access-requests/{request_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["AccessRequestId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Одобрить заявку — создаёт пользователя
+         * @description Администратор и собственник. Роль по умолчанию `employee`, `owner` не выдаётся (`422`).
+         *     Подразделение по умолчанию — выбранное в заявке. Заявителю уходит уведомление `access_request_approved`.
+         *     Заявка уже решена или Telegram ID уже заведён — `409 conflict`.
+         *
+         */
+        post: operations["approveAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/access-requests/{request_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["AccessRequestId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отклонить заявку
+         * @description Администратор и собственник. Причина необязательна, заявитель увидит её в уведомлении
+         *     `access_request_rejected` и в `POST /access-requests/mine`. Заявка уже решена — `409 conflict`.
+         *
+         */
+        post: operations["rejectAccessRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Приглашения
+         * @description Администратор и собственник, остальным — `403`. Все приглашения, новые первыми; `include_inactive=false`
+         *     оставляет только действующие. Токена в списке нет — он показывается один раз при создании.
+         *
+         */
+        get: operations["listInvites"];
+        put?: never;
+        /**
+         * Создать приглашение
+         * @description Администратор и собственник. Роль кроме `owner`, срок по умолчанию 7 дней, использований по умолчанию 1.
+         *     `token`, `bot_link` и `web_link` есть только в этом ответе: в базе хранится хеш токена.
+         *
+         */
+        post: operations["createInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/invites/{invite_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Отозвать приглашение
+         * @description Администратор и собственник. Повторный отзыв ничего не меняет. Уже созданные по ссылке пользователи остаются.
+         */
+        post: operations["revokeInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1386,14 +1632,14 @@ export interface components {
         /**
          * @description `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 ·
          *     `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
-         *     `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
+         *     `not_found` 404 · `conflict` 409 · `already_registered` 409 · `invite_invalid` 410 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
          *     `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
          *     `too_many_requests` 429 ·
          *     `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
          *
          * @enum {string}
          */
-        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "not_found" | "conflict" | "invalid_transition" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
+        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
         /**
          * @description employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
          * @enum {string}
@@ -1454,13 +1700,16 @@ export interface components {
          *     clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке;
          *     deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил;
          *     appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение;
-         *     discussion_closed — автору: итог обсуждения; digest — утренняя сводка
+         *     discussion_closed — автору: итог обсуждения; digest — утренняя сводка;
+         *     access_request_created — администраторам и собственнику: новая заявка на доступ (`path=/settings/access-requests`);
+         *     access_request_approved — заявителю: доступ открыт, бот показывает меню и вход;
+         *     access_request_rejected — заявителю: отказ с причиной (у получателя нет `user_id`)
          *
          * @enum {string}
          */
-        NotificationKind: "appeal_assigned" | "appeal_created" | "status_changed" | "clarification_requested" | "clarification_answered" | "message_received" | "deadline_reminder" | "escalation_head" | "appeal_merged" | "name_consent_request" | "discussion_closed" | "digest";
+        NotificationKind: "appeal_assigned" | "appeal_created" | "status_changed" | "clarification_requested" | "clarification_answered" | "message_received" | "deadline_reminder" | "escalation_head" | "appeal_merged" | "name_consent_request" | "discussion_closed" | "digest" | "access_request_created" | "access_request_approved" | "access_request_rejected";
         /** @enum {string} */
-        NotificationButtonType: "open_appeal" | "open_analytics" | "open_discussion" | "reply_clarification" | "name_consent_show" | "name_consent_hide";
+        NotificationButtonType: "open_appeal" | "open_analytics" | "open_discussion" | "reply_clarification" | "name_consent_show" | "name_consent_hide" | "open_access_requests";
         DepartmentRef: {
             id: number;
             name: string;
@@ -1541,6 +1790,8 @@ export interface components {
             can_upload_meetings: boolean;
             can_manage_settings: boolean;
             can_view_unassigned: boolean;
+            /** @description Заявки на доступ и приглашения — администратор и собственник */
+            can_manage_access: boolean;
         };
         Me: components["schemas"]["User"] & {
             /** @description Категории, где пользователь — ответственный */
@@ -1973,6 +2224,8 @@ export interface components {
             overdue: components["schemas"]["StuckAppeal"][];
             /** @description Нагрузка по ответственным в выборке (история 53), по убыванию открытых */
             assignee_load: components["schemas"]["AssigneeLoad"][];
+            /** @description Открытых обращений без ответственного в выборке */
+            unassigned_count: number;
         };
         AssigneeLoad: {
             assignee: components["schemas"]["UserBrief"];
@@ -2021,7 +2274,8 @@ export interface components {
         };
         BotNotification: components["schemas"]["Notification"] & {
             recipient: {
-                user_id: number;
+                /** @description `null` — получатель ещё не пользователь (отказ по заявке на доступ) */
+                user_id: number | null;
                 /** Format: int64 */
                 telegram_id: number;
             };
@@ -2035,6 +2289,156 @@ export interface components {
             all?: boolean;
             appeal_id?: number;
             ids?: number[];
+        };
+        /**
+         * @description Роль, которую можно выдать по заявке или приглашению — любая, кроме `owner`
+         * @enum {string}
+         */
+        AssignableRole: "employee" | "head" | "admin";
+        /**
+         * @description pending — на рассмотрении, approved — одобрена, rejected — отклонена
+         * @enum {string}
+         */
+        AccessRequestStatus: "pending" | "approved" | "rejected";
+        /** @description Кто обращается без сессии. Бот передаёт заголовки `X-Service-Key` и `X-Telegram-Id` и пустое тело;
+         *     Mini App — `init_data`; веб — `telegram_login`. Указать можно только одно из двух полей.
+         *      */
+        TelegramIdentity: {
+            /** @description `Telegram.WebApp.initData` без изменений */
+            init_data?: string;
+            telegram_login?: components["schemas"]["TelegramWidgetLoginRequest"];
+        };
+        AccessRequestSubmit: components["schemas"]["TelegramIdentity"] & {
+            /** @description По умолчанию клиент подставляет имя из профиля Telegram */
+            full_name: string;
+            /** @description Из `GET /access-requests/departments` */
+            department_id?: number | null;
+            /** @description Должность или комментарий */
+            comment?: string | null;
+            /** @description Только бот (ник из профиля). Mini App и веб — ник берётся из подписанных данных */
+            telegram_username?: string | null;
+        };
+        AccessRequest: {
+            id: number;
+            status: components["schemas"]["AccessRequestStatus"];
+            full_name: string;
+            telegram_username: string | null;
+            /** @description Подразделение, которое выбрал заявитель */
+            department: components["schemas"]["DepartmentRef"] | null;
+            comment: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /**
+             * @description Роль, выданная при одобрении
+             * @enum {string|null}
+             */
+            assigned_role: "employee" | "head" | "admin" | null;
+            /** @description Подразделение, назначенное при одобрении */
+            assigned_department: components["schemas"]["DepartmentRef"] | null;
+            decided_by: components["schemas"]["UserBrief"] | null;
+            /** Format: date-time */
+            decided_at: string | null;
+            reject_reason: string | null;
+            /** @description Созданный пользователь (после одобрения) */
+            user_id: number | null;
+        };
+        AccessRequestPage: {
+            items: components["schemas"]["AccessRequest"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        AccessStatus: {
+            /**
+             * @description none — заявки нет, показать форму; pending — на рассмотрении; rejected — последняя заявка отклонена
+             *     (можно подать новую); registered — пользователь заведён, нужно войти; disabled — доступ отключён
+             *
+             * @enum {string}
+             */
+            state: "none" | "pending" | "rejected" | "registered" | "disabled";
+            /** @description Последняя заявка аккаунта */
+            request: components["schemas"]["AccessRequest"] | null;
+        };
+        AccessRequestApprove: {
+            /** @default employee */
+            role: components["schemas"]["AssignableRole"];
+            /** @description Не передано — подразделение из заявки */
+            department_id?: number | null;
+            /** @description Не передано — имя из заявки */
+            full_name?: string;
+            position?: string | null;
+        };
+        AccessRequestReject: {
+            reason?: string | null;
+        };
+        /**
+         * @description active — действует; expired — истёк срок; revoked — отозвано; exhausted — использования кончились
+         * @enum {string}
+         */
+        InviteState: "active" | "expired" | "revoked" | "exhausted";
+        Invite: {
+            id: number;
+            state: components["schemas"]["InviteState"];
+            role: components["schemas"]["AssignableRole"];
+            department: components["schemas"]["DepartmentRef"] | null;
+            full_name: string | null;
+            created_by: components["schemas"]["UserBrief"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            max_uses: number;
+            used_count: number;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        InviteCreate: {
+            role: components["schemas"]["AssignableRole"];
+            department_id?: number | null;
+            /** @description Имя нового сотрудника; не задано — из профиля Telegram */
+            full_name?: string | null;
+            /** @default 7 */
+            expires_in_days: number;
+            /** @default 1 */
+            max_uses: number;
+        };
+        InviteCreated: components["schemas"]["Invite"] & {
+            /** @description Показывается один раз, в базе — только хеш */
+            token: string;
+            /** @description `https://t.me/<бот>?start=inv_<токен>` */
+            bot_link: string;
+            /** @description `https://<домен>/invite/<токен>` */
+            web_link: string;
+        };
+        InvitePreview: {
+            role: components["schemas"]["AssignableRole"];
+            department: components["schemas"]["DepartmentRef"] | null;
+            full_name: string | null;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        InviteAccept: components["schemas"]["TelegramIdentity"] & {
+            token: string;
+            /** @description Имя, если его нет в приглашении (бот — из профиля Telegram) */
+            full_name?: string | null;
+            /** @description Только бот */
+            telegram_username?: string | null;
+        };
+        SessionToken: {
+            access_token: string;
+            /** @enum {string} */
+            token_type: "bearer";
+            /** Format: date-time */
+            expires_at: string;
+        };
+        InviteAccepted: {
+            /** @description true — пользователь создан по приглашению; false — уже был, ничего не изменилось */
+            created: boolean;
+            user: components["schemas"]["Me"];
+            /** @description Для Mini App и веба; боту — `null` */
+            session: components["schemas"]["SessionToken"] | null;
         };
     };
     responses: {
@@ -2076,6 +2480,42 @@ export interface components {
         };
         /** @description Dev-вход выключен настройкой окружения */
         DevLoginDisabled: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Доступ пользователя отключён (`user_disabled`) */
+        UserDisabled: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Этот Telegram-аккаунт уже есть в системе — нужно просто войти (`already_registered`) */
+        AlreadyRegistered: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Слишком часто (`too_many_requests`) */
+        TooManyRequests: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Приглашение просрочено, отозвано, исчерпано или не существует (`invite_invalid`) */
+        InviteInvalid: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2171,6 +2611,7 @@ export interface components {
         MeetingId: number;
         MeetingDraftId: number;
         NotificationId: number;
+        AccessRequestId: number;
         Page: number;
         PageSize: number;
     };
@@ -2374,6 +2815,154 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    listAccessDepartments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Подразделения */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentRef"][];
+                };
+            };
+        };
+    };
+    submitAccessRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessRequestSubmit"];
+            };
+        };
+        responses: {
+            /** @description Заявка на рассмотрении обновлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            /** @description Заявка подана */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            /** @description Нет данных Telegram (`unauthorized`) или подпись не прошла проверку (`invalid_telegram_auth`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["UserDisabled"];
+            409: components["responses"]["AlreadyRegistered"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getMyAccessRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "init_data": "query_id=AAH...&user=%7B%22id%22%3A100000021%7D&auth_date=1794300000&hash=3f2a..."
+                 *     } */
+                "application/json": components["schemas"]["TelegramIdentity"];
+            };
+        };
+        responses: {
+            /** @description Состояние доступа */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessStatus"];
+                };
+            };
+            401: components["responses"]["InvalidTelegramAuth"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    getInvitePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Приглашение действует */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            410: components["responses"]["InviteInvalid"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    acceptInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteAccept"];
+            };
+        };
+        responses: {
+            /** @description Доступ есть */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteAccepted"];
+                };
+            };
+            401: components["responses"]["InvalidTelegramAuth"];
+            403: components["responses"]["UserDisabled"];
+            410: components["responses"]["InviteInvalid"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getMe: {
@@ -3122,6 +3711,8 @@ export interface operations {
                      * @description ogg/opus из Telegram, mp3, m4a, wav
                      */
                     file: string;
+                    /** @description Длительность в секундах, если клиент её знает (Telegram `voice.duration`); больше 300 — `422 audio_too_long` */
+                    duration_seconds?: number;
                 };
             };
         };
@@ -4206,6 +4797,185 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    listAccessRequests: {
+        parameters: {
+            query?: {
+                /** @description Без параметра — все заявки */
+                status?: components["schemas"]["AccessRequestStatus"];
+                page?: components["parameters"]["Page"];
+                page_size?: components["parameters"]["PageSize"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Страница заявок */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequestPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    approveAccessRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["AccessRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "role": "employee",
+                 *       "department_id": 3
+                 *     } */
+                "application/json": components["schemas"]["AccessRequestApprove"];
+            };
+        };
+        responses: {
+            /** @description Заявка одобрена, `user_id` — созданный пользователь */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    rejectAccessRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: components["parameters"]["AccessRequestId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "reason": "Подрядчикам доступ не выдаём, обратитесь к руководителю проекта"
+                 *     } */
+                "application/json": components["schemas"]["AccessRequestReject"];
+            };
+        };
+        responses: {
+            /** @description Заявка отклонена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessRequest"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    listInvites: {
+        parameters: {
+            query?: {
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Приглашения */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "role": "employee",
+                 *       "department_id": 3,
+                 *       "full_name": "Сергей Ким",
+                 *       "expires_in_days": 7,
+                 *       "max_uses": 1
+                 *     } */
+                "application/json": components["schemas"]["InviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Приглашение создано */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteCreated"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    revokeInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Приглашение отозвано */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invite"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
