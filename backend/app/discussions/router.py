@@ -21,6 +21,7 @@ from app.api.schemas import CategoryRef, DepartmentRef, UserBrief
 from app.appeals import policy, service
 from app.appeals.history import record
 from app.appeals.views import Directory, Extras, facts
+from app.clock import LocalDatetime
 from app.domain.enums import (
     AppealAction,
     AppealStatus,
@@ -74,7 +75,7 @@ class DiscussionOut(BaseModel):
     id: int
     appeal: DiscussionAppeal
     public_text: str
-    deadline: datetime
+    deadline: LocalDatetime
     status: DiscussionStatus
     author_name_consent: NameConsent
     author_display: str
@@ -85,8 +86,8 @@ class DiscussionOut(BaseModel):
     comments_count: int
     outcome: str | None
     created_by: UserBrief
-    created_at: datetime
-    closed_at: datetime | None
+    created_at: LocalDatetime
+    closed_at: LocalDatetime | None
     can_vote: bool
     can_close: bool
     can_set_name_consent: bool
@@ -104,7 +105,7 @@ class DiscussionCommentOut(BaseModel):
     discussion_id: int
     author: UserBrief
     text: str
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class FeedItem(BaseModel):
@@ -116,7 +117,7 @@ class FeedItem(BaseModel):
     public_summary: str
     result: str
     author_display: str
-    implemented_at: datetime
+    implemented_at: LocalDatetime
     discussion_id: int | None
 
 

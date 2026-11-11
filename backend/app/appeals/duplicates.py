@@ -21,6 +21,7 @@ from app.appeals import policy, service
 from app.appeals.history import record
 from app.appeals.schemas import AppealOut, AppealRef
 from app.appeals.views import Directory, Extras, appeal_out, appeal_ref, facts
+from app.clock import LocalDatetime
 from app.domain.enums import AppealAction, AppealStatus, AppealType, ClosedReason, HistoryKind
 from app.errors import AppError, Forbidden, NotFound
 from app.jobs.registry import JobContext, registry
@@ -50,7 +51,7 @@ class DuplicateSuggestionOut(BaseModel):
     similar_appeal: AppealRef
     explanation: str
     can_merge: bool
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 def _candidate_text(appeal: Appeal) -> str:

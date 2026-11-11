@@ -22,6 +22,7 @@ from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import DepartmentRef, UserBrief
 from app.auth import service as auth_service
 from app.auth.me import MeOut, build_me, user_brief
+from app.clock import LocalDatetime
 from app.domain.enums import NotificationKind, Role
 from app.errors import (
     AlreadyRegistered,
@@ -78,12 +79,12 @@ class AccessRequestOut(BaseModel):
     telegram_username: str | None
     department: DepartmentRef | None
     comment: str | None
-    created_at: datetime
-    updated_at: datetime
+    created_at: LocalDatetime
+    updated_at: LocalDatetime
     assigned_role: AssignableRole | None
     assigned_department: DepartmentRef | None
     decided_by: UserBrief | None
-    decided_at: datetime | None
+    decided_at: LocalDatetime | None
     reject_reason: str | None
     user_id: int | None
 
@@ -118,11 +119,11 @@ class InviteOut(BaseModel):
     department: DepartmentRef | None
     full_name: str | None
     created_by: UserBrief
-    created_at: datetime
-    expires_at: datetime
+    created_at: LocalDatetime
+    expires_at: LocalDatetime
     max_uses: int
     used_count: int
-    revoked_at: datetime | None
+    revoked_at: LocalDatetime | None
 
 
 class InviteCreate(BaseModel):
@@ -143,7 +144,7 @@ class InvitePreview(BaseModel):
     role: AssignableRole
     department: DepartmentRef | None
     full_name: str | None
-    expires_at: datetime
+    expires_at: LocalDatetime
 
 
 class InviteAccept(TelegramIdentityIn):
@@ -155,7 +156,7 @@ class InviteAccept(TelegramIdentityIn):
 class SessionToken(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
-    expires_at: datetime
+    expires_at: LocalDatetime
 
 
 class InviteAccepted(BaseModel):

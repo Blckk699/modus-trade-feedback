@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Response
@@ -12,6 +12,7 @@ from sqlalchemy import and_, func, or_, select, update
 from app.api.deps import BotKeyDep, ClockDep, CurrentUserDep, SessionDep
 from app.appeals.schemas import AppealRef
 from app.appeals.views import appeal_ref
+from app.clock import LocalDatetime
 from app.errors import NotFound
 from app.models import Appeal, Notification, User
 
@@ -39,7 +40,7 @@ class NotificationOut(BaseModel):
     path: str | None
     buttons: list[NotificationButton]
     is_read: bool
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class NotificationPage(BaseModel):

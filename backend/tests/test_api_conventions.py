@@ -98,3 +98,18 @@ async def test_requests_carry_user_token_or_bot_service_key(app: FastAPI, client
 
     bot_without_user = await client.get(url, headers={"X-Service-Key": "test-service-key"})
     assert bot_without_user.status_code == 401
+
+
+async def test_times_in_responses_carry_the_system_offset(client, login_as) -> None:
+    """Контракт: сервер отдаёт время со смещением +05:00, и у созданного в запросе, и у прочитанного из базы."""
+    headers = await login_as("employee_sales")
+    created = await client.post(
+        "/api/v1/appeals", headers=headers, json={"type": "problem", "category_id": 1, "priority": "medium", "text": "Проверка времени"}
+    )
+    body = created.json()
+    for value in (body["created_at"], body["first_response_due_at"]):
+        assert value.endswith("+05:00"), value
+    listed = (await client.get("/api/v1/appeals", headers=headers, params={"scope": "mine"})).json()["items"]
+    assert all(item["created_at"].endswith("+05:00") for item in listed)
+    history = (await client.get(f"/api/v1/appeals/{body['id']}/history", headers=headers)).json()
+    assert all(event["created_at"].endswith("+05:00") for event in history)
