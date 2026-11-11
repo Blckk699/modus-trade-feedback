@@ -1,0 +1,291 @@
+<title>Модус Трейд: стиль интерфейса</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Montserrat:wght@600;700&family=JetBrains+Mono:wght@500&display=swap&subset=cyrillic">
+<style>
+/* Layout: колонка 1040px; разделы — палитра, шрифты, компоненты; токены = design/tokens.json */
+:root{
+  --bg:#F4F7FB;--surface:#FFFFFF;--surface-2:#EFF6FD;--text:#323A47;--heading:#082742;--muted:#5A6A82;
+  --border:#D1D5DD;--border-input:#848FA0;--primary:#082742;--primary-hover:#0E3A61;--on-primary:#FFFFFF;
+  --accent:#E40000;--accent-hover:#CC0000;--on-accent:#FFFFFF;--link:#1A66C9;--focus:#2F80ED;
+  --danger:#B3261E;--danger-bg:#FDECEA;--warn:#9A4A00;--warn-bg:#FFEFE0;--success:#17703A;--success-bg:#E5F4EA;--info:#1A66C9;--info-bg:#E6F0FC;
+  --s-new:#1A62C4;--s-new-bg:#E6F0FC;--s-review:#082742;--s-review-bg:#E3EAF2;--s-await:#9A4A00;--s-await-bg:#FFEFE0;
+  --s-work:#5A3DB8;--s-work-bg:#EEE9FB;--s-done:#17703A;--s-done-bg:#E5F4EA;--s-rej:#B3261E;--s-rej-bg:#FDECEA;--s-closed:#4F5B6B;--s-closed-bg:#EDEFF2;
+  --shadow-sm:0 1px 2px #0827420F;--shadow-md:0 4px 20px #84838833;
+  --r-sm:4px;--r-md:8px;--r-lg:10px;--r-xl:16px;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-head:"Montserrat","Manrope",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#071521;--surface:#0D2236;--surface-2:#142D45;--text:#E6ECF2;--heading:#FFFFFF;--muted:#9AABBF;
+  --border:#23405C;--border-input:#5A7EA3;--primary:#8CB8E6;--primary-hover:#A9CBEF;--on-primary:#082742;
+  --accent:#E40000;--accent-hover:#C80000;--on-accent:#FFFFFF;--link:#8DBBF5;--focus:#8DBBF5;
+  --danger:#FF8A80;--danger-bg:#3D1B1B;--warn:#F7B57A;--warn-bg:#3A2614;--success:#7FD39A;--success-bg:#143222;--info:#8DBBF5;--info-bg:#12304F;
+  --s-new:#8DBBF5;--s-new-bg:#12304F;--s-review:#C9D6E6;--s-review-bg:#1C3047;--s-await:#F7B57A;--s-await-bg:#3A2614;
+  --s-work:#B9A6F5;--s-work-bg:#2A2148;--s-done:#7FD39A;--s-done-bg:#143222;--s-rej:#FF9B92;--s-rej-bg:#3D1B1B;--s-closed:#A9B4C2;--s-closed-bg:#222C38;
+  --shadow-sm:0 0 0 transparent;--shadow-md:0 4px 20px #00000066;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#071521;--surface:#0D2236;--surface-2:#142D45;--text:#E6ECF2;--heading:#FFFFFF;--muted:#9AABBF;
+  --border:#23405C;--border-input:#5A7EA3;--primary:#8CB8E6;--primary-hover:#A9CBEF;--on-primary:#082742;
+  --accent:#E40000;--accent-hover:#C80000;--on-accent:#FFFFFF;--link:#8DBBF5;--focus:#8DBBF5;
+  --danger:#FF8A80;--danger-bg:#3D1B1B;--warn:#F7B57A;--warn-bg:#3A2614;--success:#7FD39A;--success-bg:#143222;--info:#8DBBF5;--info-bg:#12304F;
+  --s-new:#8DBBF5;--s-new-bg:#12304F;--s-review:#C9D6E6;--s-review-bg:#1C3047;--s-await:#F7B57A;--s-await-bg:#3A2614;
+  --s-work:#B9A6F5;--s-work-bg:#2A2148;--s-done:#7FD39A;--s-done-bg:#143222;--s-rej:#FF9B92;--s-rej-bg:#3D1B1B;--s-closed:#A9B4C2;--s-closed-bg:#222C38;
+  --shadow-sm:0 0 0 transparent;--shadow-md:0 4px 20px #00000066;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:500 16px/1.5 var(--f-body)}
+.wrap{max-width:1040px;margin:0 auto;padding-block:0 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:48px}
+h1,h2,h3{font-family:var(--f-head);color:var(--heading);margin:0;text-wrap:balance}
+h1{font-size:28px;line-height:1.25}
+h2{font-size:22px;line-height:1.3}
+h3{font-size:18px;line-height:1.35;font-family:var(--f-body);font-weight:600}
+p{margin:0;max-width:65ch}
+.muted{color:var(--muted)}
+a{color:var(--link)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* шапка */
+.top{background:var(--surface);border-bottom:1px solid var(--border)}
+.top .in{max-width:1040px;margin:0 auto;padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mark{width:34px;height:34px;flex:none}
+.word{font:700 15px/1.05 var(--f-head);color:var(--heading);letter-spacing:.02em;text-transform:uppercase}
+.top nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.top nav a{font-weight:600;font-size:14px;color:var(--text);text-decoration:none;padding:6px 10px;border-radius:var(--r-md)}
+.top nav a.on{color:var(--primary);background:var(--surface-2)}
+
+.intro{display:grid;gap:10px;padding-top:40px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:20px}
+.sec-head{display:grid;gap:6px}
+
+/* палитра */
+.pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;display:grid;min-width:0}
+.sw .chip{height:72px;display:flex;align-items:flex-end;padding:8px 10px;font:600 12px/1 var(--f-body)}
+.sw .meta{padding:10px 12px;display:grid;gap:2px;font-size:13px}
+.sw .meta b{font-weight:700;color:var(--heading)}
+.sw code{font:500 12px/1.4 var(--f-mono);color:var(--muted)}
+.sw small{color:var(--muted);font-size:12px;line-height:1.35}
+
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.theme{border-radius:var(--r-lg);padding:16px;display:grid;gap:10px;border:1px solid var(--border)}
+.theme.l{background:#F4F7FB;color:#323A47}
+.theme.d{background:#071521;color:#E6ECF2;border-color:#23405C}
+.theme h3{color:inherit;font-size:15px}
+.rows{display:grid;gap:6px}
+.row{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;font-size:13px}
+.row i{width:24px;height:24px;border-radius:6px;display:block;box-shadow:inset 0 0 0 1px #8883}
+.row code{font:500 12px var(--f-mono);opacity:.85}
+.row em{font-style:normal;font-variant-numeric:tabular-nums;font-size:12px;font-weight:700;padding:1px 6px;border-radius:999px;background:#17703A22}
+
+/* шрифты */
+.type{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden}
+.tr{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:14px 18px;border-top:1px solid var(--border);align-items:baseline}
+.tr:first-child{border-top:0}
+.tr .lab{font-size:12px;color:var(--muted);display:grid}
+.tr .lab code{font:500 12px var(--f-mono)}
+.t-display{font:700 28px/1.25 var(--f-head);color:var(--heading)}
+.t-title{font:700 22px/1.3 var(--f-head);color:var(--heading)}
+.t-sub{font:600 18px/1.35 var(--f-body);color:var(--heading)}
+.t-body{font:500 16px/1.5 var(--f-body)}
+.t-sm{font:500 14px/1.45 var(--f-body);color:var(--muted)}
+.t-cap{font:600 12px/1.35 var(--f-body);letter-spacing:.01em}
+
+/* компоненты */
+.demo{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px;display:grid;gap:12px;transition:box-shadow .15s}
+.card:hover{box-shadow:var(--shadow-md)}
+.card-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.num{font:500 13px var(--f-mono);color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:600 12px/1.35 var(--f-body);white-space:nowrap}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-new{color:var(--s-new);background:var(--s-new-bg)}
+.b-review{color:var(--s-review);background:var(--s-review-bg)}
+.b-await{color:var(--s-await);background:var(--s-await-bg)}
+.b-work{color:var(--s-work);background:var(--s-work-bg)}
+.b-done{color:var(--s-done);background:var(--s-done-bg)}
+.b-rej{color:var(--s-rej);background:var(--s-rej-bg)}
+.b-closed{color:var(--s-closed);background:var(--s-closed-bg)}
+.tag{padding:2px 8px;border-radius:var(--r-md);background:var(--surface-2);font-size:12px;font-weight:600;color:var(--text)}
+.card h3{font-size:18px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px}
+.facts span{display:block;color:var(--muted);font-size:12px}
+.facts b{font-weight:600;color:var(--text)}
+.due-soon b{color:var(--warn)}
+.reply{background:var(--surface-2);border-radius:var(--r-md);padding:10px 12px;font-size:14px;display:grid;gap:2px}
+.reply b{color:var(--heading);font-weight:700;font-size:13px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.unread{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:700 12px/20px var(--f-body);text-align:center}
+
+.btn{min-height:44px;padding:0 18px;border-radius:var(--r-sm);font:600 15px/1.2 var(--f-body);letter-spacing:.01em;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background .15s,border-color .15s}
+.btn-accent{background:var(--accent);color:var(--on-accent)}
+.btn-accent:hover{background:var(--accent-hover)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-outline{background:transparent;color:var(--primary);border-color:var(--border-input)}
+.btn-outline:hover{background:var(--surface-2)}
+.btn-danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn-danger:hover{background:var(--danger-bg)}
+.btn-text{background:transparent;color:var(--link);padding:0 8px}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;display:grid;gap:14px}
+.panel h3{font-size:15px}
+.field{display:grid;gap:6px;font-size:14px;font-weight:600}
+.field input,.field select{min-height:44px;border:1px solid var(--border-input);border-radius:var(--r-sm);padding:0 12px;font:500 15px var(--f-body);background:var(--surface);color:var(--text)}
+.field input:focus{outline:2px solid var(--focus);outline-offset:0;border-color:var(--focus)}
+.err{font-size:13px;color:var(--danger);font-weight:600;display:flex;gap:6px;align-items:center}
+.statuses{display:flex;flex-wrap:wrap;gap:8px}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:var(--r-md);font-size:14px}
+.alert.warn{background:var(--warn-bg);color:var(--warn)}
+.alert.ok{background:var(--success-bg);color:var(--success)}
+.alert svg{flex:none;margin-top:2px}
+
+/* правила */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.rule{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;display:grid;gap:6px;align-content:start}
+.rule b{font-family:var(--f-head);color:var(--heading)}
+.rule p{font-size:14px;color:var(--muted)}
+.tg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tg ul{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--border);padding-top:16px}
+
+@media (max-width:760px){
+  .demo,.themes,.tg{grid-template-columns:1fr}
+  .tr{grid-template-columns:1fr;gap:4px}
+  .facts{grid-template-columns:1fr 1fr}
+  .top nav{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="top"><div class="in">
+  <svg class="mark" viewBox="0 0 40 40" aria-hidden="true"><path d="M5 17.5A15.2 15.2 0 0 1 35 17.5h-5.5a9.8 9.8 0 0 0-19 0z" fill="var(--heading)"/><path d="M5 22.5A15.2 15.2 0 0 0 35 22.5h-5.5a9.8 9.8 0 0 1-19 0z" fill="var(--heading)"/><circle cx="20" cy="20" r="6.2" fill="#ED1111"/><circle cx="22.2" cy="17.8" r="1.8" fill="#FFFFFF"/></svg>
+  <div class="word">Обращения<br><span style="color:var(--muted);font-family:var(--f-body);font-weight:600;font-size:12px;text-transform:none;letter-spacing:0">ГК «Модус Трейд»</span></div>
+  <nav aria-label="Пример навигации"><a class="on" href="#palette">Мои обращения</a><a href="#type">Очередь</a><a href="#components">Реализовано</a></nav>
+</div></header>
+
+<main class="wrap">
+  <div class="intro">
+    <span class="eyebrow">Дизайн-токены · design/tokens.json</span>
+    <h1>Интерфейс в цветах Модус Трейд</h1>
+    <p class="muted">Тёмно-синий и красный взяты из логотипа и CSS сайта modus-trade.kz. Красный используется только для главного действия на экране. Всё остальное держат тёмно-синий и спокойные серо-голубые тона. Знак в шапке — упрощённый набросок в духе логотипа, а не сам логотип.</p>
+  </div>
+
+  <section id="palette">
+    <div class="sec-head"><h2>Фирменная палитра</h2><p class="muted">Источник каждого цвета указан в карточке. Подробности — в design/README.md.</p></div>
+    <div class="pal">
+      <div class="sw"><div class="chip" style="background:#082742;color:#fff">Aa</div><div class="meta"><b>navy.900</b><code>#082742</code><small>Кольцо и надпись логотипа</small></div></div>
+      <div class="sw"><div class="chip" style="background:#E40000;color:#fff">Aa 4.89</div><div class="meta"><b>red.600 · accent</b><code>#E40000</code><small>Ссылки и наведение на сайте</small></div></div>
+      <div class="sw"><div class="chip" style="background:#ED1111;color:#fff">только логотип</div><div class="meta"><b>red.logo</b><code>#ED1111</code><small>«Зрачок» логотипа, кнопки .btn</small></div></div>
+      <div class="sw"><div class="chip" style="background:#323A47;color:#fff">Aa</div><div class="meta"><b>ink.800 · text</b><code>#323A47</code><small>Основной текст сайта</small></div></div>
+      <div class="sw"><div class="chip" style="background:#5A6A82;color:#fff">Aa</div><div class="meta"><b>ink.550 · muted</b><code>#5A6A82</code><small>Затемнённый #64748D сайта</small></div></div>
+      <div class="sw"><div class="chip" style="background:#EFF6FD;color:#082742">Aa</div><div class="meta"><b>navy.50 · surface-2</b><code>#EFF6FD</code><small>Подложка карточек проектов</small></div></div>
+      <div class="sw"><div class="chip" style="background:#1A66C9;color:#fff">Aa</div><div class="meta"><b>blue.600 · link</b><code>#1A66C9</code><small>Из голубого #2F80ED сайта</small></div></div>
+      <div class="sw"><div class="chip" style="background:#D1D5DD;color:#323A47">—</div><div class="meta"><b>ink.200 · border</b><code>#D1D5DD</code><small>Разделители сайта</small></div></div>
+    </div>
+
+    <div class="themes">
+      <div class="theme l">
+        <h3>Светлая тема</h3>
+        <div class="rows">
+          <div class="row"><i style="background:#F4F7FB"></i><span>bg</span><code>#F4F7FB</code></div>
+          <div class="row"><i style="background:#FFFFFF"></i><span>surface</span><code>#FFFFFF</code></div>
+          <div class="row"><i style="background:#323A47"></i><span>text на surface</span><em>11.46</em></div>
+          <div class="row"><i style="background:#5A6A82"></i><span>muted на surface-2</span><em>5.05</em></div>
+          <div class="row"><i style="background:#082742"></i><span>primary · белый текст</span><em>15.23</em></div>
+          <div class="row"><i style="background:#E40000"></i><span>accent · белый текст</span><em>4.89</em></div>
+        </div>
+      </div>
+      <div class="theme d">
+        <h3>Тёмная тема</h3>
+        <div class="rows">
+          <div class="row"><i style="background:#071521"></i><span>bg</span><code>#071521</code></div>
+          <div class="row"><i style="background:#0D2236"></i><span>surface</span><code>#0D2236</code></div>
+          <div class="row"><i style="background:#E6ECF2"></i><span>text на bg</span><em>15.5</em></div>
+          <div class="row"><i style="background:#9AABBF"></i><span>muted на surface-2</span><em>6.0</em></div>
+          <div class="row"><i style="background:#8CB8E6"></i><span>primary · текст #082742</span><em>7.33</em></div>
+          <div class="row"><i style="background:#E40000"></i><span>accent · белый текст</span><em>4.89</em></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="type">
+    <div class="sec-head"><h2>Шрифты</h2><p class="muted">На сайте используются Gilroy (коммерческий) и Montserrat. У нас вместо Gilroy — бесплатный Manrope, Montserrat оставлен. Оба шрифта из Google Fonts и поддерживают кириллицу.</p></div>
+    <div class="type">
+      <div class="tr"><div class="lab">display<code>Montserrat 700 · 28</code></div><div class="t-display">Мои обращения</div></div>
+      <div class="tr"><div class="lab">title<code>Montserrat 700 · 22</code></div><div class="t-title">Очередь отдела логистики</div></div>
+      <div class="tr"><div class="lab">subtitle<code>Manrope 600 · 18</code></div><div class="t-sub">Нет зарядных станций для ТСД на складе</div></div>
+      <div class="tr"><div class="lab">body<code>Manrope 500 · 16/24</code></div><div class="t-body">Сканеры садятся к обеду, кладовщики ждут зарядку по 20 минут. Предлагаю поставить стойку на 12 мест у ворот приёмки.</div></div>
+      <div class="tr"><div class="lab">body-sm<code>Manrope 500 · 14</code></div><div class="t-sm">Склад, Астана · Логистика · подано 9 ноября</div></div>
+      <div class="tr"><div class="lab">caption<code>Manrope 600 · 12</code></div><div class="t-cap">ОТВЕТ ДО 14 НОЯБРЯ</div></div>
+    </div>
+  </section>
+
+  <section id="components">
+    <div class="sec-head"><h2>Карточка обращения и кнопки</h2><p class="muted">Радиусы как на сайте: 4px у кнопок и полей, 10px у карточек. Тень карточки при наведении — та же, что на сайте.</p></div>
+    <div class="demo">
+      <div style="display:grid;gap:16px;min-width:0">
+        <article class="card">
+          <div class="card-top"><span class="num">№ 214</span><span class="badge b-work">В работе</span><span class="tag">Предложение</span><span class="tag">Логистика</span><span style="margin-left:auto" class="unread" aria-label="2 непрочитанных">2</span></div>
+          <h3>Зарядная стойка для ТСД у ворот приёмки</h3>
+          <p class="muted" style="font-size:14px">Сканеры садятся к обеду, кладовщики ждут зарядку по 20 минут. Предлагаю стойку на 12 мест.</p>
+          <div class="reply"><b>Ответ ответственного</b>Согласовано, стойка заказана у поставщика. Монтаж — на следующей неделе.</div>
+          <div class="facts">
+            <div><span>Ответственный</span><b>Руслан Ахметов</b></div>
+            <div class="due-soon"><span>Срок</span><b>14 ноября · 3 дня</b></div>
+            <div><span>Автор</span><b>Склад, Астана</b></div>
+          </div>
+          <div class="actions"><button class="btn btn-accent" type="button">Ответить</button><button class="btn btn-outline" type="button">Сменить статус</button><button class="btn btn-text" type="button">История</button></div>
+        </article>
+
+        <article class="card">
+          <div class="card-top"><span class="num">№ 198</span><span class="badge b-await">Ожидает уточнения</span><span class="tag">Проблема</span><span class="tag">ИТ</span></div>
+          <h3>Не открывается спецификация Avigilon в 1С</h3>
+          <div class="alert warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>Вам задан вопрос: на каком компьютере и в какой базе открываете?</span></div>
+        </article>
+      </div>
+
+      <div style="display:grid;gap:16px;min-width:0">
+        <div class="panel">
+          <h3>Кнопки</h3>
+          <div class="actions"><button class="btn btn-accent" type="button">Подать обращение</button></div>
+          <div class="actions"><button class="btn btn-primary" type="button">Сохранить</button><button class="btn btn-outline" type="button">Отмена</button></div>
+          <div class="actions"><button class="btn btn-danger" type="button">Отклонить</button><button class="btn btn-text" type="button">Подробнее</button></div>
+          <p class="muted" style="font-size:13px">Красная кнопка — одна на экран. Опасное действие оформляется обводкой, а не красной заливкой.</p>
+        </div>
+        <div class="panel">
+          <h3>Поле ввода</h3>
+          <label class="field" for="topic">Кратко, о чём обращение<input id="topic" value="Зарядная стойка для ТСД"></label>
+          <label class="field" for="dept">Подразделение<input id="dept" value="" placeholder="Например, склад Астана" aria-describedby="dept-err"></label>
+          <div class="err" id="dept-err"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Выберите подразделение, чтобы обращение ушло ответственному</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Семь статусов из SPEC</h3>
+      <div class="statuses">
+        <span class="badge b-new">Новое</span><span class="badge b-review">На рассмотрении</span><span class="badge b-await">Ожидает уточнения</span><span class="badge b-work">В работе</span><span class="badge b-done">Реализовано</span><span class="badge b-rej">Отклонено</span><span class="badge b-closed">Закрыто</span>
+      </div>
+      <div class="alert ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span>Контраст текста каждого статуса не ниже 4.5:1 в обеих темах. Всего проверено 94 пары.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Правила</h2></div>
+    <div class="rules">
+      <div class="rule"><b>Красный — один на экран</b><p>#E40000 только для главного действия и счётчика непрочитанного. Выбранное и навигация — тёмно-синие.</p></div>
+      <div class="rule"><b>Ошибка темнее бренда</b><p>danger #B3261E, всегда с иконкой или текстом. Так ошибку не спутать с главной кнопкой.</p></div>
+      <div class="rule"><b>Строгие формы</b><p>Радиусы 4 и 10px, одна мягкая тень, линейные иконки. Как на сайте: инженерно, без мультяшности.</p></div>
+    </div>
+    <div class="tg">
+      <div class="panel"><h3>Mini App: берём у Telegram</h3><ul><li>фон, поверхность, текст, подсказки</li><li>разделители и цвет ссылок</li><li>светлую или тёмную схему</li></ul></div>
+      <div class="panel"><h3>Mini App: остаётся нашим</h3><ul><li>красная главная кнопка (accent), а не button_color Telegram</li><li>цвета статусов, danger, warn, success</li><li>шрифты, радиусы, отступы</li></ul></div>
+    </div>
+  </section>
+
+  <p class="foot">Источники: CSS и логотип сайта modus-trade.kz (снято 11 ноября 2026). Брендбук компании не опубликован, поэтому палитра восстановлена по сайту. Шрифты — Google Fonts (Manrope, Montserrat, JetBrains Mono).</p>
+</main>
