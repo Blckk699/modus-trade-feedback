@@ -1977,18 +1977,23 @@ details.block > summary {
   gap: 8px;
 }
 
+/* в окне: подпись над строкой «поле + Копировать» */
 .invite-links__row {
   display: grid;
-  grid-template-columns: minmax(140px, auto) 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
-@media (max-width: 720px) {
-  .invite-links__row {
-    grid-template-columns: 1fr;
-  }
+.invite-links__row .field__label {
+  grid-column: 1 / -1;
 }
+
+.invite-links .upload-modal__head p {
+  margin: 0;
+}
+
+
 /* ---------- пустой список: без карточки, всё по центру */
 .empty {
   display: grid;
