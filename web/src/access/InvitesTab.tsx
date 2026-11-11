@@ -51,7 +51,7 @@ export function InvitesTab() {
 
       {/* Форма и готовые ссылки — в окне. Ссылки показываются один раз, поэтому окно не закрывается
           случайным кликом мимо, а во время создания не закрывается вовсе. */}
-      <Modal open={open} onClose={close} labelledBy="invite-title" locked={busy} closeOnBackdrop={false}>
+      <Modal open={open} onClose={close} labelledBy="invite-title" locked={busy || created !== null} closeOnBackdrop={false}>
         {open &&
           (created ? (
             <CreatedLinks invite={created} onClose={close} />
