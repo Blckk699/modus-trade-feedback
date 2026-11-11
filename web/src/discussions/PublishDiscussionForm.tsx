@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
+import { useActionModal } from '../appeals/actionModal';
 import { deadlineFromDate, defaultDeadlineDate, todayDate } from './deadline';
 
 type Appeal = Schemas['Appeal'];
@@ -14,6 +15,7 @@ export function PublishDiscussionForm({ appeal, onDone }: { appeal: Appeal; onDo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const canSubmit = Boolean(text.trim() && date);
+  const cancel = useActionModal(busy);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -37,7 +39,9 @@ export function PublishDiscussionForm({ appeal, onDone }: { appeal: Appeal; onDo
 
   return (
     <form className="actions__form" onSubmit={submit}>
-      <h3 className="actions__title">Вынести на общее обсуждение</h3>
+      <h2 id="action-title" className="actions__title">
+        Вынести на общее обсуждение
+      </h2>
       <p className="muted field__hint">
         Обсуждение увидят все сотрудники. Приватная переписка не публикуется. Автора спросят, показывать ли его имя, — без
         согласия будет указано только подразделение.
@@ -50,15 +54,18 @@ export function PublishDiscussionForm({ appeal, onDone }: { appeal: Appeal; onDo
         <span className="field__label">Голосование до</span>
         <input className="input" type="date" value={date} min={todayDate()} onChange={(e) => setDate(e.target.value)} required />
       </label>
-      <div className="form__actions">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="actions__submit">
+        <button type="button" className="btn btn--soft" onClick={cancel} disabled={busy}>
+          Отмена
+        </button>
         <button type="submit" className="btn" disabled={busy || !canSubmit}>
           {busy ? 'Публикуем…' : 'Вынести на обсуждение'}
         </button>
-        {error && (
-          <span className="error-text" role="alert">
-            {error}
-          </span>
-        )}
       </div>
     </form>
   );
