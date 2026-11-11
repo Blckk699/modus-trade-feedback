@@ -26,6 +26,7 @@
 | light | `info` | `surface-2` | #1A66C9 на #EFF6FD | **5.09** | 4.5 |
 | light | `danger` | `danger-bg` | #B3261E на #FDECEA | **5.72** | 4.5 |
 | light | `warn` | `warn-bg` | #9A4A00 на #FFEFE0 | **5.57** | 4.5 |
+| light | `people` | `people-bg` | #7A5300 на #FFF1C2 | **6.07** | 4.5 |
 | light | `success` | `success-bg` | #17703A на #E5F4EA | **5.41** | 4.5 |
 | light | `info` | `info-bg` | #1A66C9 на #E6F0FC | **4.81** | 4.5 |
 | light | `on-accent` | `accent` | #FFFFFF на #E40000 | **4.89** | 4.5 |
@@ -73,6 +74,7 @@
 | dark | `info` | `surface-2` | #8DBBF5 на #142D45 | **7.08** | 4.5 |
 | dark | `danger` | `danger-bg` | #FF8A80 на #3D1B1B | **6.71** | 4.5 |
 | dark | `warn` | `warn-bg` | #F7B57A на #3A2614 | **8.07** | 4.5 |
+| dark | `people` | `people-bg` | #F5D06B на #3A3010 | **8.77** | 4.5 |
 | dark | `success` | `success-bg` | #7FD39A на #143222 | **7.74** | 4.5 |
 | dark | `info` | `info-bg` | #8DBBF5 на #12304F | **6.76** | 4.5 |
 | dark | `on-accent` | `accent` | #FFFFFF на #E40000 | **4.89** | 4.5 |

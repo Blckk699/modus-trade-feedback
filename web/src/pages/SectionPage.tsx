@@ -7,7 +7,7 @@ interface Props {
 export function SectionPage({ title, lead }: Props) {
   return (
     <section className="page">
-      <h1 className="page__title">{title}</h1>
+      <h1 className="page__title sr-only">{title}</h1>
       <p className="muted">{lead}</p>
     </section>
   );

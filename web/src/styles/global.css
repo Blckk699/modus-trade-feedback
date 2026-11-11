@@ -1980,3 +1980,17 @@ details.block > summary {
 .segmented__item input:focus-visible + span {
   box-shadow: var(--focus-ring);
 }
+
+/* Название раздела уже стоит в шапке (активный пункт меню): на разделах заголовок прячем,
+   но оставляем для экранного диктора. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

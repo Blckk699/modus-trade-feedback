@@ -105,7 +105,7 @@ export function MeetingsPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title">Совещания</h1>
+      <h1 className="page__title sr-only">Совещания</h1>
       <p className="muted">
         Загрузите запись встречи: система расшифрует её и предложит черновики обращений с цитатами. Без вашего
         подтверждения обращения не создаются.
