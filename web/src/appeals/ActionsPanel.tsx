@@ -55,7 +55,8 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
           <button
             key={a}
             type="button"
-            className={`btn${i === 0 ? '' : ' btn--soft'}${a === 'reject' ? ' btn--ghost btn--danger' : ''}`}
+            // «Отклонить» — красная обводка; первое действие — основное; остальные — тихие.
+            className={`btn${a === 'reject' ? ' btn--ghost btn--danger' : i === 0 ? '' : ' btn--soft'}`}
             aria-haspopup="dialog"
             onClick={() => setOpen(a)}
           >
