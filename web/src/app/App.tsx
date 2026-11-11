@@ -104,14 +104,6 @@ function AuthGate() {
             />
           )}
           <Route
-            path="/appeals/:id"
-            element={
-              <CardModal label="Обращение">
-                <AppealPage />
-              </CardModal>
-            }
-          />
-          <Route
             path="/discussions/:id"
             element={
               <CardModal label="Обсуждение">
