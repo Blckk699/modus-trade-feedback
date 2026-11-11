@@ -3,6 +3,7 @@ import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
+import { EmptyState } from '../app/EmptyState';
 import { Select } from '../app/Select';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -46,7 +47,11 @@ export function InvitesTab() {
       <h2 className="block__title">Приглашения</h2>
       {s.status === 'loading' && <p className="muted">Загружаем…</p>}
       {s.status === 'error' && <p className="error-text">{s.message}</p>}
-      {s.status === 'ready' && s.data.length === 0 && <p className="muted">Приглашений пока нет.</p>}
+      {s.status === 'ready' && s.data.length === 0 && (
+        <EmptyState icon="inbox" title="Приглашений пока нет">
+          Создайте ссылку выше — по ней человек сразу получит доступ с заданной ролью.
+        </EmptyState>
+      )}
       {s.status === 'ready' && s.data.length > 0 && (
         <ul className="settings-list">
           {s.data.map((inv) => (
