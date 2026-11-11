@@ -2494,3 +2494,90 @@ input[type='checkbox']:not(.switch):disabled {
   margin: 0;
 }
 
+/* ---------- обсуждение: голосование, итог и комментарии в одной карточке с разделителями */
+.discussion__card {
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.discussion .discussion__card > .block {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  padding: 20px;
+}
+
+.discussion__card > .block + .block {
+  border-top: 1px solid color-mix(in srgb, var(--heading) 8%, transparent);
+}
+
+/* разделитель уже есть между частями — у формы комментария своя линия не нужна */
+.discussion__card .comment-form {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+@media (max-width: 720px) {
+  .discussion .discussion__card > .block {
+    padding: 16px;
+  }
+}
+
+/* ---------- обращение подано: галочка с заголовком, факты в заливке, кнопки справа */
+.created {
+  gap: 20px;
+}
+
+.created .upload-modal__head p {
+  margin: 0;
+}
+
+.created__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--field-bg);
+}
+
+.created__facts > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.created__facts dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.created__facts dd {
+  margin: 0;
+  color: var(--heading);
+  font-weight: 600;
+}
+
+.created__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .created__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .created__actions {
+    display: grid;
+  }
+
+  .created__actions .btn:last-child {
+    order: -1;
+  }
+}
+

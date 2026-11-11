@@ -210,35 +210,51 @@ export function NewAppealPage() {
 }
 
 function CreatedPanel({ appeal, failedFiles }: Created) {
+  const due = appeal.first_response_due_at;
   return (
-    <section className="page">
-      <div className="notice notice--success" role="status">
-        <h1 className="page__title">Обращение {appeal.number} подано</h1>
-        <dl className="facts">
+    <section className="page created">
+      <div className="upload-modal__top" role="status">
+        <span className="upload-modal__done" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12.5l4.5 4.5L19 7.5" />
+          </svg>
+        </span>
+        <div className="upload-modal__head">
+          <h1 className="upload-modal__title">Обращение {appeal.number} подано</h1>
+          <p className="muted">{due ? `Первый ответ придёт до ${formatDateTime(due)}.` : 'Статусы будут приходить в бот и сюда.'}</p>
+        </div>
+      </div>
+
+      <dl className="created__facts">
+        <div>
           <dt>Ответственный</dt>
           <dd>{appeal.assignee ? appeal.assignee.full_name : 'Назначит администратор'}</dd>
+        </div>
+        <div>
           <dt>Первый ответ</dt>
-          <dd>{appeal.first_response_due_at ? `до ${formatDateTime(appeal.first_response_due_at)}` : 'Без срока'}</dd>
-        </dl>
-        {failedFiles.length > 0 && (
-          <div className="error-text">
-            Не все файлы загрузились — приложите их из карточки обращения:
-            <ul>
-              {failedFiles.map((f) => (
-                <li key={f.name}>
-                  {f.name}: {f.message}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      <div className="form__actions">
+          <dd>{due ? `до ${formatDateTime(due)}` : 'Без срока'}</dd>
+        </div>
+      </dl>
+
+      {failedFiles.length > 0 && (
+        <div className="error-text" role="alert">
+          Не все файлы загрузились — приложите их из карточки обращения:
+          <ul>
+            {failedFiles.map((f) => (
+              <li key={f.name}>
+                {f.name}: {f.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="created__actions">
+        <Link to="/my" className="btn btn--soft">
+          К моим обращениям
+        </Link>
         <Link to={`/appeals/${appeal.id}`} className="btn">
           Открыть обращение
-        </Link>
-        <Link to="/my" className="btn btn--ghost">
-          К моим обращениям
         </Link>
       </div>
     </section>
