@@ -302,3 +302,17 @@ async def test_rejection_goes_by_telegram_id_and_offers_new_request(harness, bac
 
     await harness.press(sent, texts.BTN_REQUEST_AGAIN, user_id=STRANGER)
     assert "Как вас записать?" in harness.telegram.sent()[-1].text
+
+
+async def test_old_request_button_after_approval_shows_menu(harness):
+    harness.backend.on("GET", "/api/v1/me", 200, employee(100000004))
+    note = access_notification(934, "access_request_rejected", "Заявка отклонена.", 100000004, None)
+    harness.backend.on("GET", "/api/v1/bot/notifications/pending", 200, [note])
+    harness.backend.on("POST", "/api/v1/bot/notifications/934/ack", 204, None)
+    await deliver_pending(harness.bot, harness.api, harness.settings)
+
+    await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_AGAIN)
+
+    reply = harness.telegram.sent()[-1]
+    assert reply.text == texts.ALREADY_IN
+    assert reply_texts(reply.reply_markup) == [texts.BTN_SUBMIT, texts.BTN_MY_APPEALS, texts.BTN_LOGIN_CODE]

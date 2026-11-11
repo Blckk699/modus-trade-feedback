@@ -8,7 +8,7 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import MenuButtonWebApp, Message, WebAppInfo
+from aiogram.types import CallbackQuery, MenuButtonWebApp, Message, WebAppInfo
 
 from app import formatting, keyboards, texts
 from app.api import Api, ApiError
@@ -96,6 +96,12 @@ async def fallback(message: Message, me: dict[str, Any], settings: Settings) -> 
     await message.answer(texts.USE_MENU, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
 
 
+async def stale_registration_button(callback: CallbackQuery, me: dict[str, Any], settings: Settings) -> None:
+    """Кнопка формы заявки (callback `r:`) у того, кого уже одобрили: показать меню вместо вечной загрузки."""
+    await callback.answer()
+    await callback.message.answer(texts.ALREADY_IN, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
+
+
 def build_router() -> Router:
     """Свой роутер на каждый диспетчер: aiogram не даёт подключить один роутер дважды."""
     router = Router(name="menu")
@@ -115,4 +121,5 @@ def build_fallback_router() -> Router:
     """Подключается последним: всё, что не разобрали меню и черновики."""
     router = Router(name="fallback")
     router.message.register(fallback)
+    router.callback_query.register(stale_registration_button, F.data.startswith("r:"))
     return router

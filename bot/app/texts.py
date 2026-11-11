@@ -165,3 +165,4 @@ def request_rejected(reason: str | None) -> str:
     return text + "\n\nМожно подать заявку снова."
 ACCESS_DISABLED = "Доступ отключён. Обратитесь к администратору."
 BTN_OPEN_ACCESS_REQUESTS = "Открыть заявки"
+ALREADY_IN = "Доступ уже открыт. Выберите действие в меню ниже."
