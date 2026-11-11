@@ -59,3 +59,27 @@ npm run dev
   - показывает кнопку «Назад» Telegram, когда в истории есть куда вернуться (`navigate(-1)`).
 - Ссылки из бота (`telegram/startParam.ts`): `startapp` — это маршрут контракта (`Notification.path`), в котором `/` заменён на `_`. Например, `appeals_21` → `/appeals/21`, `discussions_5` → `/discussions/5`, `analytics` → `/digest`. Inline-кнопка `web_app` в боте может вести сразу на путь: `<MINI_APP_URL>/appeals/21`.
 - Проверка в браузере без Telegram: откройте `http://localhost:5173/#tgWebAppData=<urlencoded initData>&tgWebAppVersion=8.0&tgWebAppPlatform=ios&tgWebAppThemeParams=<urlencoded JSON>`. Мок принимает любые `initData`.
+
+## Сквозной прогон (W-09)
+
+Основной сценарий «подал — взяли — уточнили — ответил — реализовано» под двумя пользователями (сотрудник закупок и руководитель закупок) в браузере, против настоящего бэкенда с dev-входом. Браузер — установленный Chrome, Playwright его не скачивает.
+
+```bash
+# 1. Бэкенд с dev-входом (Postgres поднимется сам)
+cd backend && uv sync && DEV_LOGIN_ENABLED=true uv run python scripts/dev.py
+```
+
+```bash
+# 2. Веб через прокси на бэкенд: в web/.env
+#    VITE_API_BASE_URL=http://localhost:5173
+#    VITE_API_PROXY=http://127.0.0.1:8000
+#    VITE_DEV_LOGIN=true
+cd web && npm run dev
+```
+
+```bash
+# 3. Прогон
+cd web && npm run e2e
+```
+
+Каждый прогон создаёт новое обращение с пометкой `[e2e …]`. Сбросить демо-данные: `cd backend && uv run python scripts/dev.py python -m app.seed reset`. Другой адрес веба — `E2E_BASE_URL`, другой браузер — `E2E_CHANNEL` (например `msedge`).

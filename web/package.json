@@ -10,7 +10,8 @@
     "gen:api": "openapi-typescript ../contract/openapi.yaml -o src/api/schema.d.ts",
     "mock": "npx -y @stoplight/prism-cli@5.15.11 mock -h 0.0.0.0 -p 4010 ../contract/openapi.yaml",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --dir src",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "openapi-fetch": "^0.13.4",
@@ -19,6 +20,7 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
