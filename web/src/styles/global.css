@@ -2364,3 +2364,44 @@ button.vote__option--mine.vote__option--against:hover:not(:disabled) {
 button.vote__option:hover:not(:disabled) .vote__pct {
   color: var(--text);
 }
+
+/* ---------- длинная форма в окне (новое обращение): белый фон, поля без вложенной карточки */
+.modal--form {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.modal--form .page {
+  max-width: none;
+  gap: 16px;
+}
+
+.modal--form .back-link {
+  display: none;
+}
+
+.modal--form .page__title {
+  padding-right: 44px;
+  font-size: 20px;
+}
+
+.modal--form .form {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.modal--form .form__actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .modal--form {
+    max-height: calc(100dvh - 24px);
+  }
+
+  .modal--form .form__actions .btn {
+    width: 100%;
+  }
+}
+

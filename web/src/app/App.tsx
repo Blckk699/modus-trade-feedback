@@ -81,6 +81,16 @@ function AuthGate() {
       </Routes>
       {background && (
         <Routes>
+          {state.me.permissions.can_create_appeal && (
+            <Route
+              path="/my/new"
+              element={
+                <CardModal label="Новое обращение" size="form">
+                  <NewAppealPage />
+                </CardModal>
+              }
+            />
+          )}
           <Route
             path="/appeals/:id"
             element={

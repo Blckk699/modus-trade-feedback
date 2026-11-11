@@ -7,8 +7,8 @@ type Props = {
   /** id заголовка внутри окна; если заголовка с id нет — передайте `label`. */
   labelledBy?: string;
   label?: string;
-  /** wide — для больших карточек, например обращения. */
-  size?: 'default' | 'wide';
+  /** wide — для больших карточек, например обращения; form — для длинной формы на белом фоне. */
+  size?: 'default' | 'wide' | 'form';
   locked?: boolean;
   children: ReactNode;
 };
@@ -32,7 +32,7 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
   return (
     <dialog
       ref={ref}
-      className={size === 'wide' ? 'modal modal--wide' : 'modal'}
+      className={size === 'default' ? 'modal' : `modal modal--${size}`}
       aria-labelledby={labelledBy}
       aria-label={label}
       onCancel={(e) => {
