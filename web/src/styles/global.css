@@ -965,14 +965,12 @@ textarea.input {
   pointer-events: none;
 }
 
+/* позиция и высота задаются из Select.tsx (fixed относительно экрана) */
 .select__menu {
-  position: absolute;
-  z-index: 5;
-  top: calc(100% + 6px);
-  left: 0;
-  min-width: 100%;
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: 288px;
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
   margin: 0;
   padding: 6px;
   overflow-y: auto;
@@ -981,11 +979,6 @@ textarea.input {
   background: var(--menu-bg);
   box-shadow: var(--menu-shadow);
   animation: select-in 0.12s ease-out;
-}
-
-.select__menu--up {
-  top: auto;
-  bottom: calc(100% + 6px);
 }
 
 @keyframes select-in {
@@ -1000,6 +993,7 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  white-space: nowrap;
   padding: 9px 10px;
   border-radius: var(--radius-md);
   color: var(--text);

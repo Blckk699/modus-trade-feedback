@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -52,7 +53,9 @@ export function Select({ value, onChange, children, required, disabled, 'aria-in
   const selectedIndex = options.findIndex((o) => o.value === current);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const [up, setUp] = useState(false);
+  // Меню позиционируется относительно экрана (position: fixed), поэтому не обрезается
+  // краем модального окна или карточки с прокруткой.
+  const [place, setPlace] = useState<CSSProperties | null>(null);
   const root = useRef<HTMLSpanElement>(null);
   const menu = useRef<HTMLUListElement>(null);
   const typed = useRef({ text: '', at: 0 });
@@ -80,12 +83,38 @@ export function Select({ value, onChange, children, required, disabled, 'aria-in
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
-  // Если снизу не хватает места, меню раскрывается вверх.
+  // Место под меню: снизу от поля, а если там тесно и сверху просторнее — сверху.
+  // Пересчитывается при прокрутке и изменении размера окна.
   useLayoutEffect(() => {
-    if (!open || !root.current || !menu.current) return;
-    const box = root.current.getBoundingClientRect();
-    const need = menu.current.offsetHeight + 8;
-    setUp(window.innerHeight - box.bottom < need && box.top > need);
+    if (!open) {
+      setPlace(null);
+      return;
+    }
+    const update = () => {
+      if (!root.current) return;
+      const box = root.current.getBoundingClientRect();
+      const gap = 6;
+      const edge = 12;
+      const below = window.innerHeight - box.bottom - gap - edge;
+      const above = box.top - gap - edge;
+      const want = Math.min(288, menu.current?.scrollHeight ?? 288);
+      const up = below < want && above > below;
+      const maxHeight = Math.max(120, Math.min(288, up ? above : below));
+      const left = Math.min(box.left, window.innerWidth - edge - box.width);
+      setPlace({
+        left: Math.max(edge, left),
+        minWidth: box.width,
+        maxHeight,
+        ...(up ? { bottom: window.innerHeight - box.top + gap } : { top: box.bottom + gap }),
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -157,7 +186,8 @@ export function Select({ value, onChange, children, required, disabled, 'aria-in
           ref={menu}
           id={`${id}-menu`}
           role="listbox"
-          className={up ? 'select__menu select__menu--up' : 'select__menu'}
+          className="select__menu"
+          style={place ?? { visibility: 'hidden' }}
           // Меню лежит внутри <label>: без этого клик по пункту заново нажал бы кнопку.
           onClick={(e) => e.preventDefault()}
         >
