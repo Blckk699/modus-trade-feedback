@@ -83,3 +83,11 @@ cd web && npm run e2e
 ```
 
 Каждый прогон создаёт новое обращение с пометкой `[e2e …]`. Сбросить демо-данные: `cd backend && uv run python scripts/dev.py python -m app.seed reset`. Другой адрес веба — `E2E_BASE_URL`, другой браузер — `E2E_CHANNEL` (например `msedge`).
+
+Нет установленного Chrome — возьмите Chromium из Playwright:
+
+```bash
+cd web && npx playwright install chromium && E2E_CHANNEL=chromium npm run e2e
+```
+
+Прогон проверен и на текущей вёрстке, и на ветке дизайнера с формами действий в модальном окне (`web/design-next-4`, #141): кнопки ищутся в `.actions__buttons`, форма — `.actions__form` в обоих вариантах.
