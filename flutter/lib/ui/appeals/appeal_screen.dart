@@ -647,7 +647,7 @@ class _HistorySectionState extends State<HistorySection> {
     final theme = Theme.of(context);
     final session = SessionScope.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    String? value(String? v, String? field) => v != null && field == 'status' ? session.statusCodeLabel(v) : historyValue(v);
+    String? value(String? v, String? field) => v == null ? null : historyValue(session.historyCodeLabel(field, v));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -217,6 +217,17 @@ void main() {
               'created_at': '2026-11-10T11:02:00+05:00',
             },
             {
+              'id': 104,
+              'appeal_id': 21,
+              'kind': 'field_changed',
+              'actor': assignee,
+              'field': 'priority',
+              'old_value': 'medium',
+              'new_value': 'high',
+              'comment': null,
+              'created_at': '2026-11-10T11:03:00+05:00',
+            },
+            {
               'id': 102,
               'appeal_id': 21,
               'kind': 'deadline_set',
@@ -250,6 +261,7 @@ void main() {
     expect(find.text('Новое → На рассмотрении'), findsOneWidget);
     expect(find.text('18 ноября 2026, 09:55'), findsWidgets, reason: 'срок в истории — датой, а не строкой ISO');
     expect(find.textContaining('2026-11-18T'), findsNothing);
+    expect(find.text('Средний → Высокий'), findsOneWidget, reason: 'приоритет в истории — подписью');
 
     await tester.pumpWidget(const SizedBox());
   });

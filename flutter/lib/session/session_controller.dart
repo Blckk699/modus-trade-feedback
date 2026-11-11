@@ -147,6 +147,14 @@ class SessionController extends ChangeNotifier {
     return code;
   }
 
+  /// Значение поля из истории: коды статуса, типа и приоритета — подписями из справочника.
+  String historyCodeLabel(String? field, String code) => switch (field) {
+        'status' => statusCodeLabel(code),
+        'type' => _label(_dictionaries?.appealTypes, code),
+        'priority' => _label(_dictionaries?.priorities, code),
+        _ => code,
+      };
+
   String _label(List<LabeledCode>? items, String code) {
     for (final item in items ?? const <LabeledCode>[]) {
       if (item.code == code) return item.label;
