@@ -1025,12 +1025,14 @@ textarea.input {
   pointer-events: none;
 }
 
+/* неактивный пункт — полупрозрачный тон поверх того, что под ним:
+   не сливается ни с фоном страницы, ни с белой карточкой */
 .segmented__item span {
   display: inline-block;
   padding: 8px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--field-bg);
+  background: color-mix(in srgb, var(--heading) 8%, transparent);
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
@@ -1038,7 +1040,8 @@ textarea.input {
 }
 
 .segmented__item:hover input:not(:checked) + span {
-  background: var(--field-bg-hover);
+  background: color-mix(in srgb, var(--heading) 12%, transparent);
+  color: var(--heading);
 }
 
 .segmented__item input:checked + span {
@@ -1048,7 +1051,7 @@ textarea.input {
 }
 
 .segmented__item input:focus-visible:not(:checked) + span {
-  background: var(--field-bg-focus);
+  background: color-mix(in srgb, var(--heading) 15%, transparent);
   color: var(--heading);
 }
 
@@ -1956,4 +1959,9 @@ details.block > summary {
 .block.block--hint {
   background: var(--info-bg);
   box-shadow: none;
+}
+
+/* фокус с клавиатуры у переключателя — кольцо, а не только смена заливки */
+.segmented__item input:focus-visible + span {
+  box-shadow: var(--focus-ring);
 }
