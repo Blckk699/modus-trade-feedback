@@ -22,6 +22,8 @@ export function UsersTab() {
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
+  const [saving, setSaving] = useState(false);
 
   const s = data.state;
   if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
@@ -66,12 +68,13 @@ export function UsersTab() {
       </ul>
 
       {/* Добавление и правка сотрудника — в окне поверх списка. key сбрасывает поля при смене сотрудника. */}
-      <Modal open={formOpen} onClose={closeForm} labelledBy="user-form-title">
+      <Modal open={formOpen} onClose={closeForm} labelledBy="user-form-title" locked={saving}>
         {formOpen && (
           <UserForm
             key={editedUser?.id ?? 'new'}
             user={editedUser}
             departments={departments}
+            onBusy={setSaving}
             onCancel={closeForm}
             onSaved={(saved) => {
               replace(saved);
@@ -109,11 +112,13 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
 interface UserFormProps {
   user?: User;
   departments: Department[];
+  /** Сообщает родителю, что идёт сохранение. */
+  onBusy?: (busy: boolean) => void;
   onSaved: (user: User) => void;
   onCancel: () => void;
 }
 
-function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
+function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProps) {
   const dict = useDictionaries();
   const [telegramId, setTelegramId] = useState('');
   const [fullName, setFullName] = useState(user?.full_name ?? '');
@@ -136,6 +141,7 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
     if (Object.keys(local).length) return setErrors(local);
 
     setBusy(true);
+    onBusy?.(true);
     try {
       const fields = {
         full_name: fullName.trim(),
@@ -166,6 +172,7 @@ function UserForm({ user, departments, onSaved, onCancel }: UserFormProps) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 

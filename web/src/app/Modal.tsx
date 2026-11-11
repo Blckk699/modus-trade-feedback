@@ -7,15 +7,17 @@ type Props = {
   /** id заголовка внутри окна; если заголовка с id нет — передайте `label`. */
   labelledBy?: string;
   label?: string;
-  /** wide — для больших карточек, например обращения. */
-  size?: 'default' | 'wide';
+  /** wide — для больших карточек, например обращения; form — для длинной формы на белом фоне. */
+  size?: 'default' | 'wide' | 'form';
   locked?: boolean;
+  /** false — клик по подложке не закрывает окно (формы, где легко потерять набранное). */
+  closeOnBackdrop?: boolean;
   children: ReactNode;
 };
 
 /** Модальное окно на нативном <dialog>: фокус внутри окна, Esc и подложка закрывают его.
  * Начальный фокус — элемент с `data-autofocus`. */
-export function Modal({ open, onClose, labelledBy, label, size = 'default', locked = false, children }: Props) {
+export function Modal({ open, onClose, labelledBy, label, size = 'default', locked = false, closeOnBackdrop = true, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
   return (
     <dialog
       ref={ref}
-      className={size === 'wide' ? 'modal modal--wide' : 'modal'}
+      className={size === 'default' ? 'modal' : `modal modal--${size}`}
       aria-labelledby={labelledBy}
       aria-label={label}
       onCancel={(e) => {
@@ -40,7 +42,7 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
         if (!locked) onClose();
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !locked) onClose();
+        if (e.target === e.currentTarget && !locked && closeOnBackdrop) onClose();
       }}
     >
       <div className="modal__body">

@@ -9,6 +9,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime, formatSize } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
+import { useCardLock } from './CardModal';
 
 type AppealType = Schemas['AppealType'];
 type Priority = Schemas['Priority'];
@@ -33,6 +34,8 @@ export function NewAppealPage() {
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<Created | null>(null);
+  // В окне: пока идёт отправка и загрузка вложений, окно не закрыть — иначе ошибку сервера не увидеть.
+  useCardLock(busy);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
