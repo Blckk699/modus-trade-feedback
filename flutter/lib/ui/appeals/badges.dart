@@ -4,6 +4,7 @@ import 'package:modus_api/api.dart';
 import '../../app.dart';
 import '../../appeals/labels.dart';
 import '../../format.dart';
+import '../../theme/modus_theme.dart';
 
 class _Pill extends StatelessWidget {
   const _Pill({required this.text, required this.background, required this.foreground});
@@ -15,7 +16,7 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(6)),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(ModusRadius.pill)),
         child: Text(text, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: foreground)),
       );
 }
@@ -28,15 +29,8 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (status) {
-      AppealStatus.implemented => (scheme.primaryContainer, scheme.onPrimaryContainer),
-      AppealStatus.rejected => (scheme.errorContainer, scheme.onErrorContainer),
-      AppealStatus.awaitingInfo => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      AppealStatus.closed => (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
-      _ => (scheme.secondaryContainer, scheme.onSecondaryContainer),
-    };
-    return _Pill(text: SessionScope.of(context).statusLabel(status), background: bg, foreground: fg);
+    final colors = ModusColors.of(context).status(status.toJson());
+    return _Pill(text: SessionScope.of(context).statusLabel(status), background: colors.bg, foreground: colors.fg);
   }
 }
 
@@ -49,11 +43,11 @@ class DueBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final c = ModusColors.of(context);
     final (bg, fg) = switch (state) {
-      DueState.overdue => (scheme.errorContainer, scheme.onErrorContainer),
-      DueState.dueSoon => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-      _ => (scheme.surfaceContainerHighest, scheme.onSurfaceVariant),
+      DueState.overdue => (c.dangerBg, c.danger),
+      DueState.dueSoon => (c.warnBg, c.warn),
+      _ => (c.surface2, c.muted),
     };
     final showDate = dueAt != null && (state == DueState.onTime || state == DueState.dueSoon || state == DueState.overdue);
     final text = showDate ? '${dueStateLabel(state)} · до ${formatDateTime(dueAt!)}' : dueStateLabel(state);

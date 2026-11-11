@@ -8,6 +8,7 @@ import '../../app.dart';
 import '../../appeals/attachment_files.dart' show PickedFile;
 import '../../format.dart';
 import 'meeting_screen.dart';
+import '../../theme/modus_theme.dart';
 
 /// Форматы и лимит из контракта: до 200 МБ.
 const meetingExtensions = ['mp3', 'm4a', 'wav', 'ogg', 'webm'];
@@ -164,6 +165,7 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
             const SizedBox(height: 12),
             FilledButton(
               key: const Key('meeting-upload'),
+              style: accentButtonStyle(context),
               onPressed: _busy || _file == null ? null : _upload,
               child: Text(_busy ? 'Загружаем…' : 'Загрузить и расшифровать'),
             ),
@@ -208,7 +210,7 @@ class MeetingStatusBadge extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ModusRadius.md)),
       child: Text(text, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: fg)),
     );
   }

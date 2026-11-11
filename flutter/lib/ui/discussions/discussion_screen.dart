@@ -5,6 +5,7 @@ import '../../api/app_error.dart';
 import '../../app.dart';
 import '../../format.dart';
 import '../appeals/appeal_screen.dart';
+import '../../theme/modus_theme.dart';
 
 /// Обсуждение: формулировка, срок, запрос автору на показ имени, голосование,
 /// итог (фиксирует руководитель) и комментарии. Права — по `can_vote`, `can_close`,
@@ -93,7 +94,7 @@ class _Header extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
             color: open ? theme.colorScheme.secondaryContainer : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(ModusRadius.md),
           ),
           child: Text(open ? 'Идёт обсуждение' : 'Обсуждение завершено', style: theme.textTheme.labelMedium),
         ),
@@ -163,7 +164,7 @@ class _NameConsentState extends State<_NameConsent> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: c == NameConsent.pending ? scheme.tertiaryContainer : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(ModusRadius.lg),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(text),
@@ -201,7 +202,7 @@ class _Outcome extends StatelessWidget {
       key: const Key('discussion-outcome'),
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(ModusRadius.lg)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Итог', style: Theme.of(context).textTheme.titleSmall?.copyWith(color: scheme.onPrimaryContainer)),
         const SizedBox(height: 4),
@@ -272,7 +273,7 @@ class _VotesState extends State<_Votes> {
           const SizedBox(width: 12),
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(ModusRadius.sm),
               child: LinearProgressIndicator(
                 value: total == 0 ? 0 : d.votesFor / total,
                 minHeight: 8,
@@ -450,7 +451,7 @@ class _CommentsState extends State<_Comments> {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(ModusRadius.lg),
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(

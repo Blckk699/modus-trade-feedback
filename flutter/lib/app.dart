@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'session/session_controller.dart';
+import 'theme/modus_theme.dart';
 import 'ui/home/home_shell.dart';
 import 'ui/home/unread_scope.dart';
 import 'ui/login/login_screen.dart';
@@ -25,8 +26,6 @@ class ModusApp extends StatelessWidget {
 
   final SessionController session;
 
-  static const _seed = Color(0xFF1F5FA8);
-
   @override
   Widget build(BuildContext context) {
     return SessionScope(
@@ -37,8 +36,8 @@ class ModusApp extends StatelessWidget {
         locale: const Locale('ru'),
         supportedLocales: const [Locale('ru')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        theme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.light),
-        darkTheme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.dark),
+        theme: modusTheme(Brightness.light),
+        darkTheme: modusTheme(Brightness.dark),
         builder: (context, child) => UnreadHost(child: child!),
         home: const _Root(),
       ),

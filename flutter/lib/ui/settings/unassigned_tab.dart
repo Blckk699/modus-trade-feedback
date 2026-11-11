@@ -50,7 +50,7 @@ class UnassignedTab extends StatelessWidget {
                       style: theme.textTheme.bodySmall,
                     ),
                     const SizedBox(height: 8),
-                    FilledButton.tonal(
+                    OutlinedButton(
                       key: Key('assign-${item.id}'),
                       onPressed: () async {
                         final done = await openSheet<Appeal>(context, AssignForm(item: item, users: users));
