@@ -3,6 +3,7 @@ import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../../theme/modus_theme.dart';
 import '../../session/session_controller.dart';
 import '../appeals/appeal_screen.dart';
 
@@ -22,7 +23,16 @@ class RoleSwitchAction extends StatelessWidget {
     return IconButton(
       key: const Key('role-switch'),
       tooltip: 'Сменить роль. Сейчас: ${me.fullName}, ${session.roleLabel(me.role)}',
-      icon: CircleAvatar(radius: 15, child: Text(_initial(me.fullName), style: const TextStyle(fontSize: 13))),
+      padding: EdgeInsets.zero,
+      // Аватар с инициалами, как `.usermenu__btn` в шапке веба на телефоне.
+      icon: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: ModusColors.of(context).surface2, shape: BoxShape.circle),
+        child: Text(initials(me.fullName),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ModusColors.of(context).status('new').fg)),
+      ),
       onPressed: () => showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
@@ -33,6 +43,13 @@ class RoleSwitchAction extends StatelessWidget {
 }
 
 String _initial(String name) => name.trim().isEmpty ? '?' : name.trim()[0];
+
+/// Две буквы: имя и фамилия («Тест Руководитель» → «ТР»).
+String initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  if (parts.isEmpty) return '?';
+  return (parts.first[0] + (parts.length > 1 ? parts[1][0] : '')).toUpperCase();
+}
 
 /// Список ролей: текущий пользователь с галочкой и те, под кого можно переключиться.
 class RoleSwitchSheet extends StatefulWidget {
