@@ -45,6 +45,11 @@ void main() {
     expect(ModusRadius.lg, 10);
   });
 
+  test('tokens.g.dart целиком совпадает с выводом генератора', () {
+    final r = Process.runSync('python3', ['tool/generate_tokens.py', '--check']);
+    expect(r.exitCode, 0, reason: '${r.stdout}${r.stderr}');
+  });
+
   test('тема: primary тёмно-синий, красный только у FAB и главной кнопки; шрифты из токенов', () {
     for (final b in Brightness.values) {
       final theme = modusTheme(b);

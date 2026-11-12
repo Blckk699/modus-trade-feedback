@@ -14,8 +14,10 @@
 
 ## Авторизация
 
-- Пользователь: `Authorization: Bearer <access_token>`. Токен выдают маршруты `/auth/_*`
-  (Mini App, Telegram Login, одноразовый код из бота, dev-вход).
+- Пользователь: `Authorization: Bearer <access_token>`. Токен выдают маршруты `/auth/_*`:
+  почта и пароль (основной вход в вебе и мобильном приложении), Mini App, Telegram Login,
+  одноразовый код из бота, dev-вход. Telegram — вход в один клик, привязывается к аккаунту (`/me/telegram`).
+  Вход через Битрикс24 (`/auth/bitrix/_*`) — если включён на сервере (`GET /auth/methods`).
 - Бот: `X-Service-Key: <ключ бота>` и `X-Telegram-Id: <Telegram ID пользователя>` — бот действует от имени
   пользователя, права проверяются так же, как для самого пользователя. Так бот вызывает любые
   пользовательские маршруты. Маршруты `/bot/_*` требуют только `X-Service-Key`.
@@ -91,25 +93,19 @@ import 'package:modus_api/api.dart';
 //defaultApiClient.getAuthentication<ApiKeyAuth>('serviceKey').apiKey = 'YOUR_API_KEY';
 // uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 //defaultApiClient.getAuthentication<ApiKeyAuth>('serviceKey').apiKeyPrefix = 'Bearer';
-// TODO Configure HTTP Bearer authorization: bearerAuth
-// Case 1. Use String Token
-//defaultApiClient.getAuthentication<HttpBearerAuth>('bearerAuth').setAccessToken('YOUR_ACCESS_TOKEN');
-// Case 2. Use Function which generate token.
-// String yourTokenGeneratorFunction() { ... }
-//defaultApiClient.getAuthentication<HttpBearerAuth>('bearerAuth').setAccessToken(yourTokenGeneratorFunction);
 // TODO Configure API key authorization: telegramId
 //defaultApiClient.getAuthentication<ApiKeyAuth>('telegramId').apiKey = 'YOUR_API_KEY';
 // uncomment below to setup prefix (e.g. Bearer) for API key, if needed
 //defaultApiClient.getAuthentication<ApiKeyAuth>('telegramId').apiKeyPrefix = 'Bearer';
 
-final api_instance = AdminApi();
-final categoryWrite = CategoryWrite(); // CategoryWrite | 
+final api_instance = AccessApi();
+final inviteAccept = InviteAccept(); // InviteAccept | 
 
 try {
-    final result = api_instance.adminCreateCategory(categoryWrite);
+    final result = api_instance.acceptInvite(inviteAccept);
     print(result);
 } catch (e) {
-    print('Exception when calling AdminApi->adminCreateCategory: $e\n');
+    print('Exception when calling AccessApi->acceptInvite: $e\n');
 }
 
 ```
@@ -120,11 +116,23 @@ All URIs are relative to *http://localhost:4010*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*AccessApi* | [**acceptInvite**](doc//AccessApi.md#acceptinvite) | **POST** /api/v1/invites/accept | Принять приглашение
+*AccessApi* | [**approveAccessRequest**](doc//AccessApi.md#approveaccessrequest) | **POST** /api/v1/admin/access-requests/{request_id}/approve | Одобрить заявку — создаёт пользователя
+*AccessApi* | [**createInvite**](doc//AccessApi.md#createinvite) | **POST** /api/v1/admin/invites | Создать приглашение
+*AccessApi* | [**getInvitePreview**](doc//AccessApi.md#getinvitepreview) | **GET** /api/v1/invites/{token} | Что за приглашение (без входа)
+*AccessApi* | [**getMyAccessRequest**](doc//AccessApi.md#getmyaccessrequest) | **POST** /api/v1/access-requests/mine | Состояние доступа и своей заявки
+*AccessApi* | [**listAccessDepartments**](doc//AccessApi.md#listaccessdepartments) | **GET** /api/v1/access-requests/departments | Подразделения для формы заявки (без входа)
+*AccessApi* | [**listAccessRequests**](doc//AccessApi.md#listaccessrequests) | **GET** /api/v1/admin/access-requests | Заявки на доступ
+*AccessApi* | [**listInvites**](doc//AccessApi.md#listinvites) | **GET** /api/v1/admin/invites | Приглашения
+*AccessApi* | [**rejectAccessRequest**](doc//AccessApi.md#rejectaccessrequest) | **POST** /api/v1/admin/access-requests/{request_id}/reject | Отклонить заявку
+*AccessApi* | [**revokeInvite**](doc//AccessApi.md#revokeinvite) | **POST** /api/v1/admin/invites/{invite_id}/revoke | Отозвать приглашение
+*AccessApi* | [**submitAccessRequest**](doc//AccessApi.md#submitaccessrequest) | **POST** /api/v1/access-requests | Подать или обновить заявку на доступ
 *AdminApi* | [**adminCreateCategory**](doc//AdminApi.md#admincreatecategory) | **POST** /api/v1/admin/categories | Добавить категорию
 *AdminApi* | [**adminCreateDepartment**](doc//AdminApi.md#admincreatedepartment) | **POST** /api/v1/admin/departments | Добавить подразделение
-*AdminApi* | [**adminCreateUser**](doc//AdminApi.md#admincreateuser) | **POST** /api/v1/admin/users | Добавить сотрудника по Telegram ID
+*AdminApi* | [**adminCreateUser**](doc//AdminApi.md#admincreateuser) | **POST** /api/v1/admin/users | Добавить сотрудника по Telegram ID или почте
 *AdminApi* | [**adminGetDeadlineRules**](doc//AdminApi.md#admingetdeadlinerules) | **GET** /api/v1/admin/deadline-rules | Сроки первого ответа по приоритетам
 *AdminApi* | [**adminGetSettings**](doc//AdminApi.md#admingetsettings) | **GET** /api/v1/admin/settings | Общие настройки
+*AdminApi* | [**adminResetPassword**](doc//AdminApi.md#adminresetpassword) | **POST** /api/v1/admin/users/{user_id}/reset-password | Сбросить пароль сотруднику
 *AdminApi* | [**adminUpdateCategory**](doc//AdminApi.md#adminupdatecategory) | **PATCH** /api/v1/admin/categories/{category_id} | Изменить категорию: ответственный, заместитель, подразделение, активность
 *AdminApi* | [**adminUpdateDeadlineRules**](doc//AdminApi.md#adminupdatedeadlinerules) | **PUT** /api/v1/admin/deadline-rules | Изменить сроки первого ответа
 *AdminApi* | [**adminUpdateDepartment**](doc//AdminApi.md#adminupdatedepartment) | **PATCH** /api/v1/admin/departments/{department_id} | Изменить название или руководителя подразделения
@@ -147,13 +155,20 @@ Class | Method | HTTP request | Description
 *AttachmentsApi* | [**downloadAttachment**](doc//AttachmentsApi.md#downloadattachment) | **GET** /api/v1/attachments/{attachment_id} | Скачать файл
 *AttachmentsApi* | [**listAttachments**](doc//AttachmentsApi.md#listattachments) | **GET** /api/v1/appeals/{appeal_id}/attachments | Вложения обращения
 *AttachmentsApi* | [**uploadAttachment**](doc//AttachmentsApi.md#uploadattachment) | **POST** /api/v1/appeals/{appeal_id}/attachments | Приложить файл
+*AuthApi* | [**bitrixLoginCallback**](doc//AuthApi.md#bitrixlogincallback) | **GET** /api/v1/auth/bitrix/callback | Возврат с портала Битрикс24 (адрес возврата локального приложения)
 *AuthApi* | [**devLogin**](doc//AuthApi.md#devlogin) | **POST** /api/v1/auth/dev/login | Dev-вход под выбранным пользователем
+*AuthApi* | [**exchangeBitrixLogin**](doc//AuthApi.md#exchangebitrixlogin) | **POST** /api/v1/auth/bitrix/exchange | Обменять одноразовый код входа через Битрикс24 на сессию
+*AuthApi* | [**getAuthMethods**](doc//AuthApi.md#getauthmethods) | **GET** /api/v1/auth/methods | Какие способы входа включены
 *AuthApi* | [**issueLoginCode**](doc//AuthApi.md#issuelogincode) | **POST** /api/v1/auth/login-codes | Выдать одноразовый код входа (только бот)
 *AuthApi* | [**listDevUsers**](doc//AuthApi.md#listdevusers) | **GET** /api/v1/auth/dev/users | Список пользователей для dev-входа
+*AuthApi* | [**loginByEmail**](doc//AuthApi.md#loginbyemail) | **POST** /api/v1/auth/login | Вход по почте и паролю
 *AuthApi* | [**loginMiniApp**](doc//AuthApi.md#loginminiapp) | **POST** /api/v1/auth/telegram/mini-app | Вход из Mini App по initData
 *AuthApi* | [**loginTelegramWidget**](doc//AuthApi.md#logintelegramwidget) | **POST** /api/v1/auth/telegram/widget | Вход через Telegram Login в вебе
 *AuthApi* | [**loginWithCode**](doc//AuthApi.md#loginwithcode) | **POST** /api/v1/auth/code | Вход в мобильное приложение по одноразовому коду из бота
 *AuthApi* | [**logout**](doc//AuthApi.md#logout) | **POST** /api/v1/auth/logout | Выход, токен становится недействительным
+*AuthApi* | [**registerByEmail**](doc//AuthApi.md#registerbyemail) | **POST** /api/v1/auth/register | Регистрация по рабочей почте и паролю
+*AuthApi* | [**startBitrixLogin**](doc//AuthApi.md#startbitrixlogin) | **GET** /api/v1/auth/bitrix/start | Начать вход через Битрикс24
+*AuthApi* | [**switchAccount**](doc//AuthApi.md#switchaccount) | **POST** /api/v1/auth/switch | Переключиться на связанный аккаунт (демо-переключатель ролей)
 *BitrixApi* | [**createBitrixTask**](doc//BitrixApi.md#createbitrixtask) | **POST** /api/v1/appeals/{appeal_id}/bitrix-task | Создать задачу в Битрикс24
 *BotApi* | [**ackNotification**](doc//BotApi.md#acknotification) | **POST** /api/v1/bot/notifications/{notification_id}/ack | Подтвердить доставку
 *BotApi* | [**failNotification**](doc//BotApi.md#failnotification) | **POST** /api/v1/bot/notifications/{notification_id}/fail | Сообщить о неудачной доставке
@@ -179,6 +194,9 @@ Class | Method | HTTP request | Description
 *DuplicatesApi* | [**mergeAppeal**](doc//DuplicatesApi.md#mergeappeal) | **POST** /api/v1/appeals/{appeal_id}/merge | Присоединить это обращение как повтор к основному
 *FeedApi* | [**listImplementedFeed**](doc//FeedApi.md#listimplementedfeed) | **GET** /api/v1/feed/implemented | Лента реализованных улучшений
 *MeApi* | [**getMe**](doc//MeApi.md#getme) | **GET** /api/v1/me | Кто я
+*MeApi* | [**linkTelegram**](doc//MeApi.md#linktelegram) | **POST** /api/v1/me/telegram | Привязать Telegram к аккаунту
+*MeApi* | [**unlinkTelegram**](doc//MeApi.md#unlinktelegram) | **DELETE** /api/v1/me/telegram | Отвязать Telegram
+*MeApi* | [**updateMyCredentials**](doc//MeApi.md#updatemycredentials) | **PUT** /api/v1/me/credentials | Задать или сменить почту и пароль
 *MeetingsApi* | [**confirmMeetingDraft**](doc//MeetingsApi.md#confirmmeetingdraft) | **POST** /api/v1/meetings/{meeting_id}/drafts/{draft_id}/confirm | Подтвердить черновик — создать обращение
 *MeetingsApi* | [**discardMeetingDraft**](doc//MeetingsApi.md#discardmeetingdraft) | **POST** /api/v1/meetings/{meeting_id}/drafts/{draft_id}/discard | Отбросить черновик
 *MeetingsApi* | [**getMeeting**](doc//MeetingsApi.md#getmeeting) | **GET** /api/v1/meetings/{meeting_id} | Совещание: состояние, расшифровка, черновики
@@ -196,6 +214,13 @@ Class | Method | HTTP request | Description
 ## Documentation For Models
 
  - [AcceptFeedbackRequest](doc//AcceptFeedbackRequest.md)
+ - [AccessRequest](doc//AccessRequest.md)
+ - [AccessRequestApprove](doc//AccessRequestApprove.md)
+ - [AccessRequestPage](doc//AccessRequestPage.md)
+ - [AccessRequestReject](doc//AccessRequestReject.md)
+ - [AccessRequestStatus](doc//AccessRequestStatus.md)
+ - [AccessRequestSubmit](doc//AccessRequestSubmit.md)
+ - [AccessStatus](doc//AccessStatus.md)
  - [AckNotificationRequest](doc//AckNotificationRequest.md)
  - [AdminUpdateSettingsRequest](doc//AdminUpdateSettingsRequest.md)
  - [AnalyticsSummary](doc//AnalyticsSummary.md)
@@ -210,8 +235,10 @@ Class | Method | HTTP request | Description
  - [AppealSource](doc//AppealSource.md)
  - [AppealStatus](doc//AppealStatus.md)
  - [AppealType](doc//AppealType.md)
+ - [AssignableRole](doc//AssignableRole.md)
  - [AssigneeLoad](doc//AssigneeLoad.md)
  - [Attachment](doc//Attachment.md)
+ - [AuthMethods](doc//AuthMethods.md)
  - [BitrixTask](doc//BitrixTask.md)
  - [BotNotification](doc//BotNotification.md)
  - [BotNotificationAllOfRecipient](doc//BotNotificationAllOfRecipient.md)
@@ -225,6 +252,7 @@ Class | Method | HTTP request | Description
  - [CountByCategory](doc//CountByCategory.md)
  - [CountByStatus](doc//CountByStatus.md)
  - [CountByType](doc//CountByType.md)
+ - [CredentialsUpdate](doc//CredentialsUpdate.md)
  - [DeadlineRule](doc//DeadlineRule.md)
  - [Department](doc//Department.md)
  - [DepartmentRef](doc//DepartmentRef.md)
@@ -245,15 +273,25 @@ Class | Method | HTTP request | Description
  - [DueFilter](doc//DueFilter.md)
  - [DueState](doc//DueState.md)
  - [DuplicateSuggestion](doc//DuplicateSuggestion.md)
+ - [EmailLogin](doc//EmailLogin.md)
+ - [EmailRegister](doc//EmailRegister.md)
  - [Error](doc//Error.md)
  - [ErrorCode](doc//ErrorCode.md)
  - [ErrorError](doc//ErrorError.md)
+ - [ExchangeBitrixLoginRequest](doc//ExchangeBitrixLoginRequest.md)
  - [FailNotificationRequest](doc//FailNotificationRequest.md)
  - [FeedItem](doc//FeedItem.md)
  - [FeedPage](doc//FeedPage.md)
  - [GetHealth200Response](doc//GetHealth200Response.md)
  - [HistoryEvent](doc//HistoryEvent.md)
  - [ImplementAppealRequest](doc//ImplementAppealRequest.md)
+ - [Invite](doc//Invite.md)
+ - [InviteAccept](doc//InviteAccept.md)
+ - [InviteAccepted](doc//InviteAccepted.md)
+ - [InviteCreate](doc//InviteCreate.md)
+ - [InviteCreated](doc//InviteCreated.md)
+ - [InvitePreview](doc//InvitePreview.md)
+ - [InviteState](doc//InviteState.md)
  - [LabeledCode](doc//LabeledCode.md)
  - [LoginCode](doc//LoginCode.md)
  - [MarkReadRequest](doc//MarkReadRequest.md)
@@ -277,17 +315,22 @@ Class | Method | HTTP request | Description
  - [PostMessageRequest](doc//PostMessageRequest.md)
  - [Priority](doc//Priority.md)
  - [ReassignAppealRequest](doc//ReassignAppealRequest.md)
+ - [RegisterResult](doc//RegisterResult.md)
  - [RejectAppealRequest](doc//RejectAppealRequest.md)
  - [RepeatedTopic](doc//RepeatedTopic.md)
  - [RequestInfoRequest](doc//RequestInfoRequest.md)
  - [Role](doc//Role.md)
  - [Session](doc//Session.md)
+ - [SessionToken](doc//SessionToken.md)
  - [SetNameConsentRequest](doc//SetNameConsentRequest.md)
  - [StartWorkRequest](doc//StartWorkRequest.md)
  - [StuckAppeal](doc//StuckAppeal.md)
+ - [SwitchAccountRequest](doc//SwitchAccountRequest.md)
  - [SystemSettings](doc//SystemSettings.md)
  - [TakeAppealRequest](doc//TakeAppealRequest.md)
+ - [TelegramIdentity](doc//TelegramIdentity.md)
  - [TelegramWidgetLoginRequest](doc//TelegramWidgetLoginRequest.md)
+ - [TemporaryPassword](doc//TemporaryPassword.md)
  - [TextDraftRequest](doc//TextDraftRequest.md)
  - [UnreadCount](doc//UnreadCount.md)
  - [User](doc//User.md)

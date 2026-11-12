@@ -21,6 +21,7 @@ class Permissions {
     required this.canUploadMeetings,
     required this.canManageSettings,
     required this.canViewUnassigned,
+    required this.canManageAccess,
   });
 
   bool canCreateAppeal;
@@ -40,6 +41,9 @@ class Permissions {
 
   bool canViewUnassigned;
 
+  /// Заявки на доступ и приглашения — администратор и собственник
+  bool canManageAccess;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is Permissions &&
     other.canCreateAppeal == canCreateAppeal &&
@@ -49,7 +53,8 @@ class Permissions {
     other.analyticsScope == analyticsScope &&
     other.canUploadMeetings == canUploadMeetings &&
     other.canManageSettings == canManageSettings &&
-    other.canViewUnassigned == canViewUnassigned;
+    other.canViewUnassigned == canViewUnassigned &&
+    other.canManageAccess == canManageAccess;
 
   @override
   int get hashCode =>
@@ -61,10 +66,11 @@ class Permissions {
     (analyticsScope.hashCode) +
     (canUploadMeetings.hashCode) +
     (canManageSettings.hashCode) +
-    (canViewUnassigned.hashCode);
+    (canViewUnassigned.hashCode) +
+    (canManageAccess.hashCode);
 
   @override
-  String toString() => 'Permissions[canCreateAppeal=$canCreateAppeal, canProcessAppeals=$canProcessAppeals, canViewDepartment=$canViewDepartment, canViewAllAppeals=$canViewAllAppeals, analyticsScope=$analyticsScope, canUploadMeetings=$canUploadMeetings, canManageSettings=$canManageSettings, canViewUnassigned=$canViewUnassigned]';
+  String toString() => 'Permissions[canCreateAppeal=$canCreateAppeal, canProcessAppeals=$canProcessAppeals, canViewDepartment=$canViewDepartment, canViewAllAppeals=$canViewAllAppeals, analyticsScope=$analyticsScope, canUploadMeetings=$canUploadMeetings, canManageSettings=$canManageSettings, canViewUnassigned=$canViewUnassigned, canManageAccess=$canManageAccess]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -76,6 +82,7 @@ class Permissions {
       json[r'can_upload_meetings'] = this.canUploadMeetings;
       json[r'can_manage_settings'] = this.canManageSettings;
       json[r'can_view_unassigned'] = this.canViewUnassigned;
+      json[r'can_manage_access'] = this.canManageAccess;
     return json;
   }
 
@@ -106,6 +113,8 @@ class Permissions {
         assert(json[r'can_manage_settings'] != null, 'Required key "Permissions[can_manage_settings]" has a null value in JSON.');
         assert(json.containsKey(r'can_view_unassigned'), 'Required key "Permissions[can_view_unassigned]" is missing from JSON.');
         assert(json[r'can_view_unassigned'] != null, 'Required key "Permissions[can_view_unassigned]" has a null value in JSON.');
+        assert(json.containsKey(r'can_manage_access'), 'Required key "Permissions[can_manage_access]" is missing from JSON.');
+        assert(json[r'can_manage_access'] != null, 'Required key "Permissions[can_manage_access]" has a null value in JSON.');
         return true;
       }());
 
@@ -118,6 +127,7 @@ class Permissions {
         canUploadMeetings: mapValueOfType<bool>(json, r'can_upload_meetings')!,
         canManageSettings: mapValueOfType<bool>(json, r'can_manage_settings')!,
         canViewUnassigned: mapValueOfType<bool>(json, r'can_view_unassigned')!,
+        canManageAccess: mapValueOfType<bool>(json, r'can_manage_access')!,
       );
     }
     return null;
@@ -173,6 +183,7 @@ class Permissions {
     'can_upload_meetings',
     'can_manage_settings',
     'can_view_unassigned',
+    'can_manage_access',
   };
 }
 

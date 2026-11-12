@@ -648,7 +648,7 @@ class _HistorySectionState extends State<HistorySection> {
     final theme = Theme.of(context);
     final session = SessionScope.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    String? value(String? v, String? field) => v != null && field == 'status' ? session.statusCodeLabel(v) : v;
+    String? value(String? v, String? field) => v == null ? null : historyValue(session.historyCodeLabel(field, v));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -678,4 +678,13 @@ class _HistorySectionState extends State<HistorySection> {
       ],
     );
   }
+}
+
+final _isoDateTime = RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}');
+
+/// Значение из истории: дата-время (например, новый срок) — в формате приложения, остальное как есть.
+String? historyValue(String? v) {
+  if (v == null || !_isoDateTime.hasMatch(v)) return v;
+  final t = DateTime.tryParse(v);
+  return t == null ? v : formatDateTime(t);
 }
