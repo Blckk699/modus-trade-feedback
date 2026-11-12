@@ -77,6 +77,8 @@ test('подал — взяли — уточнили — ответил — ре
   await page.goto(appealPath!);
   await expect(state(page)).toContainText('Реализовано');
   await expect(page.getByRole('region', { name: 'Результат' })).toContainText('Поле «срок поставки» добавлено в шаблон заявки.');
+  // История свёрнута по умолчанию: раскрываем её заголовком-кнопкой.
+  await page.getByRole('button', { name: /^История/ }).click();
   const history = page.getByRole('list', { name: 'История' });
   await expect(history).toContainText('Получен ответ на вопрос');
   await expect(history).toContainText('В работе → Реализовано');
