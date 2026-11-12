@@ -1,13 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Check, CircleAlert } from 'lucide-react';
+import { Bell, Check, CircleAlert } from 'lucide-react';
+
+/** Действие в сообщении: «Новое сообщение по A-028» → [Открыть]. */
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
 
 interface Toast {
   id: number;
   text: string;
-  tone: 'ok' | 'error';
+  tone: 'ok' | 'error' | 'info';
+  action?: ToastAction;
 }
 
-const Ctx = createContext<(text: string, tone?: Toast['tone']) => void>(() => {});
+const Ctx = createContext<(text: string, tone?: Toast['tone'], action?: ToastAction) => void>(() => {});
 const LIFE_MS = 5000;
 
 /**
@@ -19,9 +26,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const host = useRef<HTMLDivElement>(null);
   const seq = useRef(0);
 
-  const push = useCallback((text: string, tone: Toast['tone'] = 'ok') => {
+  const push = useCallback((text: string, tone: Toast['tone'] = 'ok', action?: ToastAction) => {
     const id = ++seq.current;
-    setItems((list) => [...list.slice(-2), { id, text, tone }]);
+    setItems((list) => [...list.slice(-2), { id, text, tone, action }]);
     window.setTimeout(() => setItems((list) => list.filter((t) => t.id !== id)), LIFE_MS);
   }, []);
 
@@ -44,9 +51,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div key={t.id} className={`toast toast--${t.tone}`}>
             <span className="toast__icon" aria-hidden="true">
-              {t.tone === 'ok' ? <Check size={14} strokeWidth={3} /> : <CircleAlert size={16} />}
+              {t.tone === 'ok' ? <Check size={14} strokeWidth={3} /> : t.tone === 'info' ? <Bell size={14} /> : <CircleAlert size={16} />}
             </span>
             {t.text}
+            {t.action && (
+              <button
+                type="button"
+                className="toast__action"
+                onClick={() => {
+                  t.action?.run();
+                  setItems((list) => list.filter((x) => x.id !== t.id));
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

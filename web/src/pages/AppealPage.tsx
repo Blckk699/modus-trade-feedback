@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { CardSkeleton } from '../app/CardSkeleton';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -37,6 +38,8 @@ export function AppealPage() {
   const inCard = useInCard();
   const appeal = useAsync(() => unwrap(api.GET('/api/v1/appeals/{appeal_id}', { params: { path: { appeal_id: id } } })), [id]);
   const { markAppealRead } = useUnread();
+  // Статус, ответственный или срок изменил кто-то другой — карточка перечитывается на месте.
+  useLiveReload([`appeal:${id}`], appeal.reload);
 
   useEffect(() => {
     if (appeal.state.status === 'ready') markAppealRead(id);

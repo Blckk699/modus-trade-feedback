@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
@@ -86,6 +87,7 @@ export function QueuePage() {
   const key = JSON.stringify(filters);
   const first = useAsync(() => fetchQueue(filters, 1), [key]);
   useReloadOnCardClose(first.reload);
+  useLiveReload(['appeals'], first.reload);
   const [extra, setExtra] = useState<{ key: string; page: number; items: Item[] }>({ key, page: 1, items: [] });
   const more = extra.key === key ? extra : { key, page: 1, items: [] };
   const [loadingMore, setLoadingMore] = useState(false);
