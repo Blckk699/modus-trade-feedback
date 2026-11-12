@@ -18,6 +18,9 @@ function me(role: Me['role'], permissions: Partial<Permissions>): Me {
   return {
     id: 1,
     telegram_id: null,
+    email: null,
+    has_password: false,
+    telegram_linked: false,
     full_name: 'Тест',
     position: null,
     role,

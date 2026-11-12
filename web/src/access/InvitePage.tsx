@@ -6,6 +6,7 @@ import type { Schemas, Session } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { useAuth, type TelegramIdentity } from '../auth';
 import { AuthFrame } from '../auth/AuthFrame';
+import { RegisterFields } from '../auth/RegisterScreen';
 import { TelegramWidget, unregisteredFromWidget } from '../auth/methods/telegramWidget';
 import { config } from '../config';
 import { formatDateTime } from '../lib/format';
@@ -29,6 +30,7 @@ export function InvitePage() {
   const preview = useAsync(() => unwrap(api.GET('/api/v1/invites/{token}', { params: { path: { token } } })), [token]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [way, setWay] = useState<'email' | 'telegram'>('email');
   const webApp = getWebApp();
 
   async function accept(identity: TelegramIdentity, onInvalid?: () => void) {
@@ -135,13 +137,40 @@ export function InvitePage() {
               >
                 {busy ? 'Принимаем…' : 'Принять приглашение'}
               </button>
-            ) : config.telegramBotUsername ? (
-              <>
-                <p className="muted">Войдите через Telegram, чтобы принять приглашение.</p>
-                {busy ? <p className="muted">Принимаем приглашение…</p> : <TelegramWidget onUser={(user) => accept({ telegram_login: user })} />}
-              </>
             ) : (
-              <p className="error-text">Вход не настроен: не указан бот для Telegram Login.</p>
+              <>
+                {/* В браузере приглашение принимают по почте или через Telegram (SPEC, «Приглашение по почте»). */}
+                {config.telegramBotUsername && (
+                  <div className="segmented" role="radiogroup" aria-label="Как принять приглашение">
+                    <label className="segmented__item">
+                      <input type="radio" name="invite-way" checked={way === 'email'} onChange={() => setWay('email')} />
+                      <span>По почте</span>
+                    </label>
+                    <label className="segmented__item">
+                      <input type="radio" name="invite-way" checked={way === 'telegram'} onChange={() => setWay('telegram')} />
+                      <span>Через Telegram</span>
+                    </label>
+                  </div>
+                )}
+                {way === 'email' || !config.telegramBotUsername ? (
+                  <RegisterFields
+                    inviteToken={token}
+                    suggestedName={p.data.full_name ?? ''}
+                    submitLabel="Зарегистрироваться и войти"
+                    onSession={(session) => {
+                      acceptSession(session);
+                      navigate('/', { replace: true });
+                    }}
+                  />
+                ) : busy ? (
+                  <p className="muted">Принимаем приглашение…</p>
+                ) : (
+                  <>
+                    <p className="muted">Войдите через Telegram, чтобы принять приглашение.</p>
+                    <TelegramWidget onUser={(user) => accept({ telegram_login: user })} />
+                  </>
+                )}
+              </>
             )}
           </>
         )}

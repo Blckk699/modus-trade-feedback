@@ -25,6 +25,8 @@ interface AuthContextValue {
   needAccess: (who: Unregistered) => void;
   /** Войти теми же данными Telegram (после одобрения заявки). */
   loginAs: (who: Unregistered) => Promise<void>;
+  /** Профиль изменил способы входа: сервер вернул свежего Me. */
+  setMe: (me: Me) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -119,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
+  const setMe = useCallback((me: Me) => setState((s) => (s.status === 'authenticated' ? { status: 'authenticated', me } : s)), []);
+
   const needAccess = useCallback((who: Unregistered) => setState({ status: 'unregistered', who }), []);
 
   const loginAs = useCallback(
@@ -133,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ state, acceptSession, failLogin, logout, retry, needAccess, loginAs }}>
+    <AuthContext.Provider value={{ state, acceptSession, failLogin, logout, retry, needAccess, loginAs, setMe }}>
       {children}
     </AuthContext.Provider>
   );
