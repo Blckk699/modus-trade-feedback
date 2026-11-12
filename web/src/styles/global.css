@@ -4028,6 +4028,13 @@ button.chat-entry--ask[aria-expanded='true'] {
   font-weight: 600;
 }
 
+.suggestion__blocked {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .suggestion__why {
   font-size: 13.5px;
 }
