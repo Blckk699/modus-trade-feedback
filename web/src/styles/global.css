@@ -3161,6 +3161,22 @@ a.tile:hover .tile__go {
   padding: 16px 74px 12px 28px;
 }
 
+/* Меню «…» в шапке карточки, слева от крестика: редкие действия */
+.sheet__menu {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+}
+
+.sheet__menu-btn {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.sheet__menu .pop {
+  width: min(300px, calc(100vw - 48px));
+}
+
 .sheet__state {
   display: flex;
   flex-wrap: wrap;
