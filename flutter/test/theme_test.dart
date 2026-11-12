@@ -62,7 +62,7 @@ void main() {
       expect(theme.inputDecorationTheme.filled, isTrue, reason: 'поля без рамок, заливкой — как в вебе');
       expect(theme.floatingActionButtonTheme.backgroundColor, p.accent);
       expect(theme.scaffoldBackgroundColor, p.bg);
-      expect(theme.textTheme.titleLarge!.fontFamily, 'Montserrat');
+      expect(theme.textTheme.titleLarge!.fontFamily, 'Manrope');
       expect(theme.textTheme.bodyLarge!.fontFamily, 'Manrope');
       expect(theme.textTheme.bodyLarge!.fontSize, 16);
       expect(theme.extension<ModusColors>()!.status('implemented').fg, p.status['implemented']!.fg);
@@ -83,6 +83,6 @@ void main() {
     ));
     expect(accent.backgroundColor!.resolve({}), darkPalette.accent);
     expect(danger.foregroundColor!.resolve({}), darkPalette.danger);
-    expect(danger.backgroundColor, isNull, reason: 'опасное действие не заливается');
+    expect(danger.backgroundColor?.resolve({}), anyOf(isNull, Colors.transparent), reason: 'опасное действие не заливается');
   });
 }

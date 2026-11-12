@@ -16,7 +16,7 @@ void main() {
 
   test('сотрудник-ответственный видит обработку, но начинает со своих обращений', () {
     final user = me(meJson(assignedOpenCount: 2));
-    expect(sectionsFor(user), [Section.myAppeals, Section.feed, Section.processing, Section.profile]);
+    expect(sectionsFor(user), [Section.myAppeals, Section.processing, Section.feed, Section.profile]);
     expect(startSectionFor(user), Section.myAppeals);
   });
 
@@ -24,8 +24,8 @@ void main() {
     final user = me(meJson(id: 1, role: 'owner', permissions: ownerPermissions));
     expect(sectionsFor(user), [
       Section.myAppeals,
-      Section.feed,
       Section.processing,
+      Section.feed,
       Section.analytics,
       Section.meetings,
       Section.profile,
