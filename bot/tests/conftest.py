@@ -3,6 +3,15 @@ import pytest
 from tests.support import BotHarness
 
 
+@pytest.fixture(autouse=True)
+def widgets_supported():
+    from app import widgets
+
+    widgets.reset()
+    yield
+    widgets.reset()
+
+
 @pytest.fixture
 async def harness():
     h = BotHarness()
