@@ -100,7 +100,8 @@ ThemeData modusTheme(Brightness brightness) {
   const card = BorderRadius.all(Radius.circular(WebLook.cardRadius));
   const sheet = BorderRadius.vertical(top: Radius.circular(WebLook.cardRadius));
   const minSize = Size(64, WebLook.controlHeight);
-  const none = OutlineInputBorder(borderRadius: small, borderSide: BorderSide.none);
+  // Underline, а не Outline: у заполненного поля без рамки подпись остаётся внутри, а не над полем.
+  const none = UnderlineInputBorder(borderRadius: small, borderSide: BorderSide.none);
   final buttonText = text.labelLarge;
 
   return ThemeData(
@@ -169,7 +170,8 @@ ThemeData modusTheme(Brightness brightness) {
     // Поля как в вебе (#154, #193): без рамок, заливка поверхностью; ошибка — заливкой danger-bg.
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: p.surface,
+      // Заливка отличается и от фона экрана, и от листов и карточек, иначе поле в нижнем листе не видно.
+      fillColor: light ? p.surface2 : x.surface3,
       border: none,
       enabledBorder: none,
       focusedBorder: none,
@@ -199,9 +201,7 @@ ThemeData modusTheme(Brightness brightness) {
         textStyle: const WidgetStatePropertyAll(TextStyle(fontFamily: ModusFont.body, fontSize: 13.5, fontWeight: FontWeight.w600)),
       ),
     ),
-    iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(foregroundColor: p.heading),
-    ),
+
     tabBarTheme: TabBarThemeData(labelColor: p.primary, unselectedLabelColor: p.muted, indicatorColor: p.primary),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
