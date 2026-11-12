@@ -30,6 +30,9 @@ Future<(FakeServer, MemorySessionStore)> openLogin(WidgetTester tester, Map<Stri
 Future<void> fill(WidgetTester tester, String email, String password) async {
   await tester.enterText(find.byKey(const Key('login-email')), email);
   await tester.enterText(find.byKey(const Key('login-password')), password);
+  // После вёрстки как в вебе кнопка может оказаться ниже края тестового экрана.
+  await tester.ensureVisible(find.byKey(const Key('login-email-submit')));
+  await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('login-email-submit')));
   await tester.pumpAndSettle();
 }
@@ -140,6 +143,8 @@ void main() {
             'session': null,
           }, 201),
     });
+    await tester.ensureVisible(find.byKey(const Key('open-register')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('open-register')));
     await tester.pumpAndSettle();
 
