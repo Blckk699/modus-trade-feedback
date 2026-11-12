@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import re
 from enum import StrEnum
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 import httpx
 import pytest
 from fastapi import FastAPI
-from starlette.routing import WebSocketRoute
+from starlette.routing import NoMatchFound
 
 from app.domain.enums import AppealAction, AppealSource, AppealStatus, AppealType, Priority, Role
 
@@ -40,7 +41,8 @@ def contract_operations() -> set[tuple[str, str]]:
 def app_operations(app: FastAPI) -> set[tuple[str, str]]:
     operations = {(method, _normalized(path)) for path, item in app.openapi()["paths"].items() for method in item}
     # WebSocket в схему FastAPI не попадает; в контракте он описан как GET (запрос с Upgrade).
-    operations |= {("get", _normalized(route.path)) for route in app.routes if isinstance(route, WebSocketRoute)}
+    with contextlib.suppress(NoMatchFound):
+        operations.add(("get", _normalized(str(app.url_path_for("live_updates")))))
     return operations
 
 
