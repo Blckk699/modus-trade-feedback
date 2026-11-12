@@ -11,8 +11,6 @@ import { historyKindLabel } from './labels';
 
 type HistoryEvent = Schemas['HistoryEvent'];
 
-const storage = () => (typeof window === 'undefined' ? null : window.localStorage);
-
 /**
  * История событий — раскрывающийся блок. В свёрнутом виде видно, сколько событий и какое последнее;
  * в раскрытом — лента по дням в порядке времени. Выбор «раскрыто или свёрнуто» запоминается.
@@ -23,13 +21,13 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
     () => unwrap(api.GET('/api/v1/appeals/{appeal_id}/history', { params: { path: { appeal_id: appealId } } })),
     [appealId, version],
   );
-  const [open, setOpen] = useState(() => readHistoryOpen(storage()));
+  const [open, setOpen] = useState(() => readHistoryOpen());
   const listId = useId();
   const events = history.state.status === 'ready' ? history.state.data : [];
   const last = events[events.length - 1];
 
   const toggle = () => {
-    writeHistoryOpen(storage(), !open);
+    writeHistoryOpen(!open);
     setOpen(!open);
   };
 
