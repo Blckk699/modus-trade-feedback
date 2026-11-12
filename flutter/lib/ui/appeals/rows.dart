@@ -39,6 +39,7 @@ class WebRow extends StatelessWidget {
     this.unreadKey,
     this.badges = const [],
     this.overdue = false,
+    this.plain = false,
   });
 
   final AppealType type;
@@ -50,6 +51,9 @@ class WebRow extends StatelessWidget {
   final List<Widget> badges;
   final bool overdue;
 
+  /// Строка внутри карточки (`.rows` в вебе): без своих боковых отступов.
+  final bool plain;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -58,7 +62,7 @@ class WebRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         color: overdue ? c.dangerBg.withValues(alpha: 0.35) : null,
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: plain ? const EdgeInsets.symmetric(vertical: 14) : const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           TypeIcon(type),
           const SizedBox(width: 14),

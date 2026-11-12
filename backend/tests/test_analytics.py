@@ -213,3 +213,21 @@ async def test_saved_digest_time_beats_environment(client, app, login_as, time_m
     await time_machine.travel_to(next_morning(time_machine.now) - timedelta(minutes=2))
     await time_machine.advance(minutes=10, step=timedelta(minutes=1))
     assert len(await digests(client, owner)) == 1
+
+
+async def test_repeats_from_the_same_author_are_counted(client, login_as) -> None:
+    """B-25: автор основного обращения написал о том же ещё дважды — тема повторяется, хотя участников нет."""
+    author = await login_as("employee_procurement")  # автор A-001
+    head = await login_as(HEAD)
+    owner = await login_as("owner")
+    form = {"type": "problem", "category_id": 1, "priority": "medium", "text": "Нет назначения оборудования."}
+    for _ in range(2):
+        created = await client.post("/api/v1/appeals", headers=author, json=form)
+        merged = await client.post(f"/api/v1/appeals/{created.json()['id']}/merge", headers=head, json={"main_appeal_id": 1})
+        assert merged.status_code == 200, merged.text
+
+    topics = (await summary(client, owner))["repeated_topics"]
+    assert [(t["appeal"]["id"], t["participants_count"]) for t in topics] == [(1, 3)]
+    # Фильтр по статусу прячет закрытые повторы из выборки, но не из счётчика.
+    filtered = (await summary(client, owner, status="new"))["repeated_topics"]
+    assert [(t["appeal"]["id"], t["participants_count"]) for t in filtered] == [(1, 3)]

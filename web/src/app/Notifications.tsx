@@ -1,7 +1,9 @@
 import { useLiveReload } from '../live/bus';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, Settings2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useMe } from '../auth';
 import { api, unwrap } from '../api/client';
 import type { Schemas } from '../api/types';
 import { formatDateTime } from '../lib/format';
@@ -37,6 +39,7 @@ export function notificationTarget(n: Pick<Notification, 'path' | 'appeal'>): st
 
 /** Колокольчик со счётчиком и список последних уведомлений. */
 export function NotificationsBell() {
+  const me = useMe();
   const unread = useUnread();
   const pop = usePopover<HTMLDivElement>();
   const navigate = useNavigate();
@@ -127,6 +130,13 @@ export function NotificationsBell() {
               ))}
             </ul>
           )}
+          {/* Звук и Telegram живут в профиле — даём дорогу к ним прямо отсюда. */}
+          <div className="pop__foot">
+            {!me.telegram_linked && <p className="pop__foot-note">Telegram не привязан: уведомления приходят только сюда.</p>}
+            <Link to="/profile#notifications" className="link-btn" onClick={() => pop.setOpen(false)}>
+              <Settings2 size={16} aria-hidden="true" /> {me.telegram_linked ? 'Настроить уведомления' : 'Привязать Telegram и настроить звук'}
+            </Link>
+          </div>
         </div>
       )}
     </div>

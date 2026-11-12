@@ -982,6 +982,31 @@ svg {
   font-size: 13.5px;
 }
 
+.profile__card--anchor {
+  scroll-margin-top: 16px;
+}
+
+/* Низ окна уведомлений прилипает: ссылка на настройки видна, сколько бы уведомлений ни было */
+.pop__foot {
+  position: sticky;
+  bottom: -8px;
+  display: grid;
+  gap: 4px;
+  margin: 4px -8px -8px;
+  padding: 10px 18px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.pop__foot-note {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.pop__foot .link-btn {
+  justify-self: start;
+}
+
 .pop__who {
   display: grid;
   gap: 1px;
@@ -4028,6 +4053,13 @@ button.chat-entry--ask[aria-expanded='true'] {
   font-weight: 600;
 }
 
+.suggestion__blocked {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .suggestion__why {
   font-size: 13.5px;
 }
@@ -4498,6 +4530,79 @@ textarea.compose__text--tall {
   min-width: 6px;
   border-radius: 3px;
   background: var(--primary);
+}
+
+/* Сводка: доли статусов одной полосой и «Показать все» под длинными списками */
+.strip {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.strip__part {
+  min-width: 4px;
+  border-radius: 3px;
+}
+
+.shares {
+  display: grid;
+  gap: 10px;
+}
+
+.shares__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 14px;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+.shares__value {
+  color: var(--heading);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.shares__label {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.shares__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.shares__fill {
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+
+.shares__fill--suggestion {
+  background: var(--status-in_progress);
+}
+
+.shares__fill--praise {
+  background: var(--status-implemented);
+}
+
+.more-btn {
+  justify-self: start;
+  margin-top: 12px;
 }
 
 .table-wrap {

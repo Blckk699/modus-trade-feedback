@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { Modal } from './Modal';
 
 interface Props {
@@ -21,11 +21,13 @@ interface Props {
  * ничего не делает. Пока действие выполняется, окно не закрывается, а ошибка показывается в нём же.
  */
 export function Confirm({ open, title, children, confirmLabel, busyLabel, busy = false, error, danger, onConfirm, onCancel }: Props) {
+  // Своё id на каждое окно: подтверждение может открыться поверх другого окна с подтверждением.
+  const titleId = useId();
   return (
-    <Modal open={open} onClose={onCancel} labelledBy="confirm-title" locked={busy}>
+    <Modal open={open} onClose={onCancel} labelledBy={titleId} locked={busy}>
       {open && (
         <div className="dialog-form">
-          <h2 id="confirm-title" className="dialog-form__title">
+          <h2 id={titleId} className="dialog-form__title">
             {title}
           </h2>
           <div className="confirm__text">{children}</div>

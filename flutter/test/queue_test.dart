@@ -92,29 +92,29 @@ void main() {
     expect(rowColor('queue-2'), isNull);
     expect(find.byKey(const Key('time-left-2')), findsNothing, reason: 'первый ответ уже дан');
 
-    await tester.tap(find.byKey(const Key('scope-unassigned')));
+    await tapVisible(tester, find.byKey(const Key('scope-unassigned')));
     await tester.pumpAndSettle();
     expect(server.last('GET', '/api/v1/appeals').url.queryParameters['scope'], 'unassigned');
 
-    await tester.tap(find.byKey(const Key('queue-filters')));
+    await tapVisible(tester, find.byKey(const Key('queue-filters')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-status')));
+    await tapVisible(tester, find.byKey(const Key('filter-status')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Ожидает уточнения').last);
+    await tapVisible(tester, find.text('Ожидает уточнения').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-due')));
+    await tapVisible(tester, find.byKey(const Key('filter-due')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Просрочено').last);
+    await tapVisible(tester, find.text('Просрочено').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-category-true')));
+    await tapVisible(tester, find.byKey(const Key('filter-category-true')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Межотдельное взаимодействие').last);
+    await tapVisible(tester, find.text('Межотдельное взаимодействие').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filter-department-true')));
+    await tapVisible(tester, find.byKey(const Key('filter-department-true')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Бухгалтерия').last);
+    await tapVisible(tester, find.text('Бухгалтерия').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('filters-apply')));
+    await tapVisible(tester, find.byKey(const Key('filters-apply')));
     await tester.pumpAndSettle();
 
     query = server.last('GET', '/api/v1/appeals').url.queryParametersAll;
@@ -135,7 +135,7 @@ void main() {
     await tester.pumpWidget(screen(session, const QueueScreen()));
     await tester.pumpAndSettle();
     expect(find.text('Обращений нет.'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('queue-filters')));
+    await tapVisible(tester, find.byKey(const Key('queue-filters')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('filter-department-false')), findsNothing);
     expect(find.byKey(const Key('filter-department-true')), findsNothing);
@@ -170,9 +170,9 @@ void main() {
 
   testWidgets('взять: необязательный ответ, карточка обновляется ответом сервера', (tester) async {
     final server = await openCard(tester, ['take']);
-    await tester.tap(find.byKey(const Key('action-take')));
+    await tapVisible(tester, find.byKey(const Key('action-take')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('action-submit')));
+    await tapVisible(tester, find.byKey(const Key('action-submit')));
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/take').body), {'comment': null});
     expect(find.text('На рассмотрении'), findsOneWidget);
@@ -181,7 +181,7 @@ void main() {
 
   testWidgets('отклонить без причины нельзя; причина уходит в запрос; ошибка сервера видна', (tester) async {
     final server = await openCard(tester, ['reject'], updated: appealJson(status: 'rejected', rejectionReason: 'Нет бюджета.'));
-    await tester.tap(find.byKey(const Key('action-reject')));
+    await tapVisible(tester, find.byKey(const Key('action-reject')));
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<ButtonStyleButton>(submit).onPressed, isNull);
@@ -191,13 +191,13 @@ void main() {
 
     server.routes['POST /api/v1/appeals/21/reject'] = (_) => json(
         errorJson('invalid_transition', 'Обращение уже в другом статусе.'), 409);
-    await tester.tap(submit);
+    await tapVisible(tester, submit);
     await tester.pumpAndSettle();
     expect(find.text('Обращение уже в другом статусе.'), findsOneWidget);
 
     server.routes['POST /api/v1/appeals/21/reject'] =
         (_) => json(appealJson(status: 'rejected', rejectionReason: 'Нет бюджета.'));
-    await tester.tap(submit);
+    await tapVisible(tester, submit);
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/reject').body), {'reason': 'Нет бюджета.'});
     expect(find.text('Причина отказа'), findsOneWidget);
@@ -207,11 +207,11 @@ void main() {
     final server = await openCard(tester, ['request_info', 'start_work', 'accept_feedback'],
         updated: appealJson(allowedActions: const ['request_info', 'start_work', 'accept_feedback']));
     Future<void> run(String action, String? text) async {
-      await tester.tap(find.byKey(Key('action-$action')));
+      await tapVisible(tester, find.byKey(Key('action-$action')));
       await tester.pumpAndSettle();
       if (text != null) await tester.enterText(find.byKey(const Key('action-text')), text);
       await tester.pump();
-      await tester.tap(find.byKey(const Key('action-submit')));
+      await tapVisible(tester, find.byKey(const Key('action-submit')));
       await tester.pumpAndSettle();
     }
 
@@ -225,14 +225,14 @@ void main() {
 
   testWidgets('реализовано без результата нельзя; публичные формулировки необязательны', (tester) async {
     final server = await openCard(tester, ['implement'], updated: appealJson(status: 'implemented', result: 'Поля добавлены.'));
-    await tester.tap(find.byKey(const Key('action-implement')));
+    await tapVisible(tester, find.byKey(const Key('action-implement')));
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);
     await tester.enterText(find.byKey(const Key('implement-result')), 'Поля добавлены.');
     await tester.enterText(find.byKey(const Key('implement-public-result')), 'Шаблон заявки дополнен');
     await tester.pump();
-    await tester.tap(submit);
+    await tapVisible(tester, submit);
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/implement').body), {
       'result': 'Поля добавлены.',
@@ -244,22 +244,22 @@ void main() {
 
   testWidgets('переназначение: сотрудник и причина обязательны; админы, отключённые и текущий скрыты', (tester) async {
     final server = await openCard(tester, ['reassign']);
-    await tester.tap(find.byKey(const Key('action-reassign')));
+    await tapVisible(tester, find.byKey(const Key('action-reassign')));
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);
 
-    await tester.tap(find.byKey(const Key('reassign-user')));
+    await tapVisible(tester, find.byKey(const Key('reassign-user')));
     await tester.pumpAndSettle();
     expect(find.text('Анна Ли'), findsNothing);
     expect(find.text('Уволенный'), findsNothing);
     expect(find.textContaining('Марат Сейткали —'), findsNothing, reason: 'текущий ответственный');
-    await tester.tap(find.text('Ольга Петрова — Бухгалтерия (отсутствует)').last);
+    await tapVisible(tester, find.text('Ольга Петрова — Бухгалтерия (отсутствует)').last);
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(submit).onPressed, isNull, reason: 'нет причины');
     await tester.enterText(find.byKey(const Key('reassign-reason')), 'Вопрос бухгалтерии');
     await tester.pump();
-    await tester.tap(submit);
+    await tapVisible(tester, submit);
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/reassign').body),
         {'assignee_id': 5, 'reason': 'Вопрос бухгалтерии'});
