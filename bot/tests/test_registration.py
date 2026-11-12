@@ -7,9 +7,10 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboa
 
 from app import texts
 from app.notifications import deliver_pending
-from tests.support import MINI_APP_URL, SERVICE_KEY, employee
+from tests.support import MINI_APP_URL, SERVICE_KEY, BotHarness, employee
 
 STRANGER = 555000111
+INTRO = f"{texts.REQUEST_INTRO}\n\n{texts.LINK_HINT}"
 NOT_REGISTERED = "Вас нет в списке сотрудников. Обратитесь к администратору."
 
 DEPARTMENTS = [{"id": 1, "name": "Закупки"}, {"id": 3, "name": "Продажи"}, {"id": 6, "name": "IT"}]
@@ -60,8 +61,11 @@ async def test_stranger_start_offers_access_request(harness, backend):
     await harness.send_text("/start", user_id=STRANGER, first_name="Сергей", last_name="Ким")
 
     [reply] = harness.telegram.sent()
-    assert reply.text == texts.REQUEST_INTRO
-    assert inline_texts(reply.reply_markup) == [texts.BTN_REQUEST_ACCESS]
+    assert reply.text == INTRO
+    assert inline_texts(reply.reply_markup) == [texts.BTN_REQUEST_ACCESS, texts.BTN_LINK_TELEGRAM]
+    # Уже есть аккаунт по почте (T-11): ссылка на профиль сайта в браузере, не Mini App.
+    link = reply.reply_markup.inline_keyboard[1][0]
+    assert link.url == MINI_APP_URL + "/profile" and link.web_app is None
     [status] = backend.calls("POST", "/api/v1/access-requests/mine")
     assert status.headers["X-Telegram-Id"] == str(STRANGER)
     assert status.headers["X-Service-Key"] == SERVICE_KEY
@@ -161,7 +165,7 @@ async def test_stranger_menu_buttons_lead_to_status_not_to_employee_features(har
     await harness.send_text("Сломался принтер на складе", user_id=STRANGER)
 
     replies = harness.telegram.sent()
-    assert [r.text for r in replies] == [texts.REQUEST_INTRO, texts.REQUEST_INTRO]
+    assert [r.text for r in replies] == [INTRO, INTRO]
     assert backend.calls("POST", "/api/v1/auth/login-codes") == []
     assert backend.calls("POST", "/api/v1/drafts/text") == []
 
@@ -328,3 +332,28 @@ async def test_voice_in_the_middle_of_form_keeps_it(harness, backend):
 
     await harness.send_text("Сергей Ким", user_id=STRANGER)
     assert harness.telegram.sent()[-1].text == texts.ASK_DEPARTMENT
+
+
+async def test_link_hint_goes_to_web_url_when_set(backend):
+    h = BotHarness(mini_app_url=None)
+    h.settings.web_url = "https://modus.example/"
+    h.backend.routes.update(backend.routes)
+    try:
+        await h.send_text("/start", user_id=STRANGER)
+    finally:
+        await h.close()
+
+    [reply] = h.telegram.sent()
+    assert reply.reply_markup.inline_keyboard[1][0].url == "https://modus.example/profile"
+
+
+async def test_no_site_address_means_no_link_button(backend):
+    h = BotHarness(mini_app_url=None)
+    h.backend.routes.update(backend.routes)
+    try:
+        await h.send_text("/start", user_id=STRANGER)
+    finally:
+        await h.close()
+
+    [reply] = h.telegram.sent()
+    assert inline_texts(reply.reply_markup) == [texts.BTN_REQUEST_ACCESS]

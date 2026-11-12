@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     api_timeout_seconds: float = 15.0
     # Адрес Mini App (HTTPS). Без него кнопки Mini App не показываются.
     mini_app_url: str | None = None
+    # Адрес веб-версии (HTTPS) для обычных ссылок, например на профиль. Не задан — берётся MINI_APP_URL (тот же сайт).
+    web_url: str | None = None
     # Как часто забирать очередь уведомлений бэкенда, секунд.
     notifications_poll_seconds: float = 3.0
     # Карточки HTML-виджетами (Bot API 10.4). false — прежние текстовые сообщения.
@@ -27,6 +29,11 @@ class Settings(BaseSettings):
             return None
         base = self.mini_app_url.rstrip("/")
         return base + path if path else base
+
+    def web_link(self, path: str) -> str | None:
+        """Ссылка на страницу сайта в браузере (не Mini App): вход по почте там, а не через Telegram."""
+        base = self.web_url or self.mini_app_url
+        return base.rstrip("/") + path if base else None
 
     def missing(self) -> list[str]:
         """Обязательные переменные, без которых бот не запускается."""
