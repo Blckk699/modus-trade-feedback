@@ -335,9 +335,9 @@ class QueueRow extends StatelessWidget {
     final c = ModusColors.of(context);
     final overdue = item.dueState == DueState.overdue && item.status != AppealStatus.closed;
     final due = item.firstResponseDueAt;
+    // Правило 6: срок в строке — только когда он важен (просрочен или истекает).
     final waitingAnswer = due != null &&
-        item.dueState != DueState.answered &&
-        item.dueState != DueState.noDeadline &&
+        (item.dueState == DueState.overdue || item.dueState == DueState.dueSoon) &&
         item.status != AppealStatus.closed;
     return KeyedSubtree(
       key: Key('queue-${item.id}'),

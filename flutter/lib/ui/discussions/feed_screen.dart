@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
 import '../../theme/modus_theme.dart';
 import '../../format.dart';
-import '../appeals/duplicates_bitrix.dart' show plural;
 import 'discussion_screen.dart';
+import '../web/web_ui.dart';
 import '../home/role_switch.dart';
 
 /// Общая лента для всех: открытые обсуждения, реализованные улучшения, завершённые обсуждения
@@ -122,8 +123,9 @@ class DiscussionList extends StatelessWidget {
       },
       empty: status == DiscussionStatus.open ? 'Сейчас нет открытых обсуждений.' : 'Завершённых обсуждений пока нет.',
       builder: (context, items, reload) => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
         itemCount: items.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, i) => DiscussionRow(
           discussion: items[i],
           onTap: () async {
@@ -147,39 +149,55 @@ class DiscussionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = discussion;
     final session = SessionScope.of(context);
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final c = ModusColors.of(context);
     final open = d.status == DiscussionStatus.open;
-    return InkWell(
-      key: Key('discussion-${d.id}'),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
+    final muted = TextStyle(color: c.muted, fontSize: 13);
+    final waitsVote = open && d.canVote && d.myVote == null;
+    return Material(
+      color: c.card,
+      borderRadius: BorderRadius.circular(Web.rCard),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: Key('discussion-${d.id}'),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+          child: Row(children: [
             Expanded(
-              child: Text('${session.typeLabel(d.appeal.type)} · ${d.authorDisplay}',
-                  style: muted, overflow: TextOverflow.ellipsis),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  d.publicText,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: c.heading, fontSize: 15.5, fontWeight: FontWeight.w600, height: 1.4),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${session.typeLabel(d.appeal.type)} · ${d.authorDisplay} · '
+                  '${open ? 'до ${formatDateTime(d.deadline)}' : 'завершено ${d.closedAt != null ? formatDate(d.closedAt!) : ''}'}',
+                  style: muted,
+                ),
+                const SizedBox(height: 10),
+                Wrap(spacing: 14, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  if (waitsVote)
+                    Text('Ждёт вашего голоса',
+                        style: TextStyle(color: c.accent, fontSize: 13, fontWeight: FontWeight.w600)),
+                  _Count(icon: LucideIcons.thumbsUp, value: d.votesFor, label: 'За'),
+                  _Count(icon: LucideIcons.thumbsDown, value: d.votesAgainst, label: 'Против'),
+                  _Count(icon: LucideIcons.messageCircle, value: d.commentsCount, label: 'Комментарии'),
+                  if (d.myVote != null)
+                    Text('ваш голос: ${d.myVote == VoteValue.for_ ? 'за' : 'против'}', style: muted),
+                ]),
+                if (!open && d.outcome != null) ...[
+                  const SizedBox(height: 8),
+                  Text('Итог: ${d.outcome}', style: TextStyle(color: c.heading, fontSize: 13.5)),
+                ],
+              ]),
             ),
-            Text(
-              open ? 'до ${formatDateTime(d.deadline)}' : 'завершено ${d.closedAt != null ? formatDate(d.closedAt!) : ''}',
-              style: muted,
-            ),
+            const SizedBox(width: 8),
+            Icon(LucideIcons.chevronRight, size: 18, color: c.faint),
           ]),
-          const SizedBox(height: 4),
-          Text(d.publicText, maxLines: 3, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 8),
-          Wrap(spacing: 12, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            _Count(icon: Icons.thumb_up_alt_outlined, value: d.votesFor, label: 'За'),
-            _Count(icon: Icons.thumb_down_alt_outlined, value: d.votesAgainst, label: 'Против'),
-            Text('${d.commentsCount} ${plural(d.commentsCount, ('комментарий', 'комментария', 'комментариев'))}',
-                style: muted),
-            if (d.myVote != null)
-              Text('вы проголосовали «${d.myVote == VoteValue.for_ ? 'за' : 'против'}»', style: muted),
-          ]),
-          if (!open && d.outcome != null)
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text('Итог: ${d.outcome}', style: muted)),
-        ]),
+        ),
       ),
     );
   }
@@ -196,9 +214,9 @@ class _Count extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
         label: '$label: $value',
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 16),
+          Icon(icon, size: 15, color: ModusColors.of(context).muted),
           const SizedBox(width: 4),
-          Text('$value'),
+          Text('$value', style: TextStyle(color: ModusColors.of(context).heading, fontSize: 13, fontWeight: FontWeight.w600)),
         ]),
       );
 }
@@ -216,8 +234,9 @@ class ImplementedList extends StatelessWidget {
       },
       empty: 'Реализованных улучшений пока нет.',
       builder: (context, items, _) => ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
         itemCount: items.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, i) => FeedRow(item: items[i]),
       ),
     );
@@ -236,9 +255,10 @@ class FeedRow extends StatelessWidget {
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final label = theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary);
-    return Padding(
+    return Container(
       key: Key('feed-${f.appealId}'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: ModusColors.of(context).card, borderRadius: BorderRadius.circular(Web.rCard)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(
