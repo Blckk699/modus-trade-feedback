@@ -9,6 +9,7 @@ import 'card_parts.dart' show needsAssignee;
 import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../../session/session_controller.dart';
 import '../discussions/publish_discussion_form.dart';
 import '../../theme/modus_theme.dart';
 import '../sheet_header.dart';
@@ -24,7 +25,13 @@ const processingActions = [
   AppealAction.acceptFeedback,
   AppealAction.reassign,
   AppealAction.publishDiscussion,
+  AppealAction.createBitrixTask,
 ];
+
+Key actionKey(AppealAction a) => a == AppealAction.createBitrixTask ? const Key('bitrix-create') : Key('action-${a.toJson()}');
+
+String actionTitle(SessionController session, AppealAction a) =>
+    a == AppealAction.createBitrixTask ? 'Задача в Битрикс24' : session.actionLabel(a);
 
 class ActionsPanel extends StatelessWidget {
   const ActionsPanel({super.key, required this.appeal, required this.onUpdated, this.chat});
@@ -36,6 +43,7 @@ class ActionsPanel extends StatelessWidget {
   final ValueChanged<Appeal> onUpdated;
 
   Future<void> _open(BuildContext context, AppealAction action) async {
+    if (action == AppealAction.createBitrixTask) return _createBitrix(context);
     final updated = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
@@ -97,6 +105,19 @@ class ActionsPanel extends StatelessWidget {
     };
   }
 
+  /// Задача в Битрикс24 — без формы: создаём и подставляем ссылку в обращение.
+  Future<void> _createBitrix(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final task = await SessionScope.read(context).api.bitrix.createBitrixTask(appeal.id);
+      if (task == null) throw const AppError(code: 'internal_error', message: 'Пустой ответ сервера.');
+      onUpdated(appeal..bitrixTask = task.toJson());
+      messenger.showSnackBar(SnackBar(content: Text('Создана задача №${task.taskId} в Битрикс24')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(AppError.from(e).message)));
+    }
+  }
+
   Future<void> _more(BuildContext context, List<AppealAction> actions) async {
     final picked = await showModalBottomSheet<AppealAction>(
       context: context,
@@ -115,6 +136,7 @@ class ActionsPanel extends StatelessWidget {
         .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
         // Без ответственного назначают блоком в карточке, переназначать пока некого.
         .where((a) => !(a == AppealAction.reassign && needsAssignee(appeal)))
+        .where((a) => !(a == AppealAction.createBitrixTask && appeal.bitrixTask != null))
         .toList();
     // Главное действие — одна тёмная кнопка во всю ширину. Под ней ряд из двух равных кнопок:
     // «Переписка» и второстепенное действие (если оно одно) или «Ещё» со списком в листе.
@@ -134,9 +156,9 @@ class ActionsPanel extends StatelessWidget {
     final Widget? second = switch (secondary.length) {
       0 => null,
       1 => WebButton(
-          key: Key('action-${secondary.single.toJson()}'),
+          key: actionKey(secondary.single),
           kind: secondary.single == AppealAction.reject ? WebButtonKind.ghostDanger : WebButtonKind.soft,
-          label: session.actionLabel(secondary.single),
+          label: actionTitle(session, secondary.single),
           onPressed: () => _open(context, secondary.single),
         ),
       _ => WebButton(
@@ -173,6 +195,7 @@ IconData actionIcon(AppealAction a) => switch (a) {
       AppealAction.reassign => LucideIcons.userPen,
       AppealAction.publishDiscussion => LucideIcons.messagesSquare,
       AppealAction.reject => LucideIcons.ban,
+      AppealAction.createBitrixTask => LucideIcons.listPlus,
       _ => LucideIcons.chevronRight,
     };
 
@@ -195,7 +218,7 @@ class _MoreSheet extends StatelessWidget {
               for (var i = 0; i < items.length; i++) ...[
                 if (i > 0) Divider(height: 1, indent: 52, color: c.palette.border),
                 InkWell(
-                  key: Key('action-${items[i].toJson()}'),
+                  key: actionKey(items[i]),
                   onTap: () {
                     HapticFeedback.selectionClick();
                     Navigator.of(context).pop(items[i]);
@@ -207,7 +230,7 @@ class _MoreSheet extends StatelessWidget {
                       const SizedBox(width: 16),
                       Expanded(
                         child: Text(
-                          session.actionLabel(items[i]),
+                          actionTitle(session, items[i]),
                           style: TextStyle(
                             color: danger ? c.danger : c.heading,
                             fontSize: 15,

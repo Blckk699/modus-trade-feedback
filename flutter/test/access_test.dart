@@ -97,6 +97,8 @@ void main() {
     expect(find.text('Сергей Ким'), findsOneWidget);
     expect(server.last('GET', '/api/v1/admin/access-requests').url.queryParameters['status'], 'pending');
 
+    await tester.tap(find.byKey(const Key('request-tune-9')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('request-role-9')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Руководитель подразделения').last);

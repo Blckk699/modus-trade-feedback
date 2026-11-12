@@ -34,10 +34,9 @@ Future<SessionController> signedIn(FakeServer server) async {
 Future<void> pumpSettings(WidgetTester tester, SessionController session, [String? tab]) async {
   await tester.pumpWidget(SessionScope(controller: session, child: const MaterialApp(home: SettingsScreen())));
   await tester.pumpAndSettle();
-  if (tab != null) {
-    await tester.tap(find.byKey(Key('settings-$tab')));
-    await tester.pumpAndSettle();
-  }
+  // Разделы — списком; по умолчанию открываем «Сотрудники».
+  await tester.tap(find.byKey(Key('settings-${tab ?? 'users'}')));
+  await tester.pumpAndSettle();
 }
 
 Map<String, dynamic> body(FakeServer s, String method, String path) =>

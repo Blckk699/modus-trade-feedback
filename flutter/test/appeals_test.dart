@@ -79,6 +79,8 @@ void main() {
     await tester.scrollUntilVisible(find.text('Предложение'), -200, scrollable: find.byType(Scrollable).first);
 
     await tapVisible(tester, find.text('Предложение'));
+    await tapVisible(tester, find.byKey(const Key('more-fields')));
+    await tester.pumpAndSettle();
     await tapVisible(tester, find.byKey(const Key('field-category')));
     await tester.pumpAndSettle();
     expect(find.text('Архивная'), findsNothing, reason: 'неактивные категории скрыты');
@@ -183,9 +185,10 @@ void main() {
     expect(query['sort'], 'created_desc');
     expect(find.textContaining('A-021'), findsOneWidget);
     expect(find.text('Новое'), findsOneWidget);
-    expect(find.text('В срок · до 13 ноября 2026, 10:15'), findsOneWidget);
+    // Срок в строке — только если ответ задерживается или скоро истечёт.
+    expect(find.text('В срок · до 13 ноября 2026, 10:15'), findsNothing);
     expect(find.text('Отклонено'), findsOneWidget);
-    expect(find.text('Ответ дан'), findsOneWidget);
+    expect(find.text('Ответ дан'), findsNothing);
     expect(find.byKey(const Key('unread-21')), findsOneWidget);
     expect(find.byKey(const Key('unread-17')), findsNothing);
     expect(find.descendant(of: find.byKey(const Key('unread-badge')), matching: find.text('3')), findsWidgets);
