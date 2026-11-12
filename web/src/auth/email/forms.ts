@@ -20,7 +20,11 @@ export const CODES = {
   conflict: 'conflict',
 } as const satisfies Record<string, ErrorCode>;
 
-/** Сервер ещё не знает вход по почте (старая версия API): честно говорим об этом, а не «не найдено». */
+/**
+ * Сервер ещё не знает вход по почте (старая версия API): честно говорим об этом, а не «не найдено».
+ * Сервер отвечает на незнакомый маршрут тем же `404 not_found`, что и на контрактное «не найдено»,
+ * поэтому проверка стоит только там, где контракт 404 не возвращает: вход, регистрация, /me/credentials, /me/telegram.
+ */
 const NOT_DEPLOYED = 'Вход по почте на этом сервере ещё не включён. Войдите через Telegram или попробуйте позже.';
 const notDeployed = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405);
 
@@ -222,5 +226,6 @@ export function unlinkTelegramProblem(e: unknown): string {
 /** Ошибка сброса пароля администратором: у сотрудника без почты сбрасывать нечего. */
 export function resetPasswordProblem(e: unknown): string {
   if (codeOf(e) === CODES.conflict) return 'У сотрудника нет почты для входа: сбрасывать нечего.';
-  return notDeployed(e) ? NOT_DEPLOYED : errorMessage(e);
+  // 404 здесь контрактный (сотрудника уже нет) — показываем текст сервера.
+  return errorMessage(e);
 }
