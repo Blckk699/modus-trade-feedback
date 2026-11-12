@@ -31,6 +31,8 @@ const PROCESSING: Action[] = [
 interface Props {
   appeal: Appeal;
   onUpdated: (appeal: Appeal) => void;
+  /** Слева в подвале стоит кнопка переписки: подвал нужен, даже когда действий нет. */
+  chatSlot?: (el: HTMLElement | null) => void;
 }
 
 /** Короткие подписи кнопок. Чего здесь нет, берётся из словаря (/dictionaries, actions). */
@@ -58,7 +60,7 @@ const DONE: Partial<Record<Action, string>> = {
 /** Какое действие сделать главной кнопкой: то, что двигает обращение дальше. */
 const PRIMARY: Action[] = ['take', 'start_work', 'implement', 'accept_feedback', 'request_info'];
 
-export function ActionsPanel({ appeal, onUpdated }: Props) {
+export function ActionsPanel({ appeal, onUpdated, chatSlot }: Props) {
   const dict = useDictionaries();
   const toast = useToast();
   const [open, setOpen] = useState<Action | null>(null);
@@ -74,7 +76,7 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       !(a === 'publish_discussion' && appeal.discussion) &&
       !(a === 'reassign' && assignInCard),
   );
-  if (actions.length === 0) return null;
+  if (actions.length === 0 && !chatSlot) return null;
 
   const label = (a: Action) => SHORT[a] ?? dict.data?.actions.find((x) => x.code === a)?.label ?? a;
   const primary = PRIMARY.find((a) => actions.includes(a));
@@ -93,6 +95,7 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       {/* Действия закреплены внизу карточки: отказ красным текстом слева, главное — тёмной кнопкой справа.
           Когда действий много, редкие (переназначить, вынести на обсуждение) уходят под «Ещё». */}
       <footer className="sheet__foot" role="group" aria-label="Действия">
+        {chatSlot && <span className="sheet__chat-slot" ref={chatSlot} />}
         {actions.includes('reject') && (
           <button type="button" className="btn btn--text btn--danger sheet__reject" aria-haspopup="dialog" onClick={() => setOpen('reject')}>
             {label('reject')}
