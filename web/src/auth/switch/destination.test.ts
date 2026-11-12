@@ -21,6 +21,7 @@ function me(role: Me['role'], permissions: Partial<Permissions>): Me {
     email: null,
     has_password: false,
     telegram_linked: false,
+    switch_targets: [],
     full_name: 'Тест',
     position: null,
     role,
@@ -31,7 +32,7 @@ function me(role: Me['role'], permissions: Partial<Permissions>): Me {
     deputy_for: [],
     assigned_open_count: 0,
     permissions: { ...NONE, ...permissions },
-  } as Me;
+  };
 }
 
 const employee = me('employee', { can_create_appeal: true });

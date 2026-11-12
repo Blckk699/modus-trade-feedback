@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, type Location } from 'react-router-dom';
 import { api } from '../../api/client';
-import { errorMessage } from '../../api/errors';
+import { ApiError, errorMessage } from '../../api/errors';
 import { useDictionaries } from '../../app/dictionaries';
 import { useToast } from '../../app/Toast';
 import { useAuth, useMe } from '../AuthProvider';
@@ -70,7 +70,9 @@ export function useRoleSwitch() {
       acceptSession(session);
       toast(`Вы вошли как ${session.user.full_name}: ${dict.roleLabel(session.user.role).toLowerCase()}`);
     } catch (e) {
-      toast(errorMessage(e), 'error');
+      // 404 и 405 — сервер старой версии без переключения: говорим об этом, а не «не найдено».
+      const missing = e instanceof ApiError && (e.status === 404 || e.status === 405);
+      toast(missing ? 'Переключение ролей на этом сервере ещё не включено.' : errorMessage(e), 'error');
     } finally {
       setBusyId(null);
     }

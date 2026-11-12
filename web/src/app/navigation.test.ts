@@ -21,6 +21,7 @@ function me(role: Me['role'], permissions: Partial<Permissions>): Me {
     email: null,
     has_password: false,
     telegram_linked: false,
+    switch_targets: [],
     full_name: 'Тест',
     position: null,
     role,

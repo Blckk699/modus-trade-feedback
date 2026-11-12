@@ -1,5 +1,4 @@
 import { api, unwrap } from '../../api/client';
-import { ApiError } from '../../api/errors';
 import type { Me, Session } from '../../api/types';
 import { config } from '../../config';
 import type { SwitchTarget } from './destination';
@@ -13,13 +12,12 @@ export interface RoleSwitchApi {
 }
 
 const httpRoleSwitch: RoleSwitchApi = {
-  // До контракта B-22 поля switch_targets в Me нет: список пуст, переключатель не показывается.
+  // Сервер старой версии поля не присылает — тогда список пуст и переключателя нет.
   async targets(me) {
-    return (me as Me & { switch_targets?: SwitchTarget[] }).switch_targets ?? [];
+    return (me as Partial<Pick<Me, 'switch_targets'>>).switch_targets ?? [];
   },
-  async switchTo() {
-    throw new ApiError(404, 'not_found', 'Переключение ролей на этом сервере ещё не включено.');
-  },
+  // Прежняя сессия остаётся действующей: клиент просто заменяет токен на новый (контракт B-22).
+  switchTo: (userId) => unwrap(api.POST('/api/v1/auth/switch', { body: { user_id: userId } })),
 };
 
 /* Мок для локальной проверки (VITE_ROLE_SWITCH_MOCK=true): по одному dev-пользователю на роль, переключение — dev-вход. */
