@@ -64,6 +64,7 @@ class HistoryKind(StrEnum):
     MERGED = "merged"
     PARTICIPANT_ADDED = "participant_added"
     ATTACHMENT_ADDED = "attachment_added"
+    ATTACHMENT_REMOVED = "attachment_removed"
     DISCUSSION_PUBLISHED = "discussion_published"
     DISCUSSION_CLOSED = "discussion_closed"
     BITRIX_TASK_CREATED = "bitrix_task_created"
