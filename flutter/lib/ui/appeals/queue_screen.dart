@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../appeals/queue_scopes.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import '../home/role_switch.dart';
 
 /// Значение фильтра статуса: все открытые, любой или конкретный статус.
 sealed class StatusFilter {
@@ -207,6 +208,7 @@ class _QueueScreenState extends State<QueueScreen> {
       appBar: AppBar(
         title: const Text('Обработка'),
         actions: [
+          const RoleSwitchAction(),
           IconButton(
             key: const Key('queue-filters'),
             tooltip: 'Фильтры',

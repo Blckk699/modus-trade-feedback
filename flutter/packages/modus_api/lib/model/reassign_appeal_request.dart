@@ -14,12 +14,13 @@ class ReassignAppealRequest {
   /// Returns a new [ReassignAppealRequest] instance.
   ReassignAppealRequest({
     required this.assigneeId,
-    required this.reason,
+    this.reason,
   });
 
   int assigneeId;
 
-  String reason;
+  /// Обязательна, если у обращения уже есть ответственный
+  String? reason;
 
   @override
   bool operator ==(Object other) => identical(this, other) || other is ReassignAppealRequest &&
@@ -30,7 +31,7 @@ class ReassignAppealRequest {
   int get hashCode =>
     // ignore: unnecessary_parenthesis
     (assigneeId.hashCode) +
-    (reason.hashCode);
+    (reason == null ? 0 : reason!.hashCode);
 
   @override
   String toString() => 'ReassignAppealRequest[assigneeId=$assigneeId, reason=$reason]';
@@ -38,7 +39,11 @@ class ReassignAppealRequest {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
       json[r'assignee_id'] = this.assigneeId;
+    if (this.reason != null) {
       json[r'reason'] = this.reason;
+    } else {
+      json[r'reason'] = null;
+    }
     return json;
   }
 
@@ -55,14 +60,12 @@ class ReassignAppealRequest {
       assert(() {
         assert(json.containsKey(r'assignee_id'), 'Required key "ReassignAppealRequest[assignee_id]" is missing from JSON.');
         assert(json[r'assignee_id'] != null, 'Required key "ReassignAppealRequest[assignee_id]" has a null value in JSON.');
-        assert(json.containsKey(r'reason'), 'Required key "ReassignAppealRequest[reason]" is missing from JSON.');
-        assert(json[r'reason'] != null, 'Required key "ReassignAppealRequest[reason]" has a null value in JSON.');
         return true;
       }());
 
       return ReassignAppealRequest(
         assigneeId: mapValueOfType<int>(json, r'assignee_id')!,
-        reason: mapValueOfType<String>(json, r'reason')!,
+        reason: mapValueOfType<String>(json, r'reason'),
       );
     }
     return null;
@@ -111,7 +114,6 @@ class ReassignAppealRequest {
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
     'assignee_id',
-    'reason',
   };
 }
 
