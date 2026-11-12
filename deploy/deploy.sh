@@ -21,7 +21,7 @@ ssh "$HOST" "set -e; cd $DIR
   umask 022
   # Веб собирается в контейнере node: адрес API — тот же домен, dev-вход выключен.
   docker run --rm -v $DIR/src/web:/w -w /w \
-    -e VITE_API_BASE_URL=https://modus.systm.kz -e VITE_DEV_LOGIN=false -e VITE_TELEGRAM_BOT_USERNAME=modus_fb_bot \
+    -e VITE_API_BASE_URL=https://modus.systm.kz -e VITE_DEV_LOGIN=false -e VITE_TELEGRAM_BOT_USERNAME=modus_fb_bot -e VITE_TELEGRAM_BOT_ID=9253046478 \
     node:24-alpine sh -c 'npm ci --no-audit --no-fund >/dev/null && npm run build >/dev/null'
   # Обновляем содержимое на месте: nginx смонтировал саму папку web-dist, подмена папки оставила бы его на удалённой.
   mkdir -p web-dist && find web-dist -mindepth 1 -delete && cp -R src/web/dist/. web-dist/
