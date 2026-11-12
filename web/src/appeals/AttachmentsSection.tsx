@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Paperclip } from 'lucide-react';
 import { errorMessage } from '../api/errors';
 import { downloadAttachment, uploadAttachment } from '../api/files';
 import type { Schemas } from '../api/types';
@@ -43,9 +44,28 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
   }
 
   return (
-    <div className="block">
-      <h2 className="block__title">Вложения</h2>
-      {items.length === 0 && <p className="muted">Файлов нет.</p>}
+    <section className="section">
+      <div className="section__head">
+        <h2 className="section__title">Файлы{items.length > 0 && <span className="section__count">{items.length}</span>}</h2>
+        {canUpload && (
+          <label className="file-pick">
+            <input
+              type="file"
+              multiple
+              disabled={busy}
+              onChange={(e) => {
+                upload(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <span className="btn btn--soft btn--sm">
+              <Paperclip size={15} aria-hidden="true" />
+              {busy ? 'Загружаем…' : 'Приложить'}
+            </span>
+          </label>
+        )}
+      </div>
+      {items.length === 0 && <p className="muted section__empty">Файлов пока нет.</p>}
       {items.length > 0 && (
         <ul className="file-list">
           {items.map((att) => (
@@ -60,21 +80,7 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
           ))}
         </ul>
       )}
-      {canUpload && (
-        <label className="file-pick">
-          <input
-            type="file"
-            multiple
-            disabled={busy}
-            onChange={(e) => {
-              upload(e.target.files);
-              e.target.value = '';
-            }}
-          />
-          <span className="btn btn--soft">{busy ? 'Загружаем…' : 'Приложить файл'}</span>
-        </label>
-      )}
       {error && <p className="error-text">{error}</p>}
-    </div>
+    </section>
   );
 }

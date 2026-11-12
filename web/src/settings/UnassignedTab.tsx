@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
+import { useBackground } from '../app/background';
 import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -67,6 +68,7 @@ export function UnassignedTab() {
 
 function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[]; onAssigned: (i: Item, name: string) => void }) {
   const dict = useDictionaries();
+  const background = useBackground();
   const [assigneeId, setAssigneeId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -97,7 +99,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
       <form className="form settings-form" onSubmit={submit} noValidate>
         <div className="settings-row__main">
           <span>
-            <Link to={`/appeals/${item.id}`} className="appeal-row__number">
+            <Link to={`/appeals/${item.id}`} state={{ background }}>
               {item.number}
             </Link>{' '}
             <span className="muted">

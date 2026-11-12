@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 
 type Props = {
   open: boolean;
@@ -7,8 +8,9 @@ type Props = {
   /** id заголовка внутри окна; если заголовка с id нет — передайте `label`. */
   labelledBy?: string;
   label?: string;
-  /** wide — для больших карточек, например обращения; form — для длинной формы на белом фоне. */
-  size?: 'default' | 'wide' | 'form';
+  /** sheet — панель на всю высоту у правого края (карточка обращения, обсуждение, совещание);
+   * form — окно по центру для длинной формы; default — небольшое окно действия. */
+  size?: 'default' | 'form' | 'sheet';
   locked?: boolean;
   /** false — клик по подложке не закрывает окно (формы, где легко потерять набранное). */
   closeOnBackdrop?: boolean;
@@ -46,8 +48,8 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
       }}
     >
       <div className="modal__body">
-        <button type="button" className="icon-btn modal__close" onClick={onClose} disabled={locked} aria-label="Закрыть">
-          ✕
+        <button type="button" className="tool-btn modal__close" onClick={onClose} disabled={locked} aria-label="Закрыть">
+          <X size={18} aria-hidden="true" />
         </button>
         {children}
       </div>

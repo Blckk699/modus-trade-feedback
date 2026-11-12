@@ -1,3 +1,4 @@
+import { Avatar } from '../app/Avatar';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
@@ -91,16 +92,17 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
   const dict = useDictionaries();
   return (
     <li className={`settings-row${user.is_disabled ? ' settings-row--off' : ''}`}>
+      <Avatar name={user.full_name} />
       <div className="settings-row__main">
         <strong>{user.full_name}</strong>
         <span className="muted">
           {[dict.roleLabel(user.role), user.department?.name, user.position].filter(Boolean).join(' · ')}
         </span>
-        <span className="muted">Telegram ID: {user.telegram_id ?? '—'}</span>
+        <span className="muted settings-row__fine">{user.telegram_id ? `Telegram ID: ${user.telegram_id}` : 'Telegram не привязан'}</span>
       </div>
       <div className="settings-row__badges">
-        {user.is_absent && <span className="badge badge--status-awaiting_info">Отсутствует</span>}
-        {user.is_disabled && <span className="badge badge--status-rejected">Доступ отключён</span>}
+        {user.is_absent && <span className="badge badge--dot badge--status-awaiting_info">Отсутствует</span>}
+        {user.is_disabled && <span className="badge badge--dot badge--status-rejected">Доступ отключён</span>}
       </div>
       <button type="button" className="btn btn--ghost" onClick={onEdit}>
         Изменить

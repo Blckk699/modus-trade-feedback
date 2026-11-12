@@ -1,9 +1,9 @@
 import type { Schemas } from '../api/types';
 
 const LABEL: Record<Schemas['MeetingStatus'], string> = {
-  processing: 'Обрабатывается',
+  processing: 'Расшифровываем',
   ready: 'Готово',
-  failed: 'Ошибка обработки',
+  failed: 'Не удалось обработать',
 };
 
 const CLASS: Record<Schemas['MeetingStatus'], string> = {
@@ -13,5 +13,5 @@ const CLASS: Record<Schemas['MeetingStatus'], string> = {
 };
 
 export function MeetingStatusBadge({ status }: { status: Schemas['MeetingStatus'] }) {
-  return <span className={`badge ${CLASS[status]}`}>{LABEL[status]}</span>;
+  return <span className={`badge badge--dot ${CLASS[status]}`}>{LABEL[status]}</span>;
 }

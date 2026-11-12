@@ -23,6 +23,10 @@ type Props = {
   required?: boolean;
   disabled?: boolean;
   'aria-invalid'?: boolean;
+  /** Фильтр-пилюля: подпись стоит внутри кнопки («Статус: все открытые»), отдельный <label> не нужен. */
+  pill?: string;
+  /** Для пилюли: фильтр задан — кнопка подсвечивается. */
+  active?: boolean;
 };
 
 function text(node: ReactNode): string {
@@ -47,7 +51,7 @@ function readOptions(children: ReactNode): Option[] {
 }
 
 /** Выпадающий список вместо нативного <select>: своё меню, управление с клавиатуры, те же value/onChange. */
-export function Select({ value, onChange, children, required, disabled, 'aria-invalid': invalid }: Props) {
+export function Select({ value, onChange, children, required, disabled, 'aria-invalid': invalid, pill, active: isSet }: Props) {
   const options = readOptions(children);
   const current = String(value ?? '');
   const selectedIndex = options.findIndex((o) => o.value === current);
@@ -165,7 +169,7 @@ export function Select({ value, onChange, children, required, disabled, 'aria-in
   }
 
   return (
-    <span className="select" ref={root}>
+    <span className={pill ? 'select select--pill' : 'select'} data-set={pill ? Boolean(isSet) : undefined} ref={root}>
       <button
         type="button"
         className="input select__button"
@@ -175,11 +179,15 @@ export function Select({ value, onChange, children, required, disabled, 'aria-in
         aria-controls={`${id}-menu`}
         aria-activedescendant={open && active >= 0 ? `${id}-${active}` : undefined}
         aria-invalid={invalid}
+        aria-label={pill ? `${pill}: ${selectedIndex >= 0 ? options[selectedIndex].label : 'не выбрано'}` : undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={onKeyDown}
       >
-        <span className="select__value">{selectedIndex >= 0 ? options[selectedIndex].label : ''}</span>
+        <span className="select__value">
+          {pill && <span className="select__prefix">{pill}: </span>}
+          {selectedIndex >= 0 ? options[selectedIndex].label : ''}
+        </span>
         <svg className="select__chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
           <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

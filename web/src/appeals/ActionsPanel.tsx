@@ -7,6 +7,7 @@ import { PublishDiscussionForm } from '../discussions/PublishDiscussionForm';
 import { useAsync } from '../lib/useAsync';
 import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
+import { useToast } from '../app/Toast';
 import { ActionModal, useActionModal } from './actionModal';
 
 type Appeal = Schemas['Appeal'];
@@ -29,8 +30,31 @@ interface Props {
   onUpdated: (appeal: Appeal) => void;
 }
 
+/** Короткие подписи кнопок. Чего здесь нет, берётся из словаря (/dictionaries, actions). */
+const SHORT: Partial<Record<Action, string>> = {
+  take: 'Взять',
+  request_info: 'Задать вопрос',
+  publish_discussion: 'На обсуждение',
+};
+
+/** Что сказать после действия: «A-021: вопрос отправлен автору». */
+const DONE: Partial<Record<Action, string>> = {
+  take: 'взято на рассмотрение',
+  request_info: 'вопрос отправлен автору',
+  start_work: 'переведено в работу',
+  reject: 'отклонено',
+  implement: 'отмечено реализованным',
+  accept_feedback: 'отзыв принят',
+  reassign: 'ответственный изменён',
+  publish_discussion: 'вынесено на обсуждение',
+};
+
+/** Какое действие сделать главной кнопкой: то, что двигает обращение дальше. */
+const PRIMARY: Action[] = ['take', 'start_work', 'implement', 'accept_feedback', 'request_info'];
+
 export function ActionsPanel({ appeal, onUpdated }: Props) {
   const dict = useDictionaries();
+  const toast = useToast();
   const [open, setOpen] = useState<Action | null>(null);
   const [busy, setBusy] = useState(false);
   const modal = useMemo(() => ({ setBusy, cancel: () => setOpen(null) }), []);
@@ -40,8 +64,10 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
   );
   if (actions.length === 0) return null;
 
-  const label = (a: Action) => dict.data?.actions.find((x) => x.code === a)?.label ?? a;
+  const label = (a: Action) => SHORT[a] ?? dict.data?.actions.find((x) => x.code === a)?.label ?? a;
+  const primary = PRIMARY.find((a) => actions.includes(a));
   const done = (a: Appeal) => {
+    if (open) toast(`${a.number}: ${DONE[open] ?? 'сохранено'}`);
     setOpen(null);
     onUpdated(a);
   };
@@ -49,21 +75,20 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
 
   return (
     <>
-      {/* Кнопки действий строкой, без карточки; форма выбранного действия — в окне. */}
-      <div className="actions__buttons" role="group" aria-label="Действия">
-        {actions.map((a, i) => (
+      {/* Действия закреплены внизу карточки. Главное — тёмной кнопкой, отказ — красным текстом слева. */}
+      <footer className="sheet__foot" role="group" aria-label="Действия">
+        {actions.map((a) => (
           <button
             key={a}
             type="button"
-            // «Отклонить» — красная обводка; первое действие — основное; остальные — тихие.
-            className={`btn${a === 'reject' ? ' btn--ghost btn--danger' : i === 0 ? '' : ' btn--soft'}`}
+            className={a === 'reject' ? 'btn btn--text btn--danger sheet__reject' : a === primary ? 'btn sheet__primary' : 'btn btn--soft'}
             aria-haspopup="dialog"
             onClick={() => setOpen(a)}
           >
             {label(a)}
           </button>
         ))}
-      </div>
+      </footer>
 
       <Modal open={open !== null} onClose={() => setOpen(null)} labelledBy="action-title" locked={busy} closeOnBackdrop={false}>
         <ActionModal.Provider value={modal}>
@@ -71,7 +96,8 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       {open === 'take' && (
         <TextAction
           title="Взять на рассмотрение"
-          fieldLabel="Первый ответ автору — необязательно"
+          fieldLabel="Первый ответ автору"
+          hint="Необязательно. Автор увидит, что обращение взяли."
           optional
           submitLabel="Взять"
           onSubmit={(text) => unwrap(api.POST('/api/v1/appeals/{appeal_id}/take', { ...id, body: { comment: text || null } }))}
@@ -80,8 +106,9 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       )}
       {open === 'request_info' && (
         <TextAction
-          title="Уточняющий вопрос автору"
+          title="Вопрос автору"
           fieldLabel="Вопрос"
+          hint="Пока автор не ответит, срок не идёт."
           submitLabel="Задать вопрос"
           onSubmit={(question) => unwrap(api.POST('/api/v1/appeals/{appeal_id}/request-info', { ...id, body: { question } }))}
           onDone={done}
@@ -89,8 +116,9 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       )}
       {open === 'start_work' && (
         <TextAction
-          title="Перевести в работу"
-          fieldLabel="Принятое решение — что будет сделано"
+          title="В работу"
+          fieldLabel="Что решили сделать"
+          hint="Автор увидит решение в карточке."
           submitLabel="В работу"
           onSubmit={(decision) => unwrap(api.POST('/api/v1/appeals/{appeal_id}/start-work', { ...id, body: { decision } }))}
           onDone={done}
@@ -98,8 +126,9 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       )}
       {open === 'reject' && (
         <TextAction
-          title="Отклонить"
-          fieldLabel="Причина отказа — её увидит автор"
+          title="Отклонить обращение"
+          fieldLabel="Причина отказа"
+          hint="Её увидит автор."
           submitLabel="Отклонить"
           danger
           onSubmit={(reason) => unwrap(api.POST('/api/v1/appeals/{appeal_id}/reject', { ...id, body: { reason } }))}
@@ -110,7 +139,8 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
       {open === 'accept_feedback' && (
         <TextAction
           title="Принять отзыв"
-          fieldLabel="Ответ автору — необязательно"
+          fieldLabel="Ответ автору"
+          hint="Необязательно."
           optional
           submitLabel="Принять"
           onSubmit={(comment) =>
@@ -137,6 +167,7 @@ function TextAction(props: {
   title: string;
   fieldLabel: string;
   submitLabel: string;
+  hint?: string;
   optional?: boolean;
   danger?: boolean;
   onSubmit: (text: string) => Promise<Appeal>;
@@ -154,7 +185,15 @@ function TextAction(props: {
     >
       <label className="field">
         <span className="field__label">{props.fieldLabel}</span>
-        <textarea className="input" rows={3} value={text} onChange={(e) => setText(e.target.value)} required={!props.optional} />
+        <textarea
+          className="input"
+          rows={4}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          required={!props.optional}
+          data-autofocus
+        />
+        {props.hint && <span className="field__hint muted">{props.hint}</span>}
       </label>
     </ActionForm>
   );
@@ -184,19 +223,23 @@ function ImplementForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal)
       onDone={onDone}
     >
       <label className="field">
-        <span className="field__label">Результат — что сделано</span>
-        <textarea className="input" rows={3} value={result} onChange={(e) => setResult(e.target.value)} required />
+        <span className="field__label">Что сделано</span>
+        <textarea className="input" rows={3} value={result} onChange={(e) => setResult(e.target.value)} required data-autofocus />
       </label>
       <p className="muted field__hint">
-        Обращение попадёт в ленту реализованного, которую видят все. Без публичных формулировок в ленте покажутся краткая
-        суть и результат.
+        Обращение попадёт в общую ленту, её видят все сотрудники. Если не заполнить поля ниже, в ленте будут краткая суть
+        и результат.
       </p>
       <label className="field">
-        <span className="field__label">Для ленты: что предложили — необязательно</span>
+        <span className="field__label">
+          Для ленты: что предложили <span className="muted">· необязательно</span>
+        </span>
         <input className="input" value={publicSummary} onChange={(e) => setPublicSummary(e.target.value)} />
       </label>
       <label className="field">
-        <span className="field__label">Для ленты: что сделали — необязательно</span>
+        <span className="field__label">
+          Для ленты: что сделали <span className="muted">· необязательно</span>
+        </span>
         <input className="input" value={publicResult} onChange={(e) => setPublicResult(e.target.value)} />
       </label>
     </ActionForm>
@@ -241,10 +284,10 @@ function ReassignForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal) 
         {users.state.status === 'error' && <span className="error-text field__hint">{users.state.message}</span>}
       </label>
       <label className="field">
-        <span className="field__label">Причина — попадёт в историю</span>
+        <span className="field__label">Причина</span>
         <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
+        <span className="field__hint muted">Попадёт в историю. Срок первого ответа начнётся заново.</span>
       </label>
-      <p className="muted field__hint">Срок первого ответа отсчитается заново.</p>
     </ActionForm>
   );
 }
@@ -277,8 +320,8 @@ function ActionForm(props: {
   }
 
   return (
-    <form className="actions__form" onSubmit={submit}>
-      <h2 id="action-title" className="actions__title">
+    <form className="dialog-form" onSubmit={submit}>
+      <h2 id="action-title" className="dialog-form__title">
         {props.title}
       </h2>
       {props.children}
@@ -287,7 +330,7 @@ function ActionForm(props: {
           {error}
         </p>
       )}
-      <div className="actions__submit">
+      <div className="dialog-form__actions">
         <button type="button" className="btn btn--soft" onClick={cancel} disabled={busy}>
           Отмена
         </button>

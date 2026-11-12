@@ -1,50 +1,26 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
-import type { Me, Schemas } from '../api/types';
-import { useDictionaries } from '../app/dictionaries';
-import { useMe } from '../auth';
-import { DueBadge, StatusBadge } from '../appeals/Badges';
-import { timeLeftLabel } from '../appeals/timeLeft';
-import { useAsync } from '../lib/useAsync';
-import { Select } from '../app/Select';
+import type { Schemas } from '../api/types';
 import { useReloadOnCardClose } from '../app/cardClosed';
+import { useDictionaries } from '../app/dictionaries';
 import { EmptyState } from '../app/EmptyState';
+import { LoadError, RowsSkeleton } from '../app/ListStates';
+import { PageHead } from '../app/PageHead';
+import { Select } from '../app/Select';
+import { AppealRow } from '../appeals/AppealRow';
+import { defaultScope, OPEN_STATUSES, queueScopes, SCOPE_LABEL, type Scope, type Status } from '../appeals/scopes';
+import { useMe } from '../auth';
+import { plural } from '../lib/plural';
+import { useAsync } from '../lib/useAsync';
 
-type Scope = Schemas['AppealScope'];
-type Status = Schemas['AppealStatus'];
 type DueFilter = Schemas['DueFilter'];
 type Item = Schemas['AppealListItem'];
 
 const PAGE_SIZE = 30;
-const OPEN: Status[] = ['new', 'in_review', 'awaiting_info', 'in_progress'];
-
-const SCOPE_LABEL: Record<Scope, string> = {
-  assigned: 'Назначенные мне',
-  department: 'Подразделение',
-  all: 'Все обращения',
-  unassigned: 'Нераспределённые',
-  mine: 'Мои',
-};
-
-/** Охваты очереди только по Me.permissions; стартовый — самый широкий, с которым роль работает. */
-export function queueScopes(me: Me): Scope[] {
-  const p = me.permissions;
-  const list: Scope[] = [];
-  if (p.can_view_department) list.push('department');
-  if (p.can_view_all_appeals) list.push('all');
-  if (p.can_view_unassigned) list.push('unassigned');
-  if (p.can_process_appeals) list.push('assigned');
-  return list;
-}
-
-export function defaultScope(me: Me): Scope | undefined {
-  const scopes = queueScopes(me);
-  const preferred: Scope[] =
-    me.role === 'owner' ? ['all'] : me.role === 'head' ? ['department'] : me.role === 'admin' ? ['unassigned'] : ['assigned'];
-  return preferred.find((s) => scopes.includes(s)) ?? scopes[0];
-}
+const DUE: DueFilter[] = ['overdue', 'due_today', 'due_week', 'no_deadline'];
+const STATUSES: Status[] = ['new', 'in_review', 'awaiting_info', 'in_progress', 'implemented', 'rejected', 'closed'];
 
 interface Filters {
   scope: Scope;
@@ -55,7 +31,7 @@ interface Filters {
 }
 
 function fetchQueue(f: Filters, page: number) {
-  const status = f.status === 'open' ? OPEN : f.status === 'any' ? undefined : [f.status];
+  const status = f.status === 'open' ? OPEN_STATUSES : f.status === 'any' ? undefined : [f.status];
   return unwrap(
     api.GET('/api/v1/appeals', {
       params: {
@@ -74,18 +50,38 @@ function fetchQueue(f: Filters, page: number) {
   );
 }
 
+/**
+ * Входящие: обращения, с которыми пользователь работает, по сроку ответа. Фильтры живут в адресе
+ * (?scope=assigned&due=overdue), поэтому плитки «Сегодня» и сводки ведут прямо в нужный срез.
+ */
 export function QueuePage() {
   const me = useMe();
   const dict = useDictionaries();
   const scopes = queueScopes(me);
-  const [filters, setFilters] = useState<Filters>(() => ({
-    scope: defaultScope(me) ?? 'assigned',
-    status: 'open',
-    categoryId: '',
-    departmentId: '',
-    due: '',
-  }));
-  const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
+  const [params, setParams] = useSearchParams();
+  const fallback = defaultScope(me) ?? 'assigned';
+
+  const filters: Filters = {
+    scope: scopes.includes(params.get('scope') as Scope) ? (params.get('scope') as Scope) : fallback,
+    status: (['open', 'any', ...STATUSES] as string[]).includes(params.get('status') ?? '')
+      ? (params.get('status') as Filters['status'])
+      : 'open',
+    categoryId: params.get('category') ?? '',
+    departmentId: params.get('department') ?? '',
+    due: DUE.includes(params.get('due') as DueFilter) ? (params.get('due') as DueFilter) : '',
+  };
+
+  function set(patch: Partial<Filters>) {
+    const next = { ...filters, ...patch };
+    const q: Record<string, string> = {};
+    if (next.scope !== fallback) q.scope = next.scope;
+    if (next.status !== 'open') q.status = next.status;
+    if (next.due) q.due = next.due;
+    if (next.categoryId) q.category = next.categoryId;
+    if (next.departmentId) q.department = next.departmentId;
+    setParams(q, { replace: true });
+  }
+  const narrowed = filters.status !== 'open' || filters.due !== '' || filters.categoryId !== '' || filters.departmentId !== '';
 
   const key = JSON.stringify(filters);
   const first = useAsync(() => fetchQueue(filters, 1), [key]);
@@ -115,52 +111,51 @@ export function QueuePage() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const now = useMemo(() => new Date(), [first.state]);
   const s = first.state;
+  const total = s.status === 'ready' ? s.data.total : null;
 
   return (
-    <section className="page page--wide">
-      <h1 className="page__title sr-only">Обработка</h1>
+    <section className="page">
+      <PageHead
+        over={
+          total === null ? 'Загружаем…' : `${total} ${plural(total, ['обращение', 'обращения', 'обращений'])} · по сроку ответа`
+        }
+        title="Входящие"
+      />
 
-      {scopes.length > 1 && (
-        <div className="segmented" role="tablist" aria-label="Какие обращения показать">
-          {scopes.map((sc) => (
-            <label key={sc} className="segmented__item">
-              <input type="radio" name="scope" checked={filters.scope === sc} onChange={() => set({ scope: sc })} />
-              <span>{SCOPE_LABEL[sc]}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      <div className="filters">
-        <label className="field">
-          <span className="field__label">Статус</span>
-          <Select value={filters.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
-            <option value="open">Все открытые</option>
+      <div className="toolbar">
+        {scopes.length > 1 && (
+          <div className="segmented" role="group" aria-label="Чьи обращения показать">
+            {scopes.map((sc) => (
+              <label key={sc} className="segmented__item">
+                <input type="radio" name="scope" checked={filters.scope === sc} onChange={() => set({ scope: sc })} />
+                <span>{SCOPE_LABEL[sc]}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="filters" role="group" aria-label="Фильтры">
+          <Select pill="Статус" active={filters.status !== 'open'} value={filters.status} onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
+            <option value="open">все открытые</option>
             {(dict.data?.statuses ?? []).map((st) => (
               <option key={st.code} value={st.code}>
                 {st.label}
               </option>
             ))}
-            <option value="any">Любой</option>
+            <option value="any">любой</option>
           </Select>
-        </label>
-        <label className="field">
-          <span className="field__label">Срок</span>
-          <Select value={filters.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
-            <option value="">Любой</option>
+          <Select pill="Срок" active={filters.due !== ''} value={filters.due} onChange={(e) => set({ due: e.target.value as Filters['due'] })}>
+            <option value="">любой</option>
             {(dict.data?.due_filters ?? []).map((d) => (
               <option key={d.code} value={d.code}>
                 {d.label}
               </option>
             ))}
           </Select>
-        </label>
-        <label className="field">
-          <span className="field__label">Категория</span>
-          <Select value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
-            <option value="">Все</option>
+          <Select pill="Категория" active={filters.categoryId !== ''} value={filters.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
+            <option value="">все</option>
             {categories.state.status === 'ready' &&
               categories.state.data.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -168,12 +163,14 @@ export function QueuePage() {
                 </option>
               ))}
           </Select>
-        </label>
-        {showDepartments && (
-          <label className="field">
-            <span className="field__label">Подразделение</span>
-            <Select value={filters.departmentId} onChange={(e) => set({ departmentId: e.target.value })}>
-              <option value="">Все</option>
+          {showDepartments && (
+            <Select
+              pill="Подразделение"
+              active={filters.departmentId !== ''}
+              value={filters.departmentId}
+              onChange={(e) => set({ departmentId: e.target.value })}
+            >
+              <option value="">все</option>
               {departments.state.status === 'ready' &&
                 departments.state.data.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -181,35 +178,34 @@ export function QueuePage() {
                   </option>
                 ))}
             </Select>
-          </label>
-        )}
+          )}
+          {narrowed && (
+            <button type="button" className="link-btn" onClick={() => set({ status: 'open', due: '', categoryId: '', departmentId: '' })}>
+              Сбросить
+            </button>
+          )}
+        </div>
       </div>
 
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {s.status === 'error' && (
-        <div className="notice">
-          <p className="error-text">{s.message}</p>
-          <button type="button" className="btn btn--ghost" onClick={first.reload}>
-            Повторить
-          </button>
-        </div>
-      )}
+      {s.status === 'loading' && <RowsSkeleton />}
+      {s.status === 'error' && <LoadError message={s.message} onRetry={first.reload} />}
       {s.status === 'ready' && s.data.total === 0 && (
-        <EmptyState icon="search" title="Обращений нет">
-          Измените фильтры или загляните позже.
+        <EmptyState icon={narrowed ? 'search' : 'done'} title={narrowed ? 'Под фильтры ничего не подошло' : 'Здесь пусто'}>
+          {narrowed ? 'Попробуйте снять часть фильтров.' : 'Новые обращения появятся в этом списке.'}
         </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (
         <>
-          <p className="muted">Найдено: {s.data.total}</p>
-          <ul className="appeal-list">
-            {[...s.data.items, ...more.items].map((a) => (
-              <QueueRow key={a.id} item={a} now={now} />
-            ))}
-          </ul>
+          <div className="card list-card">
+            <ul className="rows">
+              {[...s.data.items, ...more.items].map((a) => (
+                <AppealRow key={a.id} item={a} view="queue" now={now} />
+              ))}
+            </ul>
+          </div>
           {s.data.items.length + more.items.length < s.data.total && (
-            <div className="form__actions">
-              <button type="button" className="btn btn--ghost" onClick={loadMore} disabled={loadingMore}>
+            <div className="list-foot">
+              <button type="button" className="btn btn--soft" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'Загружаем…' : 'Показать ещё'}
               </button>
               {moreError && <span className="error-text">{moreError}</span>}
@@ -218,37 +214,5 @@ export function QueuePage() {
         </>
       )}
     </section>
-  );
-}
-
-function QueueRow({ item, now }: { item: Item; now: Date }) {
-  const dict = useDictionaries();
-  const overdue = item.due_state === 'overdue';
-  const waitingAnswer = item.first_response_due_at && item.due_state !== 'answered' && item.due_state !== 'no_deadline';
-  return (
-    <li>
-      <Link to={`/appeals/${item.id}`} state={{ from: '/queue' }} className={`appeal-row${overdue ? ' appeal-row--overdue' : ''}`}>
-        <div className="appeal-row__top">
-          <span className="appeal-row__number">{item.number}</span>
-          {item.has_unread && <span className="dot" aria-label="Есть новое" title="Есть новое" />}
-          <span className="muted">
-            {dict.typeLabel(item.type)} · {dict.priorityLabel(item.priority)}
-          </span>
-          {waitingAnswer && (
-            <span className={`appeal-row__date${overdue ? ' error-text' : ''}`}>
-              {timeLeftLabel(item.first_response_due_at!, now)}
-            </span>
-          )}
-        </div>
-        <div className="appeal-row__summary">{item.summary ?? 'Без краткой сути'}</div>
-        <div className="appeal-row__meta">
-          <StatusBadge status={item.status} />
-          {item.status !== 'closed' && <DueBadge state={item.due_state} dueAt={item.first_response_due_at} />}
-          {item.category && <span className="muted">{item.category.name}</span>}
-          <span className="muted">· {item.assignee ? item.assignee.full_name : 'без ответственного'}</span>
-          {item.participants_count > 1 && <span className="badge">Сообщили: {item.participants_count}</span>}
-        </div>
-      </Link>
-    </li>
   );
 }
