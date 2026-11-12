@@ -34,7 +34,7 @@ List<Section> sectionsFor(Me me) {
     Section.feed,
     if (p.analyticsScope != PermissionsAnalyticsScopeEnum.none) Section.analytics,
     if (p.canUploadMeetings) Section.meetings,
-    if (p.canManageSettings) Section.settings,
+    if (p.canManageSettings || p.canManageAccess) Section.settings,
     Section.profile,
   ];
 }

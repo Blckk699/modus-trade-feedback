@@ -69,7 +69,7 @@ class _PublishDiscussionFormState extends State<PublishDiscussionForm> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const SheetHeader('Вынести на общее обсуждение'),
+          SheetHeader('Вынести на общее обсуждение', enabled: !_busy),
           const SizedBox(height: 8),
           Text(
             'Обсуждение увидят все сотрудники. Приватная переписка не публикуется. Автора спросят, '

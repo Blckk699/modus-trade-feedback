@@ -174,7 +174,9 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _reload() async {
     final next = _load();
-    setState(() => _data = next);
+    setState(() {
+      _data = next;
+    });
     await next;
   }
 
