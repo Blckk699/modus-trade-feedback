@@ -662,6 +662,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/appeals/{appeal_id}/nudge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: components["parameters"]["AppealId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Напомнить ответственному об обращении без первого ответа
+         * @description Ответственный получает уведомление `nudge` в колокольчик и в бот, в историю обращения пишется событие
+         *     `nudged` (`new_value` — кому напомнили). Статус, срок и ответственный не меняются.
+         *     Кто: руководитель подразделения обращения и собственник. Ответственному, автору, администратору — `403`.
+         *     Когда: обращение не завершено, ответственный назначен и это не сам пользователь, первого ответа ещё нет,
+         *     обращение не положительный отзыв — тогда в `allowed_actions` есть `nudge`; иначе `409 invalid_transition`
+         *     с причиной в `message`.
+         *     Не чаще раза в 4 часа на обращение, кто бы ни напоминал: раньше — `429 too_many_requests`,
+         *     в `details.next_allowed_at` — когда можно снова, `message` готов для показа.
+         *
+         */
+        post: operations["nudgeAssignee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/appeals/{appeal_id}/request-info": {
         parameters: {
             query?: never;
@@ -1780,7 +1810,15 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Удалить категорию, в которой нет обращений
+         * @description Удаляется только категория без обращений (в любом статусе). Если обращения есть — `409 conflict`,
+         *     `details.reason = category_has_appeals` и `details.appeals_count`: такую категорию можно только
+         *     выключить (`PATCH` с `is_active: false`). Черновики совещаний с этой категорией остаются без категории.
+         *     Только администратор, остальным — `403`.
+         *
+         */
+        delete: operations["adminDeleteCategory"];
         options?: never;
         head?: never;
         /**
@@ -2030,7 +2068,7 @@ export interface components {
          */
         DueState: "on_time" | "due_soon" | "overdue" | "answered" | "no_deadline";
         /** @enum {string} */
-        AppealAction: "take" | "request_info" | "reply_clarification" | "start_work" | "reject" | "implement" | "accept_feedback" | "merge" | "reassign" | "publish_discussion" | "create_bitrix_task" | "send_message" | "upload_attachment";
+        AppealAction: "take" | "request_info" | "reply_clarification" | "start_work" | "reject" | "implement" | "accept_feedback" | "merge" | "reassign" | "publish_discussion" | "create_bitrix_task" | "send_message" | "upload_attachment" | "nudge";
         /** @enum {string} */
         ViewerRelation: "author" | "participant" | "assignee" | "department_head" | "owner" | "admin";
         /** @enum {string} */
@@ -2051,6 +2089,7 @@ export interface components {
          *     status_changed — автору и участникам; clarification_requested — автору: вопрос;
          *     clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке;
          *     deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил;
+         *     nudge — ответственному: руководитель или собственник просит ответить по обращению;
          *     appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение;
          *     discussion_closed — автору: итог обсуждения; digest — утренняя сводка;
          *     access_request_created — администраторам и собственнику: новая заявка на доступ (`path=/settings/access-requests`);
@@ -2059,7 +2098,7 @@ export interface components {
          *
          * @enum {string}
          */
-        NotificationKind: "appeal_assigned" | "appeal_created" | "status_changed" | "clarification_requested" | "clarification_answered" | "message_received" | "deadline_reminder" | "escalation_head" | "appeal_merged" | "name_consent_request" | "discussion_closed" | "digest" | "access_request_created" | "access_request_approved" | "access_request_rejected";
+        NotificationKind: "appeal_assigned" | "appeal_created" | "status_changed" | "clarification_requested" | "clarification_answered" | "message_received" | "deadline_reminder" | "escalation_head" | "nudge" | "appeal_merged" | "name_consent_request" | "discussion_closed" | "digest" | "access_request_created" | "access_request_approved" | "access_request_rejected";
         /** @enum {string} */
         NotificationButtonType: "open_appeal" | "open_analytics" | "open_discussion" | "reply_clarification" | "name_consent_show" | "name_consent_hide" | "open_access_requests";
         DepartmentRef: {
@@ -2131,6 +2170,10 @@ export interface components {
              *
              */
             bitrix_user_id?: number | null;
+            /** @description Задан ли пароль для входа по почте. Только для администратора и для самого пользователя,
+             *     остальным — `null`. `false` — сбрасывать нечего: сотрудник входит через Telegram или Битрикс24
+             *      */
+            has_password?: boolean | null;
             full_name: string;
             /** @description Должность, например «Сотрудник закупок» */
             position: string | null;
@@ -2332,6 +2375,14 @@ export interface components {
             public_summary: string | null;
             /** @description Что сделали — публичная формулировка результата для ленты */
             public_result: string | null;
+            /** @description Сколько похожих обращений уже рассматривается: подсказки о повторах, которые не отклонили
+             *     кнопкой «Это другое», и похожее обращение ещё не завершено. Только число — без номеров, текстов
+             *     и имён: автор видит «Похожие уже рассматриваются: N», но не чужие обращения. Сами подсказки —
+             *     `GET /appeals/{id}/similar`, только тем, кто обрабатывает обращение. Подсказки ищутся в фоне
+             *     после подачи, поэтому в ответе на создание — `0`, число появляется в карточке через несколько
+             *     секунд. У завершённого обращения и у участника склеенного повтора — `0`.
+             *      */
+            similar_count?: number;
             /** @description Откуда переслано сообщение, если обращение подано пересылкой в бот */
             forwarded_from: string | null;
             closed_reason: (string & components["schemas"]["ClosedReason"]) | null;
@@ -2353,7 +2404,7 @@ export interface components {
          * @description Вид события в истории обращения
          * @enum {string}
          */
-        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "attachment_removed" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "attachment_removed" | "nudged" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
         /** @example {
          *       "type": "auth",
          *       "token": "3fa1c0d2e4b54f6c8a7e9d0b1c2f3a4e"
@@ -4106,6 +4157,41 @@ export interface operations {
             409: components["responses"]["InvalidTransition"];
         };
     };
+    nudgeAssignee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: components["parameters"]["AppealId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Обращение после действия */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Appeal"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+            /** @description Ответственному уже напоминали меньше 4 часов назад (`too_many_requests`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     requestInfo: {
         parameters: {
             query?: never;
@@ -5659,6 +5745,38 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    adminDeleteCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Категория удалена */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description В категории есть обращения */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     adminUpdateCategory: {

@@ -26,6 +26,7 @@ const PROCESSING: Action[] = [
   'accept_feedback',
   'reassign',
   'publish_discussion',
+  'nudge',
 ];
 
 interface Props {
@@ -40,6 +41,7 @@ const SHORT: Partial<Record<Action, string>> = {
   take: 'Взять',
   request_info: 'Задать вопрос',
   publish_discussion: 'На обсуждение',
+  nudge: 'Напомнить',
 };
 
 /** Действия, которые нужны реже остальных. */
@@ -55,6 +57,7 @@ const DONE: Partial<Record<Action, string>> = {
   accept_feedback: 'отзыв принят',
   reassign: 'ответственный изменён',
   publish_discussion: 'вынесено на обсуждение',
+  nudge: 'ответственному отправлено напоминание',
 };
 
 /** Какое действие сделать главной кнопкой: то, что двигает обращение дальше. */
@@ -207,6 +210,21 @@ export function ActionsPanel({ appeal, onUpdated, chatSlot }: Props) {
         />
       )}
       {open === 'reassign' && <ReassignForm appeal={appeal} onDone={done} />}
+      {open === 'nudge' && (
+        <ActionForm
+          title="Напомнить ответственному"
+          submitLabel="Напомнить"
+          canSubmit
+          run={() => unwrap(api.POST('/api/v1/appeals/{appeal_id}/nudge', id))}
+          onDone={done}
+        >
+          {/* Сервер напоминает не чаще раза в 4 часа: если рано, его ответ со временем покажется здесь же. */}
+          <p className="muted">
+            {appeal.assignee?.full_name ?? 'Ответственный'} получит уведомление в Telegram и в колокольчик: по обращению
+            ждут первого ответа. Напоминать можно раз в 4 часа.
+          </p>
+        </ActionForm>
+      )}
       {open === 'publish_discussion' && (
         <PublishDiscussionForm
           appeal={appeal}

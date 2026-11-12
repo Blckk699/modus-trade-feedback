@@ -148,6 +148,13 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
         {isAuthor && !a.first_response_at && WAITING.includes(a.status) && <WhoWhenBlock appeal={a} />}
 
+        {/* Автор чужих обращений не видит: только число похожих, без номеров и текстов. */}
+        {isAuthor && (a.similar_count ?? 0) > 0 && (
+          <p className="notice">
+            Похожие уже рассматриваются: {a.similar_count}. Ответственный видит их вместе с вашим обращением.
+          </p>
+        )}
+
         <dl className="facts">
           {a.author && !isAuthor && (
             <div>

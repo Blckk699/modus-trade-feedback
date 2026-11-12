@@ -27,6 +27,7 @@ export const historyKindLabel: Record<Schemas['HistoryEvent']['kind'], string> =
   discussion_closed: 'Обсуждение завершено',
   bitrix_task_created: 'Создана задача в Битрикс24',
   field_changed: 'Изменено поле',
+  nudged: 'Ответственному напомнили',
 };
 
 export const closedReasonLabel: Record<Schemas['ClosedReason'], string> = {
