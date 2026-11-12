@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 
 /// Разделы приложения. Набор зависит от `Me.permissions`, как в вебе:
 /// сотрудник видит «Мои обращения» и ленту, руководитель и собственник — ещё обработку
 /// и сводку, администратор — настройки. Права клиент не вычисляет, только читает.
 enum Section {
-  home('Сегодня', 'Сегодня', Icons.grid_view_outlined, Icons.grid_view_rounded),
-  myAppeals('Мои обращения', 'Мои', Icons.description_outlined, Icons.description),
-  processing('Входящие', 'Входящие', Icons.inbox_outlined, Icons.inbox),
-  feed('Лента', 'Лента', Icons.forum_outlined, Icons.forum),
-  analytics('Сводка', 'Сводка', Icons.insights_outlined, Icons.insights),
-  meetings('Совещания', 'Совещания', Icons.groups_outlined, Icons.groups),
-  settings('Настройки', 'Настройки', Icons.tune_outlined, Icons.tune),
-  profile('Профиль', 'Профиль', Icons.person_outline, Icons.person);
+  home('Сегодня', 'Сегодня', LucideIcons.layoutGrid, LucideIcons.layoutGrid),
+  myAppeals('Мои обращения', 'Мои', LucideIcons.fileText, LucideIcons.fileText),
+  processing('Входящие', 'Входящие', LucideIcons.inbox, LucideIcons.inbox),
+  feed('Лента', 'Лента', LucideIcons.messagesSquare, LucideIcons.messagesSquare),
+  analytics('Сводка', 'Сводка', LucideIcons.chartColumn, LucideIcons.chartColumn),
+  meetings('Совещания', 'Совещания', LucideIcons.audioLines, LucideIcons.audioLines),
+  settings('Настройки', 'Настройки', LucideIcons.settings, LucideIcons.settings),
+  profile('Профиль', 'Профиль', LucideIcons.circleUser, LucideIcons.circleUser);
 
   const Section(this.title, this.shortTitle, this.icon, this.selectedIcon);
 
