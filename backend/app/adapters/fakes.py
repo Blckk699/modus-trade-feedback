@@ -14,9 +14,10 @@ from datetime import datetime
 from typing import Any
 
 from app.adapters.bitrix import BitrixTask
+from app.adapters.bitrix_oauth import BitrixProfile
 from app.adapters.claude import AppealDraft, DuplicateCandidate, DuplicateMatch, MeetingDraft
 from app.adapters.speech import Transcript
-from app.errors import ExternalServiceError
+from app.errors import ExternalServiceError, InvalidBitrixAuth
 
 
 @dataclass
@@ -127,3 +128,22 @@ class FakeBitrix(_Fake):
         task = BitrixTask(id=task_id, url=f"https://modus-test.bitrix24.kz/company/personal/user/1/tasks/task/view/{task_id}/")
         self.tasks.append(CreatedTask(title, description, deadline, task))
         return task
+
+
+class FakeBitrixOAuth(_Fake):
+    """Портал при входе: `profile` — кто вошёл, `reject = True` — портал отклонил код, `fail = True` — не ответил."""
+
+    service_code = "bitrix_unavailable"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reject = False
+        self.profile = BitrixProfile(
+            id=501, email="portal.user@company.kz", first_name="Пётр", last_name="Портальный", position="Логист"
+        )
+
+    async def current_user(self, code: str) -> BitrixProfile:
+        self._record("current_user", code=code)
+        if self.reject:
+            raise InvalidBitrixAuth()
+        return self.profile

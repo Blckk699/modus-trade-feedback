@@ -125,7 +125,7 @@ async def test_x(client, clock, time_machine):
 ## Адаптеры внешних сервисов
 
 Интерфейсы — `Protocol` в `app/adapters/*.py`, реальные реализации там же, фейки — `app/adapters/fakes.py`.
-В тестах фейки уже подставлены фикстурами `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix`:
+В тестах фейки уже подставлены фикстурами `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix`, `fake_bitrix_oauth`:
 
 ```python
 async def test_draft(client, fake_claude):
@@ -144,6 +144,7 @@ async def test_draft(client, fake_claude):
 | `SpeechToText` | `transcribe` | `ELEVENLABS_API_KEY` |
 | `TelegramGateway` | `send_message` | `TELEGRAM_BOT_TOKEN` |
 | `Bitrix24Gateway` | `create_task` | `BITRIX24_WEBHOOK_URL`, `BITRIX24_RESPONSIBLE_ID` |
+| `Bitrix24OAuth` | `current_user` (вход через портал) | `BITRIX24_CLIENT_ID`, `BITRIX24_CLIENT_SECRET`, `BITRIX24_PORTAL`, `BITRIX24_TOKEN_URL` |
 
 ## Фоновые задачи
 

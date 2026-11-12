@@ -20,6 +20,8 @@ class User(Base):
     # Почта хранится в нижнем регистре — уникальна без учёта регистра.
     email: Mapped[str | None] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    # ID сотрудника на портале Битрикс24: запоминается при первом входе через портал.
+    bitrix_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     # Временный пароль от администратора: при входе с ним нужно задать новый.
     must_change_password: Mapped[bool] = mapped_column(default=False)
     # Группа связанных аккаунтов (демо-переключатель ролей): участники одной группы переключаются друг на друга.

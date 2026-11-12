@@ -78,6 +78,12 @@ class InvalidLoginCode(AppError):
     message = "Код неверный или истёк. Запросите новый код в боте."
 
 
+class InvalidBitrixAuth(AppError):
+    status_code = 401
+    code = "invalid_bitrix_auth"
+    message = "Не удалось подтвердить вход через Битрикс24. Попробуйте ещё раз."
+
+
 class DevLoginDisabled(AppError):
     status_code = 403
     code = "dev_login_disabled"

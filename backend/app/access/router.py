@@ -289,6 +289,8 @@ async def _notify_managers(session: AsyncSession, request: AccessRequest, now: d
         lines.append(f"Telegram: @{escape(request.telegram_username)}")
     if request.email:
         lines.append(f"Почта: {escape(request.email)}")
+    if request.bitrix_user_id is not None:
+        lines.append("Вход через Битрикс24")
     if department:
         lines.append(f"Подразделение: {escape(department.name)}")
     if request.comment:
@@ -535,12 +537,21 @@ async def approve_access_request(
     await _check_department(session, department_id, "department_id")
     if request.telegram_id is not None and await auth_service.user_by_telegram_id(session, request.telegram_id) is not None:
         raise Conflict("Этот Telegram-аккаунт уже есть в системе")
-    if request.email is not None and await auth_service.user_by_email(session, request.email) is not None:
+    email = request.email
+    if request.bitrix_user_id is not None:
+        taken = await session.scalar(select(User.id).where(User.bitrix_user_id == request.bitrix_user_id))
+        if taken is not None:
+            raise Conflict("Этот сотрудник Битрикс24 уже есть в системе")
+        # Вход идёт по ID портала, почта здесь только справочная: занятую другим сотрудником не переносим.
+        if email is not None and await auth_service.user_by_email(session, email) is not None:
+            email = None
+    elif email is not None and await auth_service.user_by_email(session, email) is not None:
         raise Conflict("Эта почта уже есть в системе")
 
     user = User(
         telegram_id=request.telegram_id,
-        email=request.email,
+        email=email,
+        bitrix_user_id=request.bitrix_user_id,
         password_hash=request.password_hash,
         full_name=(body.full_name or request.full_name).strip(),
         position=_clean(body.position),

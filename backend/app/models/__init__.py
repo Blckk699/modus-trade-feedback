@@ -3,7 +3,7 @@
 Новая модель — добавьте её импорт сюда.
 """
 
-from app.auth.models import AccountSwitch, AuthSession, LoginAttempt, LoginCode, PasswordAttempt
+from app.auth.models import AccountSwitch, AuthSession, LoginAttempt, LoginCode, LoginTicket, PasswordAttempt
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
 from app.models.access import AccessRequest, AccessSubmission, Invite, InviteAttempt
@@ -44,6 +44,7 @@ __all__ = [
     "Job",
     "LoginAttempt",
     "LoginCode",
+    "LoginTicket",
     "PasswordAttempt",
     "Meeting",
     "MeetingDraft",

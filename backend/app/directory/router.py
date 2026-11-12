@@ -82,6 +82,7 @@ async def users(
             id=u.id,
             # Telegram ID видят только администратор и сам пользователь.
             telegram_id=u.telegram_id if is_admin or u.id == user.id else None,
+            bitrix_user_id=u.bitrix_user_id if is_admin or u.id == user.id else None,
             full_name=u.full_name,
             position=u.position,
             role=u.role,
