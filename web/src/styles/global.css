@@ -65,6 +65,8 @@
   --shadow-card: 0 1px 0 rgba(8, 39, 66, 0.03);
   --shadow-raised: 0 1px 2px rgba(8, 39, 66, 0.06), 0 2px 8px rgba(8, 39, 66, 0.05);
   --shadow-pop: 0 2px 6px rgba(8, 39, 66, 0.07), 0 18px 48px rgba(8, 39, 66, 0.16);
+  /* поле в фокусе: заливка та же, поле приподнято — мягкий ореол и тень поглубже */
+  --shadow-focus: 0 0 0 4px rgba(8, 39, 66, 0.07), 0 2px 4px rgba(8, 39, 66, 0.08), 0 8px 22px rgba(8, 39, 66, 0.12);
   --shadow-fab: 0 2px 4px rgba(8, 39, 66, 0.12), 0 8px 18px rgba(8, 39, 66, 0.16);
   --shadow-sheet: -24px 0 64px rgba(8, 39, 66, 0.18);
   --scrim: rgba(8, 23, 38, 0.36);
@@ -135,6 +137,7 @@
     --shadow-card: none;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+    --shadow-focus: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
     --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.62);
@@ -193,6 +196,7 @@
   --shadow-card: none;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
   --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
   --scrim: rgba(0, 0, 0, 0.62);
@@ -815,8 +819,7 @@ svg {
 }
 
 .cmd__field:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .cmd__glass {
@@ -1851,10 +1854,10 @@ svg {
 .input:focus,
 .input:focus-visible,
 .select__button[aria-expanded='true'] {
-  /* Фокус поля — заливка плотнее, без кольца: так же отмечен выбранный тип обращения */
+  /* Фокус поля — цвет не меняется: поле приподнимается мягким ореолом и тенью, без кольца */
   outline: none;
-  background: var(--surface-3);
-  box-shadow: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-focus);
 }
 
 .input[aria-invalid='true'] {
@@ -1926,8 +1929,8 @@ textarea.input {
 
 .select--pill .select__button:focus-visible,
 .select--pill .select__button[aria-expanded='true'] {
-  background: var(--surface-3);
-  box-shadow: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-focus);
 }
 
 .select--pill[data-set='true'] .select__button {
@@ -3770,8 +3773,7 @@ button.chat-entry--ask[aria-expanded='true'] {
 }
 
 .composer:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .composer--with-avatar {
@@ -3797,8 +3799,7 @@ button.chat-entry--ask[aria-expanded='true'] {
 }
 
 .composer__box:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .composer__input {
