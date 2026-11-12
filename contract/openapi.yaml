@@ -2855,10 +2855,10 @@ paths:
 
         | Код | Причина | Что делать клиенту |
         |---|---|---|
-        | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта, доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
+        | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта (выход, смена или сброс пароля), доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
         | `4408` | за 10 секунд после открытия не пришёл `auth` | переподключиться и сразу отправить `auth` |
         | `4400` | сообщение не JSON-объект, без `type` или длиннее 4 КБ | исправить клиент |
-        | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое | не переподключать закрытое |
+        | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое; либо с одного адреса открыто больше 20 соединений, ещё не отправивших `auth`, — закрывается новое | не переподключать закрытое |
         | `1001`, `1012` | сервер перезапускается | переподключиться |
 
         Маршрут описан как `GET`, потому что соединение открывается HTTP-запросом с `Upgrade: websocket`.
@@ -4855,7 +4855,7 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/AppealStatus'
-      example: {type: appeal.created, appeal_id: 42, number: MT-000042, status: new}
+      example: {type: appeal.created, appeal_id: 42, number: A-042, status: new}
     WsAppealUpdated:
       type: object
       required: [type, appeal_id, number, status, changed]
@@ -4880,7 +4880,7 @@ components:
             `escalated` — эскалация, `attachment_added` — вложение и т. д. Подсказка, что перезапросить.
           items:
             $ref: '#/components/schemas/HistoryKind'
-      example: {type: appeal.updated, appeal_id: 42, number: MT-000042, status: in_review, changed: [status_changed]}
+      example: {type: appeal.updated, appeal_id: 42, number: A-042, status: in_review, changed: [status_changed]}
     WsMessageCreated:
       type: object
       required: [type, appeal_id, message_id]
