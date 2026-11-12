@@ -111,18 +111,62 @@ async def _drop_old_card(bot: Bot, chat_id: int, state: FSMContext) -> None:
             log.debug("old draft card not editable", exc_info=True)
 
 
-async def _show_card(message: Message, bot: Bot, state: FSMContext, api: Api, draft: dict[str, Any]) -> None:
+async def _show_card(
+    message: Message, bot: Bot, state: FSMContext, api: Api, settings: Settings, draft: dict[str, Any]
+) -> None:
+    """Новая карточка черновика: виджет (поля плитками) или, если Telegram его не принял, прежний текст."""
     await _drop_old_card(bot, message.chat.id, state)
     version = secrets.token_hex(3)
     dictionaries = await api.dictionaries()
-    card = await message.answer(formatting.draft_card(draft, dictionaries), reply_markup=card_keyboard(version))
+    card = await widgets.send_card(
+        bot,
+        settings,
+        message.chat.id,
+        html=widgets.DRAFT_CARD,
+        data=formatting.draft_card_data(draft, dictionaries),
+        caption=texts.DRAFT_CAPTION,
+        text=formatting.draft_card(draft, dictionaries),
+        reply_markup=card_keyboard(version),
+    )
     await state.set_state(None)
     await state.set_data({DRAFT_KEY: draft, CARD_KEY: card.message_id, VERSION_KEY: version})
 
 
-async def _rerender(callback: CallbackQuery, api: Api, draft: dict[str, Any], version: str) -> None:
+async def _rerender(
+    callback: CallbackQuery, bot: Bot, state: FSMContext, api: Api, settings: Settings, draft: dict[str, Any], version: str
+) -> None:
     dictionaries = await api.dictionaries()
-    await callback.message.edit_text(formatting.draft_card(draft, dictionaries), reply_markup=card_keyboard(version))
+    message = callback.message
+    if not widgets.is_widget(message):
+        await message.edit_text(formatting.draft_card(draft, dictionaries), reply_markup=card_keyboard(version))
+        return
+    if await widgets.edit_card(bot, message.chat.id, message.message_id, formatting.draft_card_data(draft, dictionaries)):
+        await message.edit_reply_markup(reply_markup=card_keyboard(version))
+        return
+    # Telegram не дал перерисовать виджет — новая карточка, старая без кнопок.
+    await _show_card(message, bot, state, api, settings, draft)
+
+
+async def _mark_card(
+    callback: CallbackQuery, bot: Bot, api: Api, draft: dict[str, Any], state: str, caption: str, number: str = ""
+) -> None:
+    """Отправленный или отменённый черновик: виджет помечается и теряет кнопки, текстовая карточка — как раньше."""
+    message = callback.message
+    if not widgets.is_widget(message):
+        if state == "cancelled":
+            await message.edit_text(caption)
+        else:
+            await message.edit_reply_markup(reply_markup=None)
+        return
+    dictionaries = await api.dictionaries()
+    await widgets.edit_card(
+        bot, message.chat.id, message.message_id, formatting.draft_card_data(draft, dictionaries, state, number)
+    )
+    try:
+        await message.edit_caption(caption=caption, reply_markup=None)
+    except TelegramAPIError:
+        log.debug("draft caption not editable", exc_info=True)
+        await message.edit_reply_markup(reply_markup=None)
 
 
 def _ai_unavailable_markup(settings: Settings) -> InlineKeyboardMarkup | None:
@@ -150,7 +194,7 @@ async def new_draft(message: Message, bot: Bot, state: FSMContext, api: Api, me:
         await _draft_failed(message, exc, settings)
         return
     draft["forwarded_from"] = origin
-    await _show_card(message, bot, state, api, draft)
+    await _show_card(message, bot, state, api, settings, draft)
 
 
 async def new_voice_draft(
@@ -186,7 +230,7 @@ async def new_voice_draft(
         return
     await _drop_status(bot, status)
     draft["forwarded_from"] = forwarded_from(message)
-    await _show_card(message, bot, state, api, draft)
+    await _show_card(message, bot, state, api, settings, draft)
 
 
 def _audio_name(message: Message) -> tuple[str, str]:
@@ -212,7 +256,7 @@ async def _draft_failed(message: Message, exc: ApiError, settings: Settings) -> 
     await message.answer(message_text, reply_markup=markup)
 
 
-async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api) -> None:
+async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api, settings: Settings) -> None:
     data = await state.get_data()
     draft = data.get(DRAFT_KEY)
     field = "text" if await state.get_state() == DraftEdit.text.state else "summary"
@@ -227,7 +271,7 @@ async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api) 
     draft[field] = new_value
     if field == "text":
         draft["transcript"] = None  # исправленный текст — уже не расшифровка голосового
-    await _show_card(message, bot, state, api, draft)
+    await _show_card(message, bot, state, api, settings, draft)
 
 
 async def on_draft_button(
@@ -251,7 +295,7 @@ async def on_draft_button(
         return
     if action == "cancel":
         await state.clear()
-        await callback.message.edit_text(texts.DRAFT_CANCELLED)
+        await _mark_card(callback, bot, api, draft, "cancelled", texts.DRAFT_CANCELLED)
         await callback.answer()
         return
     if action == "back":
@@ -303,7 +347,7 @@ async def on_draft_button(
         await callback.message.edit_reply_markup(reply_markup=markup)
     else:
         await state.update_data({DRAFT_KEY: draft})
-        await _rerender(callback, api, draft, version)
+        await _rerender(callback, bot, state, api, settings, draft, version)
     await callback.answer()
 
 
@@ -326,7 +370,7 @@ async def _send(
         await callback.answer(exc.message[:200], show_alert=True)
         return
     await state.clear()
-    await callback.message.edit_reply_markup(reply_markup=None)
+    await _mark_card(callback, bot, api, draft, "sent", texts.DRAFT_SENT, appeal["number"])
     await callback.answer()
     dictionaries = await api.dictionaries()
     await widgets.send_card(
@@ -335,7 +379,8 @@ async def _send(
         callback.message.chat.id,
         html=widgets.APPEAL_CARD,
         data=formatting.appeal_card_data(appeal, dictionaries, header="Обращение зарегистрировано"),
-        caption=formatting.appeal_created(appeal),
+        caption=texts.appeal_created_caption(html.escape(appeal["number"])),
+        text=formatting.appeal_created(appeal),
     )
 
 

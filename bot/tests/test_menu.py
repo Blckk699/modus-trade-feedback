@@ -58,8 +58,8 @@ async def test_login_code_is_issued_with_instructions(harness):
 
     replies = harness.telegram.widgets()
     assert len(replies) == 2
-    assert "<code>482913</code>" in replies[0].caption
-    assert "«Модус Трейд»" in replies[0].caption
+    assert "«Модус Трейд»" in replies[0].caption and "5 минут" in replies[0].caption
+    assert "482913" not in replies[0].caption  # код крупно в карточке, в подписи — куда его вводить
     assert "5 минут" in replies[0].caption
     assert len(harness.backend.calls("POST", "/api/v1/auth/login-codes")) == 2
 
@@ -96,6 +96,7 @@ async def test_my_appeals_lists_numbers_and_statuses(harness):
         "total": 12, "page": 1, "page_size": 10,
     })
 
+    harness.settings.widgets_enabled = False  # список-виджет — в test_widgets.py
     await harness.send_text(texts.BTN_MY_APPEALS)
 
     [request] = harness.backend.calls("GET", "/api/v1/appeals")

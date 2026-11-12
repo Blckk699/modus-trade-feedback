@@ -20,6 +20,11 @@ VOICE_DRAFT = {
 }
 
 
+
+@pytest.fixture(autouse=True)
+def text_cards(harness):
+    """Здесь проверяется логика черновика на текстовой карточке; карточка-виджет — в test_widgets.py."""
+    harness.settings.widgets_enabled = False
 @pytest.fixture
 def backend(harness):
     b = harness.backend
@@ -61,7 +66,7 @@ async def test_voice_draft_is_confirmed_like_text(harness, backend):
     sent = json.loads(request.content)
     assert sent["text"] == TRANSCRIPT
     assert sent["source"] == "bot"
-    assert "<b>A-021</b>" in harness.telegram.widgets()[-1].caption
+    assert "<b>A-021</b>" in harness.telegram.sent()[-1].text
 
 
 async def test_too_long_voice_is_refused_without_upload(harness, backend):

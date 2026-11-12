@@ -3,12 +3,13 @@
 Фейки только на границе: Telegram (сессия aiogram), Claude и ElevenLabs внутри бэкенда.
 """
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app import texts
+from app import texts, widgets
 from app.notifications import deliver_pending
 
 EMPLOYEE = "Айгерим Нурланова"  # сотрудник закупок
@@ -32,6 +33,12 @@ def last(bot) -> str:
     return shown(bot.telegram.messages()[-1])
 
 
+def card(bot, html: str) -> tuple:
+    """Последний виджет с этим шаблоном: сообщение и его chat_data."""
+    widget = [w for w in bot.telegram.widgets() if w.html == html][-1]
+    return widget, json.loads(widget.chat_data)
+
+
 async def drain(bot) -> list:
     """Доставить всю очередь бэкенда (фоновая задача бота делает то же раз в несколько секунд)."""
     before = len(bot.telegram.messages())
@@ -42,13 +49,12 @@ async def drain(bot) -> list:
 
 async def submit_text(bot, telegram_id: int, text: str) -> str:
     await bot.send_text(text, user_id=telegram_id)
-    card = bot.telegram.sent()[-1]
-    assert "Черновик обращения" in card.text, card.text
-    await bot.press(card, texts.BTN_DRAFT_SEND, user_id=telegram_id)
-    confirmation = last(bot)  # карточка-виджет, номер — в подписи
-    number = re.search(r"A-\d{3}", confirmation)
-    assert number, confirmation
-    return number.group(0)
+    draft, fields = card(bot, widgets.DRAFT_CARD)
+    assert fields["q"] == text and fields["x"] == "", fields
+    await bot.press(draft, texts.BTN_DRAFT_SEND, user_id=telegram_id)
+    _, created = card(bot, widgets.APPEAL_CARD)  # подтверждение — карточка обращения
+    assert re.fullmatch(r"A-\d{3}", created["n"]), created
+    return created["n"]
 
 
 async def appeal_by_number(backend, telegram_id: int, number: str) -> dict:
@@ -69,7 +75,9 @@ async def test_employee_is_recognised_and_stranger_offered_request(bot, people):
 
 async def test_login_code_from_bot_is_accepted_once(bot, backend, people):
     await bot.send_text(texts.BTN_LOGIN_CODE, user_id=people[EMPLOYEE])
-    code = re.search(r"<code>(\d{6})</code>", last(bot)).group(1)
+    widget, fields = card(bot, widgets.LOGIN_CODE)
+    code = fields["c"]
+    assert widget.reply_markup.inline_keyboard[0][0].copy_text.text == code
 
     first = await backend.post("/api/v1/auth/code", json={"code": code})
     again = await backend.post("/api/v1/auth/code", json={"code": code})
@@ -87,7 +95,7 @@ async def test_text_appeal_is_created_and_notifications_are_delivered(bot, backe
     assert appeal["source"] == "bot"
     assert appeal["category"]["name"] == "Межотдельное взаимодействие"
     assignee = appeal["assignee"]["full_name"]
-    assert assignee in last(bot)  # бот назвал ответственного
+    assert card(bot, widgets.APPEAL_CARD)[1]["a"] == assignee  # бот назвал ответственного
 
     delivered = await drain(bot)
     recipients = {m.chat_id for m in delivered}
@@ -99,12 +107,12 @@ async def test_text_appeal_is_created_and_notifications_are_delivered(bot, backe
 
 async def test_voice_appeal_shows_transcript_and_is_created(bot, backend, people):
     await bot.send_voice(b"OggS-e2e-voice", duration=9, user_id=people[EMPLOYEE])
-    card = bot.telegram.sent()[-1]
-    assert "Расшифровка голосового" in card.text
-    assert "1С" in card.text  # текст фейковой расшифровки бэкенда
+    draft, fields = card(bot, widgets.DRAFT_CARD)
+    assert fields["v"] == 1  # плашка «Расшифровка голосового»
+    assert "1С" in fields["q"]  # текст фейковой расшифровки бэкенда
 
-    await bot.press(card, texts.BTN_DRAFT_SEND, user_id=people[EMPLOYEE])
-    number = re.search(r"A-\d{3}", last(bot)).group(0)
+    await bot.press(draft, texts.BTN_DRAFT_SEND, user_id=people[EMPLOYEE])
+    number = card(bot, widgets.APPEAL_CARD)[1]["n"]
     appeal = await appeal_by_number(backend, people[EMPLOYEE], number)
     assert appeal["text"].startswith("Счёт сначала забиваю в 1С")
 
@@ -157,9 +165,9 @@ async def test_clarification_answered_in_bot_returns_appeal_to_review(bot, backe
 
 async def test_my_appeals_lists_what_was_submitted(bot, people):
     await bot.send_text(texts.BTN_MY_APPEALS, user_id=people[EMPLOYEE])
-    reply = bot.telegram.sent()[-1].text
-    assert "Мои обращения" in reply
-    assert re.search(r"<b>A-\d{3}</b> · ", reply)
+    _, listing = card(bot, widgets.APPEAL_LIST)
+    assert listing["T"] >= 1
+    assert all(re.fullmatch(r"A-\d{3}", row[0]) for row in listing["i"])
 
 
 async def test_digest_command(bot, backend, people):

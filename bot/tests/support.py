@@ -155,7 +155,13 @@ class BotHarness:
             id=str(next(self._update_ids)),
             from_user=User(id=user_id, is_bot=False, first_name="Айгерим"),
             chat_instance="ci",
-            message=Message(message_id=message_id, date=datetime.now(), chat=Chat(id=user_id, type="private"), text="card"),
+            message=Message(
+                message_id=message_id,
+                date=datetime.now(),
+                chat=Chat(id=user_id, type="private"),
+                # У виджета нет text, только подпись: так бот отличает его от текстовой карточки.
+                **({"caption": "card"} if message_id in self.telegram.widget_ids else {"text": "card"}),
+            ),
             data=button.callback_data,
         )
         await self.dp.feed_update(self.bot, Update(update_id=next(self._update_ids), callback_query=callback))

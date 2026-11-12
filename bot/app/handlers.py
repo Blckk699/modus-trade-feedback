@@ -59,7 +59,8 @@ async def login_code(message: Message, bot: Bot, state: FSMContext, api: Api, se
         message.chat.id,
         html=widgets.LOGIN_CODE,
         data=formatting.login_code_data(code.code, code.expires_at, code.ttl_seconds),
-        caption=texts.login_code(html.escape(code.code), code.ttl_seconds),
+        caption=texts.login_code_caption(code.ttl_seconds),
+        text=texts.login_code(html.escape(code.code), code.ttl_seconds),
         # Кнопка Telegram, а не кнопка в виджете: copyText в виджете с защитой контента запрещён.
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[[InlineKeyboardButton(text=texts.BTN_COPY_CODE, copy_text=CopyTextButton(text=code.code))]]
@@ -72,7 +73,9 @@ async def submit_hint(message: Message, state: FSMContext) -> None:
     await message.answer(texts.SUBMIT_HINT)
 
 
-async def my_appeals(message: Message, state: FSMContext, api: Api, me: dict[str, Any], settings: Settings) -> None:
+async def my_appeals(
+    message: Message, bot: Bot, state: FSMContext, api: Api, me: dict[str, Any], settings: Settings
+) -> None:
     await state.set_state(None)
     try:
         page = await api.my_appeals(message.from_user.id)
@@ -88,7 +91,16 @@ async def my_appeals(message: Message, state: FSMContext, api: Api, me: dict[str
     if not page["items"]:
         await message.answer(texts.MY_APPEALS_EMPTY, reply_markup=markup)
         return
-    await message.answer(formatting.my_appeals(page, dictionaries), reply_markup=markup)
+    await widgets.send_card(
+        bot,
+        settings,
+        message.chat.id,
+        html=widgets.APPEAL_LIST,
+        data=formatting.appeal_list_data(page, dictionaries),
+        caption=None,
+        text=formatting.my_appeals(page, dictionaries),
+        reply_markup=markup,
+    )
 
 
 async def digest(message: Message, state: FSMContext, api: Api, settings: Settings) -> None:
