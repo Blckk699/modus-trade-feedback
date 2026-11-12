@@ -83,9 +83,10 @@ async def create_appeal(
 
 
 async def reassign(
-    session: AsyncSession, appeal: Appeal, actor: User, assignee_id: int, reason: str, now: datetime, tz: tzinfo
+    session: AsyncSession, appeal: Appeal, actor: User, assignee_id: int, reason: str | None, now: datetime, tz: tzinfo
 ) -> None:
-    """Переназначение с причиной: руководитель (в своём подразделении), администратор, собственник.
+    """Назначение и переназначение: руководитель (в своём подразделении), администратор, собственник.
+    Причина обязательна при смене ответственного; первое назначение можно сделать без неё.
     Срок первого ответа отсчитывается заново."""
     directory = await Directory.load(session)
     extras = await Extras.load(session, actor, [appeal])
@@ -108,8 +109,14 @@ async def reassign(
             "Этот сотрудник уже ответственный",
             details={"fields": [{"field": "assignee_id", "message": "Выберите другого сотрудника"}]},
         )
+    reason = (reason or "").strip() or None
+    if appeal.assignee_id and reason is None:
+        raise ValidationFailed(
+            "Укажите причину переназначения",
+            details={"fields": [{"field": "reason", "message": "Обязательное поле"}]},
+        )
     kind = HistoryKind.REASSIGNED if appeal.assignee_id else HistoryKind.ASSIGNED
-    await routing.assign(session, appeal, assignee, now, tz, actor_id=actor.id, reason=reason.strip(), kind=kind)
+    await routing.assign(session, appeal, assignee, now, tz, actor_id=actor.id, reason=reason, kind=kind)
 
 
 async def get_visible(

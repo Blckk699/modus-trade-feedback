@@ -70,7 +70,7 @@ async def assign(
     tz: tzinfo,
     *,
     actor_id: int | None,
-    reason: str,
+    reason: str | None,
     kind: HistoryKind,
 ) -> None:
     """Назначает ответственного и, если первого ответа ещё не было, заново отсчитывает срок; всё пишет

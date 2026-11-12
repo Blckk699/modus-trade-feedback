@@ -39,7 +39,7 @@ class HistoryEvent {
 
   String? newValue;
 
-  /// Причина переназначения, текст решения и т. п.
+  /// Причина переназначения, текст решения и т. п. У первого назначения без причины — null
   String? comment;
 
   DateTime createdAt;

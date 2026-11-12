@@ -176,3 +176,25 @@ async def test_assignee_becoming_admin_keeps_no_appeal_access(client, login_as) 
     promoted = await admin_call(client, admin, "PATCH", f"/users/{pm_id}", {"role": "admin"})
     assert promoted.json()["role"] == "admin"
     assert (await client.get("/api/v1/appeals/2/messages", headers=former)).status_code == 403
+
+
+async def test_first_assignment_needs_no_reason_but_change_does(client, login_as) -> None:
+    """Причина обязательна только при смене ответственного (истории 44 и 70)."""
+    sender = await login_as("employee_sales")
+    appeal = (await client.post("/api/v1/appeals", headers=sender, json={**FORM, "category_id": None})).json()
+    assert appeal["assignee"] is None
+    admin = await login_as("admin")
+    url = f"/api/v1/appeals/{appeal['id']}/reassign"
+
+    first = await client.post(url, headers=admin, json={"assignee_id": 7})
+    assert (first.status_code, first.json()["assignee"]["id"]) == (200, 7)
+    history = (await client.get(f"/api/v1/appeals/{appeal['id']}/history", headers=await login_as("owner"))).json()
+    assigned = [e for e in history if e["kind"] == "assigned"][-1]
+    assert (assigned["new_value"] is not None, assigned["comment"]) == (True, None)
+
+    for body in ({"assignee_id": 17}, {"assignee_id": 17, "reason": None}, {"assignee_id": 17, "reason": "   "}):
+        refused = await client.post(url, headers=admin, json=body)
+        assert refused.status_code == 422, body
+        assert refused.json()["error"]["details"]["fields"][0]["field"] == "reason"
+    changed = await client.post(url, headers=admin, json={"assignee_id": 17, "reason": "Вопрос к проектному офису"})
+    assert (changed.status_code, changed.json()["assignee"]["id"]) == (200, 17)
