@@ -1,3 +1,4 @@
+import { CardSkeleton } from '../app/CardSkeleton';
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUp, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -29,9 +30,7 @@ export function DiscussionPage() {
   const s = d.state;
   const body =
     s.status === 'loading' ? (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем обсуждение…
-      </div>
+      <CardSkeleton label="Открываем обсуждение…" />
     ) : s.status === 'error' ? (
       <div className="sheet sheet--state">
         <p className="error-text">{s.error instanceof ApiError && s.error.status === 404 ? 'Обсуждение не найдено.' : s.message}</p>

@@ -1,3 +1,4 @@
+import { CardSkeleton } from '../app/CardSkeleton';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -46,9 +47,7 @@ export function MeetingPage() {
   const inCard = useInCard();
   const body =
     s.status === 'loading' ? (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем совещание…
-      </div>
+      <CardSkeleton label="Открываем совещание…" />
     ) : s.status === 'error' ? (
       <div className="sheet sheet--state">
         <p className="error-text">{s.error instanceof ApiError && s.error.status === 404 ? 'Совещание не найдено.' : s.message}</p>
