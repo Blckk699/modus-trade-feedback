@@ -29,6 +29,7 @@ class MeOut(UserOut):
     email: str | None
     has_password: bool
     telegram_linked: bool
+    switch_targets: list[UserBrief]
     responsible_for: list[CategoryRef]
     deputy_for: list[CategoryRef]
     assigned_open_count: int
@@ -101,12 +102,21 @@ async def build_me(session: AsyncSession, user: User) -> MeOut:
         .where(Appeal.assignee_id == user.id, Appeal.status.notin_([s.value for s in FINAL_STATUSES]))
     )
     heads = await session.scalar(select(func.count()).select_from(Department).where(Department.head_id == user.id))
+    targets: list[UserBrief] = []
+    if user.switch_group is not None:
+        linked = await session.execute(
+            select(User)
+            .where(User.switch_group == user.switch_group, User.id != user.id, User.is_disabled.is_(False))
+            .order_by(User.id)
+        )
+        targets = [await user_brief(session, u) for u in linked.scalars()]
     base = await user_out(session, user, show_telegram_id=True)
     return MeOut(
         **base.model_dump(exclude={"email"}),
         email=user.email,
         has_password=user.password_hash is not None,
         telegram_linked=user.telegram_id is not None,
+        switch_targets=targets,
         responsible_for=responsible,
         deputy_for=deputy,
         assigned_open_count=assigned_open or 0,

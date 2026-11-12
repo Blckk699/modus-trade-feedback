@@ -59,3 +59,14 @@ class PasswordAttempt(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(300))
     created_at: Mapped[datetime]
+
+
+class AccountSwitch(Base):
+    """Журнал демо-переключателя ролей: кто, на кого и когда переключился."""
+
+    __tablename__ = "account_switches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    from_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime]

@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     access_request_window_seconds: int = 3600
     # Перебор токенов приглашений: неудачные попытки с одного IP (у бота — с одного Telegram ID) за окно -> 429.
     invite_max_failures: int = 10
+    # Сессия демо-переключателя ролей живёт недолго: это не обычный вход.
+    switch_session_ttl_hours: int = 12
     # Вход по паролю: 5 неудач подряд по почте — блок на 5 минут; общий порог адреса выше (офис за NAT).
     password_max_failures: int = 5
     password_lock_seconds: int = 300

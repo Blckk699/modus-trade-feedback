@@ -33,11 +33,11 @@ async def user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User |
 
 
 async def open_session(
-    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings
+    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings, *, ttl: timedelta | None = None
 ) -> tuple[str, datetime]:
     """Выдаёт новую сессию. Возвращает токен (показывается клиенту один раз) и срок действия."""
     token = secrets.token_urlsafe(32)
-    expires_at = now + timedelta(days=settings.session_ttl_days)
+    expires_at = now + (ttl or timedelta(days=settings.session_ttl_days))
     session.add(
         AuthSession(token_hash=_sha256(token), user_id=user.id, method=method, created_at=now, expires_at=expires_at)
     )
