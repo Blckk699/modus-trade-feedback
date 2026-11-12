@@ -32,6 +32,7 @@ class ApiService {
   }
 
   AuthApi get auth => AuthApi(_client);
+  AccessApi get access => AccessApi(_client);
   MeApi get me => MeApi(_client);
   DictionariesApi get dictionaries => DictionariesApi(_client);
   AppealsApi get appeals => AppealsApi(_client);
