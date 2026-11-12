@@ -632,6 +632,9 @@ svg {
 .content {
   width: 100%;
   flex: 1;
+  /* колонка: экран с пустым списком может занять всю высоту до низа окна */
+  display: flex;
+  flex-direction: column;
 }
 
 .content:focus {
@@ -642,6 +645,124 @@ svg {
 .fab,
 .usermenu {
   display: none;
+}
+
+/* Переключатель роли в шапке (демо): кто сейчас вошёл и под кого можно переключиться */
+.roleswitch {
+  position: relative;
+  flex: none;
+}
+
+.roleswitch__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  max-width: 240px;
+  padding: 0 12px 0 7px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-raised);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.roleswitch__btn:hover,
+.roleswitch__btn[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+
+.roleswitch__who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.roleswitch__who strong {
+  overflow: hidden;
+  color: var(--heading);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleswitch__who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleswitch__who--btn {
+  font-size: 11.5px;
+}
+
+.roleswitch__who--btn strong {
+  font-size: 13px;
+}
+
+.pop.roleswitch__pop {
+  min-width: 300px;
+}
+
+.roleswitch__note {
+  padding: 6px 12px 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.roleswitch__item {
+  min-height: 52px;
+  font-weight: 500;
+}
+
+.roleswitch__item[aria-checked='true'] {
+  background: var(--surface-2);
+}
+
+.roleswitch__item:disabled {
+  opacity: 0.6;
+}
+
+.roleswitch__group {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* В шапке карточки обращения — только аватар и стрелка, справа от статусов */
+.roleswitch--compact {
+  margin-left: auto;
+}
+
+.roleswitch--compact .roleswitch__who--btn {
+  display: none;
+}
+
+.roleswitch--compact .roleswitch__btn {
+  padding: 0 8px 0 7px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.roleswitch--compact .roleswitch__btn:hover,
+.roleswitch--compact .roleswitch__btn[aria-expanded='true'] {
+  background: var(--surface-3);
+}
+
+/* Между телефоном и широким экраном в шапке тесно: остаются аватар и стрелка */
+@media (max-width: 1180px) {
+  .roleswitch__who--btn {
+    display: none;
+  }
 }
 
 /* круглая кнопка-инструмент: колокольчик, крестик */
@@ -1084,6 +1205,29 @@ svg {
   align-content: start;
 }
 
+/* Пустой список тянется до низа окна, а не висит куском посреди экрана.
+   Экран становится колонкой, пустая карточка забирает оставшуюся высоту. */
+.page:has(.empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(.empty) > .empty,
+.page:has(.empty) > :has(> .empty) {
+  flex: 1;
+}
+
+.page > :has(> .empty) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page > :has(> .empty) > .empty {
+  flex: 1;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1162,6 +1306,57 @@ svg {
 .skeleton.bento__tile,
 .skeleton.bento__wide {
   min-height: 220px;
+}
+
+/* Каркас карточки: полоски на местах статусов, заголовка, текста и блоков */
+.bone {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.bone--pill {
+  height: 26px;
+  border-radius: var(--r-pill);
+}
+
+.bone--round {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.bone--title {
+  height: 24px;
+  border-radius: 10px;
+}
+
+.bone--block {
+  border-radius: var(--r-tile);
+}
+
+.card-skeleton .sheet__head {
+  gap: 6px;
+}
+
+.card-skeleton__lead {
+  display: flex;
+  gap: 14px;
+}
+
+.card-skeleton__title {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  align-content: start;
+}
+
+.card-skeleton__text {
+  display: grid;
+  gap: 10px;
 }
 
 .skeleton--row {
@@ -1966,7 +2161,9 @@ textarea.input {
   justify-items: start;
 }
 
-/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки. */
+/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки.
+   На экране-списке карточка тянется до низа окна (см. .page:has(.empty)); min-height — нижняя граница,
+   когда над ней стоит высокий блок (загрузка записи в «Совещаниях»). */
 .empty {
   display: grid;
   place-content: center;
@@ -3492,6 +3689,12 @@ button.chat-entry--ask[aria-expanded='true'] {
   gap: 18px;
 }
 
+/* Описание в отзыве выше ровно на поле «Как это можно решить» (подпись 20 + отступ 6 + поле 84)
+   и отступ формы 18: при смене типа кнопки внизу остаются на месте. 5lh + 20px — высота пяти строк. */
+textarea.compose__text--tall {
+  min-height: calc(5lh + 20px + 128.25px);
+}
+
 .compose__head {
   display: grid;
   gap: 4px;
@@ -4622,6 +4825,8 @@ button.vote__option:not(.vote__option--mine):hover {
   }
 
   .stage {
+    /* на всю высоту окна: пустой список тянется до панели разделов */
+    min-height: 100dvh;
     padding: 0 12px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));
   }
 
@@ -4673,6 +4878,11 @@ button.vote__option:not(.vote__option--mine):hover {
   .tool-btn {
     width: 40px;
     height: 40px;
+  }
+
+  /* В шапке приложения на телефоне переключателя нет: он в меню профиля и в шапке карточки */
+  .head__tools .roleswitch {
+    display: none;
   }
 
   .usermenu {

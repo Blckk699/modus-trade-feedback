@@ -131,8 +131,9 @@ export function NewAppealPage() {
 
       <label className="field">
         <span className="field__label">Описание</span>
+        {/* У отзыва нет поля «Как это можно решить»: описание занимает его место, и форма не меняет высоту при смене типа. */}
         <textarea
-          className="input"
+          className={type === 'praise' ? 'input compose__text compose__text--tall' : 'input compose__text'}
           rows={5}
           value={text}
           onChange={(e) => setText(e.target.value)}

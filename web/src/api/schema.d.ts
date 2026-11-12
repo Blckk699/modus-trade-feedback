@@ -216,6 +216,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Переключиться на связанный аккаунт (демо-переключатель ролей)
+         * @description Выдаёт новую сессию от имени выбранного пользователя — с теми же правами, что при обычном входе под ним.
+         *     Доступные пользователи — `Me.switch_targets`. Группа связанных аккаунтов задаётся настройкой вне
+         *     репозитория; без неё список пуст, а маршрут отвечает `403`. Переключение пишется в журнал.
+         *     Текущая сессия остаётся действующей: клиент заменяет токен на новый.
+         *     Пользователь не из группы — `403 forbidden`; у выбранного отключён доступ — `403 user_disabled`.
+         *     Только для сессии клиента: бот с сервисным ключом получает `403`.
+         *
+         */
+        post: operations["switchAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/access-requests/departments": {
         parameters: {
             query?: never;
@@ -1933,6 +1959,10 @@ export interface components {
             has_password: boolean;
             /** @description Привязан ли Telegram (вход в один клик и уведомления бота) */
             telegram_linked: boolean;
+            /** @description Связанные аккаунты, на которые можно переключиться (`POST /auth/switch`): демо-переключатель ролей
+             *     в шапке. Пусто — переключатель не показывать.
+             *      */
+            switch_targets: components["schemas"]["UserBrief"][];
             /** @description Категории, где пользователь — ответственный */
             responsible_for: components["schemas"]["CategoryRef"][];
             /** @description Категории, где пользователь — заместитель */
@@ -3085,6 +3115,39 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    switchAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "user_id": 3
+                 *     } */
+                "application/json": {
+                    /** @description `id` из `Me.switch_targets` */
+                    user_id: number;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Session"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Пользователь не из группы связанных аккаунтов (`forbidden`) или у него отключён доступ (`user_disabled`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     listAccessDepartments: {

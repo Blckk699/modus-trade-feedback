@@ -1,3 +1,4 @@
+import { CardSkeleton } from '../app/CardSkeleton';
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare, Users } from 'lucide-react';
@@ -22,6 +23,7 @@ import { TypeIcon } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
+import { RoleSwitch } from '../auth/switch/RoleSwitch';
 import { useInCard } from './CardModal';
 
 type Appeal = Schemas['Appeal'];
@@ -44,9 +46,7 @@ export function AppealPage() {
   let body;
   if (s.status === 'loading') {
     body = (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем обращение…
-      </div>
+      <CardSkeleton label="Открываем обращение…" />
     );
   } else if (s.status === 'error') {
     const notFound = s.error instanceof ApiError && (s.error.status === 404 || s.error.status === 403);
@@ -87,6 +87,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const background = useBackground();
   const show = cardSections(a);
   const isAuthor = a.viewer_relations.includes('author');
+  const inCard = useInCard();
 
   return (
     <article className="sheet">
@@ -101,6 +102,9 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
             </span>
           )}
         </div>
+        {/* Карточка-панель закрывает шапку приложения, поэтому смена роли (W-14) продублирована здесь:
+            одну заявку ведут через все роли, не закрывая её. */}
+        {inCard && <RoleSwitch compact />}
       </header>
 
       <div className="sheet__scroll">
