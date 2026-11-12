@@ -54,6 +54,7 @@ async def user_out(session: AsyncSession, user: User, *, show_telegram_id: bool)
         id=user.id,
         telegram_id=user.telegram_id if show_telegram_id else None,
         email=user.email if show_telegram_id else None,
+        bitrix_user_id=user.bitrix_user_id if show_telegram_id else None,
         full_name=user.full_name,
         position=user.position,
         role=user.role,

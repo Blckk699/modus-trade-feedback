@@ -3,7 +3,7 @@
 Шов один — HTTP API. Тест получает:
 - `client` — httpx.AsyncClient к приложению (без сети, через ASGI);
 - `clock` — замороженные часы, `time_machine.advance(...)` двигает их и выполняет созревшие задачи;
-- `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix` — фейки адаптеров, уже подставленные в приложение;
+- `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix`, `fake_bitrix_oauth` — фейки адаптеров, уже подставленные в приложение;
 - чистую базу: перед каждым тестом все таблицы очищаются;
 - `demo` — загрузить демо-компанию из сида (у всех демо-пользователей тестовые Telegram ID);
 - `login_as("owner")` — заголовки входа под демо-пользователем одной строкой: ключ из
@@ -28,7 +28,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from sqlalchemy import select, text
 
-from app.adapters.fakes import FakeBitrix, FakeClaude, FakeSpeech, FakeTelegram
+from app.adapters.fakes import FakeBitrix, FakeBitrixOAuth, FakeClaude, FakeSpeech, FakeTelegram
 from app.auth.service import open_session
 from app.clock import FrozenClock
 from app.config import Settings
@@ -83,6 +83,9 @@ def settings(migrated_database_url: str) -> Settings:
         elevenlabs_api_key="",
         telegram_bot_token="",
         bitrix24_webhook_url="",
+        bitrix24_client_id="",
+        bitrix24_client_secret="",
+        bitrix24_portal="",
     )
 
 
@@ -112,6 +115,11 @@ def fake_bitrix() -> FakeBitrix:
 
 
 @pytest.fixture
+def fake_bitrix_oauth() -> FakeBitrixOAuth:
+    return FakeBitrixOAuth()
+
+
+@pytest.fixture
 async def app(
     settings: Settings,
     clock: FrozenClock,
@@ -119,8 +127,16 @@ async def app(
     fake_speech: FakeSpeech,
     fake_telegram: FakeTelegram,
     fake_bitrix: FakeBitrix,
+    fake_bitrix_oauth: FakeBitrixOAuth,
 ) -> AsyncIterator[FastAPI]:
-    services = Services(clock=clock, claude=fake_claude, speech=fake_speech, telegram=fake_telegram, bitrix=fake_bitrix)
+    services = Services(
+        clock=clock,
+        claude=fake_claude,
+        speech=fake_speech,
+        telegram=fake_telegram,
+        bitrix=fake_bitrix,
+        bitrix_oauth=fake_bitrix_oauth,
+    )
     application = create_app(settings, services)
     await _truncate_all(application)
     yield application
