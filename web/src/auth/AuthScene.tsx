@@ -19,7 +19,9 @@ export function AuthScene() {
     import('./scene/gyro')
       .then(({ mountGyro }) => {
         if (cancelled) return;
-        dispose = mountGyro(el, still);
+        // Текст панели прижат к низу: всё, что выше него, свободно для фигуры.
+        const pitch = el.parentElement?.querySelector<HTMLElement>('.auth__pitch');
+        dispose = mountGyro(el, still, () => pitch?.offsetTop ?? el.clientHeight);
         el.dataset.ready = 'true';
       })
       .catch(() => {

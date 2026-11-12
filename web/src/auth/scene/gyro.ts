@@ -16,8 +16,8 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
-/** Где на панели стоит объект (доли ширины и высоты) и какую часть меньшей стороны занимает. */
-const ANCHOR = { x: 0.56, y: 0.41, size: 0.8 };
+/** Фигура стоит в свободном месте над текстом: центр по ширине панели и доля этого места под диаметр. */
+const ANCHOR = { x: 0.56, width: 0.78, height: 0.8, shiftDown: 30 };
 const FOV = 32;
 const DISTANCE = 7;
 /** Внешний радиус фигуры в единицах сцены вместе с орбитой точек. */
@@ -35,9 +35,10 @@ const DOTS = 36;
 /**
  * Декоративный гироскоп на экране входа: три кольца вокруг красного ядра и орбита точек —
  * тот же точечный мотив, что в цифрах-табло. Смысла не несёт, поэтому для диктора скрыт.
+ * `clearHeight` — сколько пикселей сверху свободно от текста: фигура не должна на него заходить.
  * Возвращает функцию, которая останавливает отрисовку и освобождает память видеокарты.
  */
-export function mountGyro(host: HTMLElement, still: boolean): () => void {
+export function mountGyro(host: HTMLElement, still: boolean, clearHeight: () => number): () => void {
   const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = ACESFilmicToneMapping;
@@ -95,8 +96,11 @@ export function mountGyro(host: HTMLElement, still: boolean): () => void {
     const visH = 2 * DISTANCE * Math.tan((FOV * Math.PI) / 360);
     const visW = visH * camera.aspect;
     const unitsPerPx = visH / h;
-    root.position.set((ANCHOR.x - 0.5) * visW, (0.5 - ANCHOR.y) * visH, 0);
-    root.scale.setScalar((Math.min(w, h) * ANCHOR.size * unitsPerPx) / (EXTENT * 2));
+    const clear = Math.min(h, Math.max(0, clearHeight()));
+    const diameter = Math.min(w * ANCHOR.width, clear * ANCHOR.height);
+    const centerY = clear / 2 + ANCHOR.shiftDown;
+    root.position.set((ANCHOR.x - 0.5) * visW, (0.5 - centerY / h) * visH, 0);
+    root.scale.setScalar((diameter * unitsPerPx) / (EXTENT * 2));
   }
 
   // Указатель чуть наклоняет фигуру: цель задаёт событие, кадр догоняет её плавно.
