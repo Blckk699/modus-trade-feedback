@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileText, Trash2 } from 'lucide-react';
 import type { Schemas } from '../api/types';
 import { Modal } from '../app/Modal';
 import { formatDateTime, formatSize } from '../lib/format';
@@ -14,10 +14,12 @@ interface Props {
   onIndex: (index: number) => void;
   onClose: () => void;
   onDownload: (att: Attachment) => void;
+  /** Попросить удалить файл: подтверждение показывает раздел. */
+  onDelete: (att: Attachment) => void;
 }
 
 /** Просмотр вложений каруселью: стрелки на экране и на клавиатуре, лента миниатюр внизу. */
-export function AttachmentViewer({ items, index, onIndex, onClose, onDownload }: Props) {
+export function AttachmentViewer({ items, index, onIndex, onClose, onDownload, onDelete }: Props) {
   const att = items[index];
   const many = items.length > 1;
 
@@ -47,6 +49,11 @@ export function AttachmentViewer({ items, index, onIndex, onClose, onDownload }:
             <span className="viewer__count" aria-hidden="true">
               {index + 1} / {items.length}
             </span>
+          )}
+          {att.can_delete && (
+            <button type="button" className="btn btn--ghost btn--sm btn--danger" onClick={() => onDelete(att)}>
+              <Trash2 size={15} aria-hidden="true" /> Удалить
+            </button>
           )}
           <button type="button" className="btn btn--soft btn--sm" onClick={() => onDownload(att)}>
             <Download size={15} aria-hidden="true" /> Скачать
@@ -121,10 +128,10 @@ function Slide({ att, onDownload }: { att: Attachment; onDownload: (att: Attachm
   return <audio className="viewer__audio" src={src.url} controls autoPlay aria-label={att.filename} />;
 }
 
-/** Миниатюра: у картинки — она сама, у остальных — подпись с типом файла. */
+/** Миниатюра: у картинки — её уменьшенная копия, у остальных — подпись с типом файла. */
 export function Thumb({ att, eager = true }: { att: Attachment; eager?: boolean }) {
   const kind = fileKind(att);
-  const src = useAttachmentUrl(att, kind === 'image' && eager);
+  const src = useAttachmentUrl(att, kind === 'image' && eager, 'preview');
   if (kind === 'image' && src.status === 'ready') return <img className="thumb__img" src={src.url} alt="" />;
   if (kind === 'image' && src.status !== 'error') return <span className="thumb__ph bone" aria-hidden="true" />;
   return (

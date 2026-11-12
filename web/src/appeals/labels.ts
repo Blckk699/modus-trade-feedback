@@ -22,6 +22,7 @@ export const historyKindLabel: Record<Schemas['HistoryEvent']['kind'], string> =
   merged: 'Склеено с другим обращением',
   participant_added: 'Добавлен участник',
   attachment_added: 'Добавлено вложение',
+  attachment_removed: 'Вложение удалено',
   discussion_published: 'Вынесено на обсуждение',
   discussion_closed: 'Обсуждение завершено',
   bitrix_task_created: 'Создана задача в Битрикс24',
