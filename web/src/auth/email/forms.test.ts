@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../api/errors';
+import type { ErrorCode } from '../../api/types';
 import {
   CODES,
+  accountOf,
   canUnlinkTelegram,
   changePasswordErrors,
   changePasswordProblem,
@@ -16,10 +18,13 @@ import {
   registerFormErrors,
   registerProblem,
   REGISTER_EMPTY,
+  resetPasswordProblem,
+  unlinkTelegramProblem,
 } from './forms';
 
-const apiError = (status: number, code: string, details: Record<string, unknown> | null = null) =>
-  new ApiError(status, code as never, 'текст сервера', details);
+const apiError = (status: number, code: ErrorCode, details: Record<string, unknown> | null = null) =>
+  new ApiError(status, code, 'текст сервера', details);
+const invalidField = (field: string) => apiError(422, 'validation_error', { fields: [{ field, message: 'текст поля' }] });
 
 describe('состояния ответа входа по почте', () => {
   it('неверные данные, заявка на рассмотрении, доступ отключён, временный пароль', () => {
@@ -29,9 +34,17 @@ describe('состояния ответа входа по почте', () => {
     expect(loginProblem(apiError(403, CODES.passwordChangeRequired))).toEqual({ kind: 'new_password' });
   });
 
-  it('блокировка: время берём из ответа, без него — пять минут', () => {
+  it('отклонённая заявка: причина из details.reason, без неё — null', () => {
+    expect(loginProblem(apiError(403, CODES.rejected, { reason: ' Подрядчикам доступ не выдаём ' }))).toEqual({
+      kind: 'rejected',
+      reason: 'Подрядчикам доступ не выдаём',
+    });
+    expect(loginProblem(apiError(403, CODES.rejected))).toEqual({ kind: 'rejected', reason: null });
+  });
+
+  it('блокировка (429 too_many_requests): время из ответа, если сервер его дал, иначе пять минут', () => {
     expect(loginProblem(apiError(429, CODES.locked, { retry_after_seconds: 251.2 }))).toEqual({ kind: 'locked', retryAfterSec: 252 });
-    expect(loginProblem(apiError(429, CODES.locked))).toEqual({ kind: 'locked', retryAfterSec: null });
+    expect(loginProblem(apiError(429, 'too_many_requests'))).toEqual({ kind: 'locked', retryAfterSec: null });
     expect(lockWait(252)).toBe('через 4 мин 12 с');
     expect(lockWait(120)).toBe('через 2 мин');
     expect(lockWait(40)).toBe('через 40 с');
@@ -44,6 +57,12 @@ describe('состояния ответа входа по почте', () => {
       kind: 'other',
       message: 'Не удалось связаться с сервером. Проверьте подключение.',
     });
+  });
+
+  it('сервер без входа по почте (404, 405) — честное сообщение, а не «не найдено»', () => {
+    const text = 'Вход по почте на этом сервере ещё не включён. Войдите через Telegram или попробуйте позже.';
+    expect(loginProblem(apiError(404, 'not_found'))).toEqual({ kind: 'other', message: text });
+    expect(registerProblem(apiError(405, 'internal_error'))).toEqual({ field: null, message: text });
   });
 });
 
@@ -83,6 +102,7 @@ describe('форма регистрации', () => {
       message: 'Приглашение не действует: срок истёк, его отозвали или им уже воспользовались.',
     });
     expect(registerProblem(apiError(500, 'internal_error'))).toEqual({ field: null, message: 'текст сервера' });
+    expect(registerProblem(invalidField('body.password'))).toEqual({ field: 'password', message: 'текст поля' });
   });
 });
 
@@ -99,10 +119,26 @@ describe('новый пароль', () => {
 });
 
 describe('профиль: отвязка Telegram', () => {
-  it('можно, только если есть почта для входа', () => {
-    expect(canUnlinkTelegram({ email: 'a@modus.kz', telegramLinked: true })).toBe(true);
-    expect(canUnlinkTelegram({ email: null, telegramLinked: true })).toBe(false);
-    expect(canUnlinkTelegram({ email: 'a@modus.kz', telegramLinked: false })).toBe(false);
+  it('можно, только если остаются почта и пароль', () => {
+    expect(canUnlinkTelegram({ email: 'a@modus.kz', hasPassword: true, telegramLinked: true })).toBe(true);
+    expect(canUnlinkTelegram({ email: 'a@modus.kz', hasPassword: false, telegramLinked: true })).toBe(false);
+    expect(canUnlinkTelegram({ email: null, hasPassword: false, telegramLinked: true })).toBe(false);
+    expect(canUnlinkTelegram({ email: 'a@modus.kz', hasPassword: true, telegramLinked: false })).toBe(false);
+  });
+
+  it('способы входа берутся из Me; старый сервер без этих полей — Telegram по telegram_id', () => {
+    expect(accountOf({ telegram_id: null, email: 'a@modus.kz', has_password: true, telegram_linked: false })).toEqual({
+      email: 'a@modus.kz',
+      hasPassword: true,
+      telegramLinked: false,
+    });
+    expect(accountOf({ telegram_id: 100000004 })).toEqual({ email: null, hasPassword: false, telegramLinked: true });
+    expect(accountOf({ telegram_id: null })).toEqual({ email: null, hasPassword: false, telegramLinked: false });
+  });
+
+  it('единственный способ входа отвязать нельзя; у сотрудника без почты пароль не сбросить', () => {
+    expect(unlinkTelegramProblem(apiError(409, CODES.lastLoginMethod))).toContain('единственный способ входа');
+    expect(resetPasswordProblem(apiError(409, 'conflict'))).toContain('нет почты');
   });
 });
 
@@ -116,7 +152,8 @@ describe('профиль: смена пароля и почта для приш�
   });
 
   it('неверный текущий пароль показывается под его полем', () => {
-    expect(changePasswordProblem(apiError(422, CODES.wrongPassword))).toEqual({ field: 'current', message: 'Текущий пароль не подходит.' });
+    expect(changePasswordProblem(invalidField('body.current_password'))).toEqual({ field: 'current', message: 'Текущий пароль не подходит.' });
+    expect(changePasswordProblem(invalidField('new_password'))).toEqual({ field: 'next', message: 'текст поля' });
     expect(changePasswordProblem(apiError(500, 'internal_error'))).toEqual({ field: null, message: 'текст сервера' });
   });
 

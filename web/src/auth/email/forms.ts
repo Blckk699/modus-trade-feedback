@@ -1,20 +1,28 @@
 import { ApiError, errorMessage } from '../../api/errors';
+import { fieldErrors } from '../../api/fieldErrors';
+import type { ErrorCode, Me } from '../../api/types';
 
 /**
- * Коды ошибок входа по почте (B-20). Собраны в одном месте: экраны ветвятся по смыслу (`LoginProblem`),
- * а не по строкам, и при смене контракта правится только эта таблица.
+ * Коды ошибок входа по почте из контракта (B-20). Собраны в одном месте: экраны ветвятся
+ * по смыслу (`LoginProblem`), а не по строкам.
  */
 export const CODES = {
   invalidCredentials: 'invalid_credentials',
   pending: 'access_request_pending',
+  rejected: 'access_request_rejected',
   disabled: 'user_disabled',
-  locked: 'login_locked',
+  locked: 'too_many_requests',
   passwordChangeRequired: 'password_change_required',
   emailTaken: 'email_taken',
-  wrongPassword: 'invalid_password',
-  telegramTaken: 'telegram_already_linked',
+  telegramTaken: 'telegram_taken',
+  lastLoginMethod: 'last_login_method',
   inviteInvalid: 'invite_invalid',
-} as const;
+  conflict: 'conflict',
+} as const satisfies Record<string, ErrorCode>;
+
+/** Сервер ещё не знает вход по почте (старая версия API): честно говорим об этом, а не «не найдено». */
+const NOT_DEPLOYED = 'Вход по почте на этом сервере ещё не включён. Войдите через Telegram или попробуйте позже.';
+const notDeployed = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405);
 
 export const MIN_PASSWORD = 8;
 /** Блокировка после пяти неудачных попыток (SPEC, «Пароль»). */
@@ -24,6 +32,7 @@ export const LOCK_MINUTES = 5;
 export type LoginProblem =
   | { kind: 'invalid' }
   | { kind: 'pending' }
+  | { kind: 'rejected'; reason: string | null }
   | { kind: 'disabled' }
   | { kind: 'locked'; retryAfterSec: number | null }
   | { kind: 'new_password' }
@@ -37,6 +46,10 @@ export function loginProblem(e: unknown): LoginProblem {
       return { kind: 'invalid' };
     case CODES.pending:
       return { kind: 'pending' };
+    case CODES.rejected: {
+      const reason = e instanceof ApiError ? e.details?.reason : null;
+      return { kind: 'rejected', reason: typeof reason === 'string' && reason.trim() ? reason.trim() : null };
+    }
     case CODES.disabled:
       return { kind: 'disabled' };
     case CODES.passwordChangeRequired:
@@ -46,7 +59,7 @@ export function loginProblem(e: unknown): LoginProblem {
       return { kind: 'locked', retryAfterSec: Number.isFinite(sec) && sec > 0 ? Math.ceil(sec) : null };
     }
     default:
-      return { kind: 'other', message: errorMessage(e) };
+      return { kind: 'other', message: notDeployed(e) ? NOT_DEPLOYED : errorMessage(e) };
   }
 }
 
@@ -125,24 +138,38 @@ export function newPasswordErrors(f: NewPasswordForm, previous?: string): FieldE
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 /** Ошибка регистрации, привязанная к полю: занятая почта — под полем почты. */
-export function registerProblem(e: unknown): { field: 'email' | null; message: string } {
+export function registerProblem(e: unknown): { field: 'email' | 'password' | 'fullName' | null; message: string } {
   if (codeOf(e) === CODES.emailTaken) {
     return { field: 'email', message: 'Эта почта уже зарегистрирована. Войдите или попросите администратора сбросить пароль.' };
   }
   if (codeOf(e) === CODES.inviteInvalid) {
     return { field: null, message: 'Приглашение не действует: срок истёк, его отозвали или им уже воспользовались.' };
   }
-  return { field: null, message: errorMessage(e) };
+  const fields = fieldErrors(e);
+  if (fields.email) return { field: 'email', message: fields.email };
+  if (fields.password) return { field: 'password', message: fields.password };
+  if (fields.full_name) return { field: 'fullName', message: fields.full_name };
+  return { field: null, message: notDeployed(e) ? NOT_DEPLOYED : errorMessage(e) };
 }
 
-/** Состояние аккаунта для экрана профиля. */
+/** Способы входа сотрудника — для экрана профиля. */
 export interface Account {
   email: string | null;
+  hasPassword: boolean;
   telegramLinked: boolean;
 }
 
-/** Отвязать Telegram можно, только если останется вход по почте (SPEC, «Вход и уведомления»). */
-export const canUnlinkTelegram = (a: Account) => a.telegramLinked && Boolean(a.email);
+/** Берём из Me. Старый сервер этих полей не присылает: тогда Telegram считаем привязанным по telegram_id. */
+export function accountOf(me: Pick<Me, 'telegram_id'> & Partial<Pick<Me, 'email' | 'has_password' | 'telegram_linked'>>): Account {
+  return {
+    email: me.email ?? null,
+    hasPassword: Boolean(me.has_password),
+    telegramLinked: me.telegram_linked ?? me.telegram_id !== null,
+  };
+}
+
+/** Отвязать Telegram можно, только если останется вход по почте и паролю (SPEC, «Вход и уведомления»). */
+export const canUnlinkTelegram = (a: Account) => a.telegramLinked && Boolean(a.email) && a.hasPassword;
 
 export interface ChangePasswordForm {
   current: string;
@@ -156,10 +183,12 @@ export function changePasswordErrors(f: ChangePasswordForm): FieldErrors<keyof C
   return { ...out, ...newPasswordErrors({ next: f.next, repeat: f.repeat }, f.current || undefined) };
 }
 
-/** Ошибка смены пароля: неверный текущий — под полем «Текущий пароль». */
-export function changePasswordProblem(e: unknown): { field: 'current' | null; message: string } {
-  if (codeOf(e) === CODES.wrongPassword) return { field: 'current', message: 'Текущий пароль не подходит.' };
-  return { field: null, message: errorMessage(e) };
+/** Ошибка смены пароля: неверный текущий приходит как 422 с полем current_password — показываем под ним. */
+export function changePasswordProblem(e: unknown): { field: 'current' | 'next' | null; message: string } {
+  const fields = fieldErrors(e);
+  if (fields.current_password) return { field: 'current', message: 'Текущий пароль не подходит.' };
+  if (fields.new_password) return { field: 'next', message: fields.new_password };
+  return { field: null, message: notDeployed(e) ? NOT_DEPLOYED : errorMessage(e) };
 }
 
 export interface CredentialsForm {
@@ -180,5 +209,18 @@ export function credentialsErrors(f: CredentialsForm): FieldErrors<keyof Credent
 /** Ошибка привязки Telegram: занятый аккаунт объясняем своими словами. */
 export function linkTelegramProblem(e: unknown): string {
   if (codeOf(e) === CODES.telegramTaken) return 'Этот Telegram уже привязан к другому сотруднику. Войдите в нужный аккаунт Telegram и попробуйте снова.';
-  return errorMessage(e);
+  if (codeOf(e) === 'invalid_telegram_auth') return 'Telegram не подтвердил вход. Попробуйте ещё раз.';
+  return notDeployed(e) ? NOT_DEPLOYED : errorMessage(e);
+}
+
+/** Ошибка отвязки: единственный способ входа отвязать нельзя. */
+export function unlinkTelegramProblem(e: unknown): string {
+  if (codeOf(e) === CODES.lastLoginMethod) return 'Telegram — единственный способ входа. Сначала задайте почту и пароль.';
+  return notDeployed(e) ? NOT_DEPLOYED : errorMessage(e);
+}
+
+/** Ошибка сброса пароля администратором: у сотрудника без почты сбрасывать нечего. */
+export function resetPasswordProblem(e: unknown): string {
+  if (codeOf(e) === CODES.conflict) return 'У сотрудника нет почты для входа: сбрасывать нечего.';
+  return notDeployed(e) ? NOT_DEPLOYED : errorMessage(e);
 }

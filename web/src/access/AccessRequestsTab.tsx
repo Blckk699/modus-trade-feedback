@@ -101,6 +101,7 @@ function RequestRow({
       <div className="settings-row__main">
         <strong>{r.full_name}</strong>
         <span className="muted">
+          {r.email ? `${r.email} · ` : ''}
           {r.telegram_username ? `@${r.telegram_username} · ` : ''}
           {r.department?.name ?? 'подразделение не указано'} · {formatDateTime(r.updated_at)}
         </span>

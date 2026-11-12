@@ -1,19 +1,21 @@
 import { useState, type FormEvent } from 'react';
 import { KeyRound, Mail, Send } from 'lucide-react';
-import { errorMessage } from '../api/errors';
 import { Avatar } from '../app/Avatar';
 import { useDictionaries } from '../app/dictionaries';
 import { PageHead } from '../app/PageHead';
 import { useToast } from '../app/Toast';
-import { useMe } from '../auth';
+import type { Me } from '../api/types';
+import { useAuth, useMe } from '../auth';
 import { emailAuth } from '../auth/email/emailAuth';
 import {
+  accountOf,
   canUnlinkTelegram,
   changePasswordErrors,
   changePasswordProblem,
   credentialsErrors,
   linkTelegramProblem,
   registerProblem,
+  unlinkTelegramProblem,
   type Account,
   type ChangePasswordForm,
   type CredentialsForm,
@@ -22,7 +24,6 @@ import {
 import { PasswordField } from '../auth/email/PasswordField';
 import { TelegramWidget } from '../auth/methods/telegramWidget';
 import { config } from '../config';
-import { useAsync } from '../lib/useAsync';
 import { getWebApp } from '../telegram/webApp';
 
 /**
@@ -32,8 +33,8 @@ import { getWebApp } from '../telegram/webApp';
 export function ProfilePage() {
   const me = useMe();
   const dict = useDictionaries();
-  const account = useAsync(() => emailAuth.account(), []);
-  const s = account.state;
+  const { setMe } = useAuth();
+  const account = accountOf(me);
 
   return (
     <section className="page profile">
@@ -49,28 +50,18 @@ export function ProfilePage() {
         </div>
       </div>
 
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {s.status === 'error' && (
-        <div className="notice">
-          <p className="error-text">{s.message}</p>
-          <button type="button" className="btn btn--soft" onClick={account.reload}>
-            Повторить
-          </button>
-        </div>
-      )}
-      {s.status === 'ready' && (
-        <div className="profile__grid">
-          <EmailCard account={s.data} onChange={account.set} />
-          <TelegramCard account={s.data} onChange={account.set} />
-        </div>
-      )}
+      <div className="profile__grid">
+        <EmailCard account={account} onChange={setMe} />
+        <TelegramCard account={account} onChange={setMe} />
+      </div>
     </section>
   );
 }
 
 interface CardProps {
   account: Account;
-  onChange: (a: Account) => void;
+  /** Сервер вернул свежего Me — обновляем его во всём приложении. */
+  onChange: (me: Me) => void;
 }
 
 function EmailCard({ account, onChange }: CardProps) {
@@ -82,18 +73,24 @@ function EmailCard({ account, onChange }: CardProps) {
         </span>
         <div>
           <h2 className="card__title">Почта и пароль</h2>
-          <p className="card__sub">{account.email ?? 'Не заданы: вход только через Telegram'}</p>
+          <p className="card__sub">
+            {account.email ? (account.hasPassword ? account.email : `${account.email} · пароль не задан`) : 'Не заданы: вход только через Telegram'}
+          </p>
         </div>
       </header>
-      {account.email ? <ChangePassword email={account.email} /> : <SetCredentials onChange={onChange} />}
+      {account.hasPassword && account.email ? (
+        <ChangePassword email={account.email} onChange={onChange} />
+      ) : (
+        <SetCredentials initialEmail={account.email ?? ''} onChange={onChange} />
+      )}
     </article>
   );
 }
 
 /** Пришедший через Telegram задаёт почту и пароль, чтобы входить с рабочего компьютера. */
-function SetCredentials({ onChange }: { onChange: (a: Account) => void }) {
+function SetCredentials({ initialEmail, onChange }: { initialEmail: string; onChange: (me: Me) => void }) {
   const toast = useToast();
-  const [form, setForm] = useState<CredentialsForm>({ email: '', password: '' });
+  const [form, setForm] = useState<CredentialsForm>({ email: initialEmail, password: '' });
   const [errors, setErrors] = useState<FieldErrors<keyof CredentialsForm>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -116,6 +113,7 @@ function SetCredentials({ onChange }: { onChange: (a: Account) => void }) {
     } catch (err) {
       const p = registerProblem(err);
       if (p.field === 'email') setErrors({ email: 'Эта почта уже занята другим сотрудником.' });
+      else if (p.field === 'password') setErrors({ password: p.message });
       else setError(p.message);
       setBusy(false);
     }
@@ -164,7 +162,7 @@ function SetCredentials({ onChange }: { onChange: (a: Account) => void }) {
 
 const PASSWORD_EMPTY: ChangePasswordForm = { current: '', next: '', repeat: '' };
 
-function ChangePassword({ email }: { email: string }) {
+function ChangePassword({ email, onChange }: { email: string; onChange: (me: Me) => void }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ChangePasswordForm>(PASSWORD_EMPTY);
@@ -185,7 +183,7 @@ function ChangePassword({ email }: { email: string }) {
     setBusy(true);
     setError('');
     try {
-      await emailAuth.changePassword(form.current, form.next);
+      onChange(await emailAuth.changePassword(form.current, form.next));
       setForm(PASSWORD_EMPTY);
       setOpen(false);
       toast('Пароль изменён');
@@ -251,7 +249,7 @@ function TelegramCard({ account, onChange }: CardProps) {
   const [error, setError] = useState('');
   const inMiniApp = Boolean(getWebApp());
 
-  async function run(action: () => Promise<Account>, done: string, problem: (e: unknown) => string) {
+  async function run(action: () => Promise<Me>, done: string, problem: (e: unknown) => string) {
     setBusy(true);
     setError('');
     try {
@@ -285,7 +283,7 @@ function TelegramCard({ account, onChange }: CardProps) {
                 type="button"
                 className="btn btn--soft"
                 disabled={busy}
-                onClick={() => run(() => emailAuth.unlinkTelegram(), 'Telegram отвязан: уведомления бота больше не придут', errorMessage)}
+                onClick={() => run(() => emailAuth.unlinkTelegram(), 'Telegram отвязан: уведомления бота больше не придут', unlinkTelegramProblem)}
               >
                 {busy ? 'Отвязываем…' : 'Отвязать'}
               </button>

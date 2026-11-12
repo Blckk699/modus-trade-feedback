@@ -137,6 +137,14 @@ function ProblemNotice({ problem }: { problem: LoginProblem }) {
       </div>
     );
   }
+  if (problem.kind === 'rejected') {
+    return (
+      <div className="notice notice--danger" role="alert">
+        <p className="notice__title">Заявка отклонена</p>
+        <p>{problem.reason ? `Причина: ${problem.reason}` : 'Причину можно узнать у администратора.'}</p>
+      </div>
+    );
+  }
   if (problem.kind === 'disabled') {
     return (
       <div className="notice notice--danger" role="alert">

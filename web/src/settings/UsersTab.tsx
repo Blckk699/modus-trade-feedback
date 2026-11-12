@@ -43,7 +43,7 @@ export function UsersTab() {
   const replace = (u: User) => data.set([users.some((x) => x.id === u.id) ? users.map((x) => (x.id === u.id ? u : x)) : [...users, u], departments]);
   const needle = q.trim().toLowerCase();
   const shown = users
-    .filter((u) => !needle || `${u.full_name} ${u.position ?? ''} ${u.telegram_id ?? ''}`.toLowerCase().includes(needle))
+    .filter((u) => !needle || `${u.full_name} ${u.position ?? ''} ${u.email ?? ''} ${u.telegram_id ?? ''}`.toLowerCase().includes(needle))
     .sort(byName);
 
   const editedUser = editing === null ? undefined : users.find((u) => u.id === editing);
@@ -56,7 +56,7 @@ export function UsersTab() {
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
-        <input className="input" type="search" placeholder="Поиск по имени, должности, Telegram ID" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Поиск сотрудника" />
+        <input className="input" type="search" placeholder="Поиск по имени, должности, почте, Telegram ID" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Поиск сотрудника" />
         <button type="button" className="btn" onClick={() => setAdding(true)}>
           Добавить сотрудника
         </button>
@@ -99,7 +99,9 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
         <span className="muted">
           {[dict.roleLabel(user.role), user.department?.name, user.position].filter(Boolean).join(' · ')}
         </span>
-        <span className="muted settings-row__fine">{user.telegram_id ? `Telegram ID: ${user.telegram_id}` : 'Telegram не привязан'}</span>
+        <span className="muted settings-row__fine">
+          {[user.email, user.telegram_id ? `Telegram ID: ${user.telegram_id}` : 'Telegram не привязан'].filter(Boolean).join(' · ')}
+        </span>
       </div>
       <div className="settings-row__badges">
         {user.is_absent && <span className="badge badge--dot badge--status-awaiting_info">Отсутствует</span>}
@@ -185,7 +187,11 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
         <h2 id="user-form-title" className="user-form__title">
           {user ? user.full_name : 'Новый сотрудник'}
         </h2>
-        {user && <p className="muted">Telegram ID: {user.telegram_id ?? 'не указан'}</p>}
+        {user && (
+          <p className="muted">
+            {user.email ? `Почта: ${user.email} · ` : ''}Telegram ID: {user.telegram_id ?? 'не указан'}
+          </p>
+        )}
       </div>
       {!user && (
         <label className="field">
@@ -260,7 +266,8 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
           </label>
         </div>
       )}
-      {user && <ResetPassword userId={user.id} name={user.full_name} />}
+      {/* Сбрасывать можно только пароль от почты: у вошедших через Telegram его нет (409 conflict). */}
+      {user?.email && <ResetPassword userId={user.id} name={user.full_name} />}
       {error && (
         <p className="error-text" role="alert">
           {error}

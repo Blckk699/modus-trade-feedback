@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
-import { errorMessage } from '../api/errors';
 import { emailAuth } from '../auth/email/emailAuth';
+import { resetPasswordProblem } from '../auth/email/forms';
 
 /**
  * Сброс пароля сотруднику (история 77). Временный пароль система показывает один раз:
@@ -20,7 +20,7 @@ export function ResetPassword({ userId, name }: { userId: number; name: string }
       setTemporary((await emailAuth.resetPassword(userId)).temporaryPassword);
       setState('idle');
     } catch (e) {
-      setError(errorMessage(e));
+      setError(resetPasswordProblem(e));
       setState('confirm');
     }
   }

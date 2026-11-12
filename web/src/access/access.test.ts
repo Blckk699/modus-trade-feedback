@@ -15,6 +15,7 @@ const request: Schemas['AccessRequest'] = {
   id: 7,
   status: 'rejected',
   full_name: 'Новый Сотрудник',
+  email: null,
   telegram_username: 'newbie',
   department: { id: 1, name: 'Закупки' },
   comment: 'Менеджер',
