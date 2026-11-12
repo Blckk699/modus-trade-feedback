@@ -16,6 +16,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app import models as _models  # noqa: F401 — все модели видны метаданным
 from app.api.router import api_router
+from app.clock import set_display_timezone
 from app.config import Settings, get_settings
 from app.container import Services, build_services
 from app.db import make_engine, make_sessionmaker
@@ -34,6 +35,7 @@ def _configure_logging() -> None:
 
 def create_app(settings: Settings | None = None, services: Services | None = None) -> FastAPI:
     settings = settings or get_settings()
+    set_display_timezone(settings.tz)
     services = services or build_services(settings)
     _configure_logging()
 

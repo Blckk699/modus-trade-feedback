@@ -1,8 +1,10 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Department, type User } from './shared';
+import { Select } from '../app/Select';
 
 function loadAll() {
   return Promise.all([unwrap(api.GET('/api/v1/departments')), unwrap(api.GET('/api/v1/users'))]);
@@ -15,7 +17,7 @@ export function DepartmentsTab() {
   const [editing, setEditing] = useState<number | null>(null);
 
   const s = data.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
+  if (s.status === 'loading') return <RowsSkeleton />;
   if (s.status === 'error')
     return (
       <div className="notice">
@@ -135,7 +137,7 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
         </label>
         <label className="field">
           <span className="field__label">Руководитель</span>
-          <select className="input" value={headId} onChange={(e) => setHeadId(e.target.value)} aria-invalid={!!errors.head_id}>
+          <Select value={headId} onChange={(e) => setHeadId(e.target.value)} aria-invalid={!!errors.head_id}>
             <option value="">Не назначен</option>
             {candidates.map((u) => (
               <option key={u.id} value={u.id}>
@@ -143,7 +145,7 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
                 {u.department ? ` — ${u.department.name}` : ''}
               </option>
             ))}
-          </select>
+          </Select>
           {errors.head_id && <span className="field__hint error-text">{errors.head_id}</span>}
         </label>
       </div>

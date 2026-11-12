@@ -7,8 +7,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
-from typing import Protocol
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
+from typing import Annotated, Protocol
+
+from pydantic import PlainSerializer
 
 
 class Clock(Protocol):
@@ -49,3 +51,19 @@ def _require_aware(moment: datetime) -> datetime:
     if moment.tzinfo is None:
         raise ValueError("Время должно быть с часовым поясом (timezone-aware)")
     return moment
+
+
+# Ответы API отдают время со смещением системы (контракт: `+05:00`), внутри всё считается в UTC.
+_display_tz: tzinfo = timezone(timedelta(hours=5))
+
+
+def set_display_timezone(tz: tzinfo) -> None:
+    global _display_tz
+    _display_tz = tz
+
+
+def _display(moment: datetime) -> str:
+    return _require_aware(moment).astimezone(_display_tz).isoformat()
+
+
+LocalDatetime = Annotated[datetime, PlainSerializer(_display, return_type=str, when_used="json")]

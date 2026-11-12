@@ -6,10 +6,10 @@ import hashlib
 import secrets
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import AuthSession, LoginAttempt, LoginCode
+from app.auth.models import AuthSession, LoginAttempt, LoginCode, PasswordAttempt
 from app.config import Settings
 from app.errors import InvalidLoginCode, TooManyRequests, Unauthorized, UserDisabled, UserNotRegistered
 from app.models import User
@@ -33,11 +33,11 @@ async def user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User |
 
 
 async def open_session(
-    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings
+    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings, *, ttl: timedelta | None = None
 ) -> tuple[str, datetime]:
     """Выдаёт новую сессию. Возвращает токен (показывается клиенту один раз) и срок действия."""
     token = secrets.token_urlsafe(32)
-    expires_at = now + timedelta(days=settings.session_ttl_days)
+    expires_at = now + (ttl or timedelta(days=settings.session_ttl_days))
     session.add(
         AuthSession(token_hash=_sha256(token), user_id=user.id, method=method, created_at=now, expires_at=expires_at)
     )
@@ -136,3 +136,46 @@ async def redeem_login_code(session: AsyncSession, code: str, now: datetime) -> 
     login_code, user = row
     login_code.used_at = now
     return ensure_can_login(user)
+
+
+async def user_by_email(session: AsyncSession, email: str) -> User | None:
+    return await session.scalar(select(User).where(User.email == email))
+
+
+def password_attempt_keys(email: str, ip: str, settings: Settings) -> list[tuple[str, int, int]]:
+    """Ключ, порог и окно (секунды): 5 неудач подряд по почте — блок на 5 минут; общий лимит по адресу выше,
+    чтобы перебор по многим почтам с одного адреса тоже упирался в порог, а офис за NAT — нет."""
+    return [
+        (f"email:{email}", settings.password_max_failures, settings.password_lock_seconds),
+        (f"ip:{ip}", settings.password_max_failures_per_ip, settings.password_ip_window_seconds),
+    ]
+
+
+async def check_password_attempts(session: AsyncSession, keys: list[tuple[str, int, int]], now: datetime) -> None:
+    for key, limit, window in keys:
+        failures = await session.scalar(
+            select(func.count())
+            .select_from(PasswordAttempt)
+            .where(PasswordAttempt.key == key, PasswordAttempt.created_at > now - timedelta(seconds=window))
+        )
+        if (failures or 0) >= limit:
+            raise TooManyRequests(
+                "Слишком много неудачных попыток. Попробуйте через 5 минут.", details={"retry_after_seconds": window}
+            )
+
+
+def record_password_failure(session: AsyncSession, keys: list[tuple[str, int, int]], now: datetime) -> None:
+    session.add_all([PasswordAttempt(key=key, created_at=now) for key, _, _ in keys])
+
+
+async def clear_password_failures(session: AsyncSession, email: str) -> None:
+    """Успешный вход или сброс пароля обнуляет счётчик по почте: блок — только за неудачи подряд."""
+    await session.execute(delete(PasswordAttempt).where(PasswordAttempt.key == f"email:{email}"))
+
+
+async def revoke_other_sessions(session: AsyncSession, user_id: int, keep_token: str | None, now: datetime) -> None:
+    """После смены пароля остальные сессии закрываются, текущая остаётся."""
+    query = update(AuthSession).where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
+    if keep_token is not None:
+        query = query.where(AuthSession.token_hash != _sha256(keep_token))
+    await session.execute(query.values(revoked_at=now))

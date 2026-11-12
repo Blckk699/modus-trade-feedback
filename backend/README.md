@@ -79,6 +79,10 @@ docker compose exec api python -m app.seed reset         # то же в docker
 - Команды `init` и `reset` добавляют витрину для показа (`app/seed/showcase.py`): открытое обсуждение
   с голосами по A-012, повторы A-021 и A-022, склеенные с A-003, и разобранную запись совещания
   у руководителя закупок. Тесты работают без неё, числа сида считаются от двадцати обращений датасета.
+- **Демо-переключатель ролей.** Ключ `switch_group` в файле аккаунтов — список связанных аккаунтов
+  (ключ демо-пользователя, почта или Telegram ID): участники переключаются друг на друга в шапке клиента.
+  `init` и `reset` применяют группу сами; к работающей базе — `python -m app.seed link` (ничего не стирает,
+  повторять можно). Без ключа переключателя нет.
 - Даты отсчитываются от момента загрузки в рабочих днях: в любой день минимум три обращения
   просрочены (A-001, A-007, A-011), у остальных открытых есть время первого ответа.
 - `reset` очищает все таблицы приложения (кроме расписания периодических задач), идентификаторы
@@ -121,7 +125,7 @@ async def test_x(client, clock, time_machine):
 ## Адаптеры внешних сервисов
 
 Интерфейсы — `Protocol` в `app/adapters/*.py`, реальные реализации там же, фейки — `app/adapters/fakes.py`.
-В тестах фейки уже подставлены фикстурами `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix`:
+В тестах фейки уже подставлены фикстурами `fake_claude`, `fake_speech`, `fake_telegram`, `fake_bitrix`, `fake_bitrix_oauth`:
 
 ```python
 async def test_draft(client, fake_claude):
@@ -140,6 +144,7 @@ async def test_draft(client, fake_claude):
 | `SpeechToText` | `transcribe` | `ELEVENLABS_API_KEY` |
 | `TelegramGateway` | `send_message` | `TELEGRAM_BOT_TOKEN` |
 | `Bitrix24Gateway` | `create_task` | `BITRIX24_WEBHOOK_URL`, `BITRIX24_RESPONSIBLE_ID` |
+| `Bitrix24OAuth` | `current_user` (вход через портал) | `BITRIX24_CLIENT_ID`, `BITRIX24_CLIENT_SECRET`, `BITRIX24_PORTAL`, `BITRIX24_TOKEN_URL` |
 
 ## Фоновые задачи
 

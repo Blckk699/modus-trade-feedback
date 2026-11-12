@@ -26,7 +26,8 @@ ssh "$HOST" "set -e; cd $DIR
   # Обновляем содержимое на месте: nginx смонтировал саму папку web-dist, подмена папки оставила бы его на удалённой.
   mkdir -p web-dist && find web-dist -mindepth 1 -delete && cp -R src/web/dist/. web-dist/
   docker compose -f src/deploy/compose.yml --project-directory $DIR --env-file .env --env-file secrets.env up -d --build --remove-orphans
-  sleep 5
+  # API после пересборки поднимается секунд 20 (миграции, сид): ждём здоровья до минуты.
+  i=0; until curl -sf -m 5 http://127.0.0.1:18000/api/v1/health >/dev/null || [ \$i -ge 30 ]; do i=\$((i+1)); sleep 2; done
   docker compose -f src/deploy/compose.yml --project-directory $DIR ps --format '{{.Service}}: {{.Status}}'
   printf 'API: '; curl -s -m 10 http://127.0.0.1:18000/api/v1/health; echo
   printf 'Веб: '; curl -s -m 10 -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18080/"

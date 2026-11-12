@@ -8,15 +8,31 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import MenuButtonWebApp, Message, WebAppInfo
+from aiogram.types import (
+    CallbackQuery,
+    CopyTextButton,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    MenuButtonWebApp,
+    Message,
+    WebAppInfo,
+)
 
-from app import formatting, keyboards, texts
+from app import formatting, keyboards, texts, widgets
 from app.api import Api, ApiError
 from app.config import Settings
 
 log = logging.getLogger(__name__)
+
+
 async def start(message: Message, bot: Bot, state: FSMContext, me: dict[str, Any], settings: Settings) -> None:
+    # Уже заведённый пользователь по ссылке-приглашению (/start inv_…) ничего не меняет: просто меню.
     await state.set_state(None)
+    await welcome(message, bot, me, settings)
+
+
+async def welcome(message: Message, bot: Bot, me: dict[str, Any], settings: Settings) -> None:
+    """Приветствие и меню роли. Общее для /start и входа по приглашению."""
     if settings.mini_app_url:
         # Кнопка меню чата открывает Mini App с initData — вход без экрана входа.
         await bot.set_chat_menu_button(
@@ -30,14 +46,25 @@ async def start(message: Message, bot: Bot, state: FSMContext, me: dict[str, Any
     )
 
 
-async def login_code(message: Message, state: FSMContext, api: Api) -> None:
+async def login_code(message: Message, bot: Bot, state: FSMContext, api: Api, settings: Settings) -> None:
     await state.set_state(None)  # кнопка меню прерывает правку черновика или ответ на вопрос
     try:
         code = await api.issue_login_code(message.from_user.id)
     except ApiError as exc:
         await message.answer(html.escape(exc.message))
         return
-    await message.answer(texts.login_code(html.escape(code.code), code.ttl_seconds))
+    await widgets.send_card(
+        bot,
+        settings,
+        message.chat.id,
+        html=widgets.LOGIN_CODE,
+        data=formatting.login_code_data(code.code, code.expires_at, code.ttl_seconds),
+        caption=texts.login_code(html.escape(code.code), code.ttl_seconds),
+        # Кнопка Telegram, а не кнопка в виджете: copyText в виджете с защитой контента запрещён.
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text=texts.BTN_COPY_CODE, copy_text=CopyTextButton(text=code.code))]]
+        ),
+    )
 
 
 async def submit_hint(message: Message, state: FSMContext) -> None:
@@ -88,6 +115,12 @@ async def fallback(message: Message, me: dict[str, Any], settings: Settings) -> 
     await message.answer(texts.USE_MENU, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
 
 
+async def stale_registration_button(callback: CallbackQuery, me: dict[str, Any], settings: Settings) -> None:
+    """Кнопка формы заявки (callback `r:`) у того, кого уже одобрили: показать меню вместо вечной загрузки."""
+    await callback.answer()
+    await callback.message.answer(texts.ALREADY_IN, reply_markup=keyboards.main_menu(me, settings.mini_app_url))
+
+
 def build_router() -> Router:
     """Свой роутер на каждый диспетчер: aiogram не даёт подключить один роутер дважды."""
     router = Router(name="menu")
@@ -107,4 +140,5 @@ def build_fallback_router() -> Router:
     """Подключается последним: всё, что не разобрали меню и черновики."""
     router = Router(name="fallback")
     router.message.register(fallback)
+    router.callback_query.register(stale_registration_button, F.data.startswith("r:"))
     return router

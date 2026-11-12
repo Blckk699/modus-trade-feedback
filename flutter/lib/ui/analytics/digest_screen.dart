@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../format.dart';
 import '../appeals/appeal_screen.dart';
 import '../appeals/badges.dart';
+import '../../theme/modus_theme.dart';
 
 /// «12 ч», «1,5 д» — как `formatHours` в вебе.
 String formatHours(double h) {
@@ -264,7 +265,7 @@ class _Tile extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(ModusRadius.lg),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Text(label, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -394,7 +395,7 @@ class _Bars extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(ModusRadius.sm),
                 child: LinearProgressIndicator(
                   value: count / max,
                   minHeight: 10,

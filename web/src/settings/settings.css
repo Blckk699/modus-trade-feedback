@@ -1,11 +1,13 @@
-/* Настройки администратора (W-08). Только раскладка; цвета — переменные темы из global.css. */
+/* Настройки: сотрудники, подразделения, категории, сроки, заявки и приглашения.
+   Только раскладка; цвета и формы — переменные из styles/global.css. */
+
 .settings-tabs {
-  margin-bottom: 16px;
+  justify-self: start;
 }
 
 .settings-tab {
   display: grid;
-  gap: 12px;
+  gap: var(--gap);
 }
 
 .settings-toolbar {
@@ -13,47 +15,67 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 10px 16px;
 }
 
 .settings-toolbar .input {
-  flex: 1 1 240px;
+  flex: 1 1 260px;
   max-width: 420px;
+  border-radius: var(--r-pill);
+  padding-left: 18px;
 }
 
 .settings-toolbar p {
   flex: 1 1 320px;
-  margin: 0;
+  max-width: 70ch;
+  font-size: 13.5px;
 }
 
+/* список — одна карточка, строки разделены линией */
 .settings-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
-  gap: 8px;
+  padding: 6px 24px;
+  border-radius: var(--r-card);
+  background: var(--card);
+}
+
+.settings-list > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.settings-list > li.muted {
+  padding: 16px 0;
 }
 
 .settings-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 16px;
+  gap: 10px 14px;
+  padding: 14px 0;
 }
 
-.settings-row--off {
-  opacity: 0.65;
+.settings-row--off .settings-row__main,
+.settings-row--off .avatar {
+  opacity: 0.55;
 }
 
 .settings-row__main {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   flex: 1 1 260px;
   min-width: 0;
+  font-size: 13.5px;
+}
+
+.settings-row__main strong {
+  color: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-row__fine {
+  font-size: 12.5px;
 }
 
 .settings-row__badges {
@@ -62,27 +84,180 @@
   gap: 6px;
 }
 
+.settings-row > .btn,
+.settings-list .form__actions .btn {
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
 .settings-form {
-  gap: 12px;
+  display: grid;
+  gap: 14px;
+  flex: 1 1 100%;
+}
+
+.settings-list > li > .settings-form,
+.settings-tab > .settings-form {
+  padding: 18px 0;
+}
+
+.settings-tab > .settings-form {
+  padding: 22px 24px;
+  border-radius: var(--r-card);
+  background: var(--card);
 }
 
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px 16px;
+  gap: 14px 16px;
 }
 
 .settings-checks {
   display: grid;
   gap: 8px;
+  font-size: 14px;
 }
 
 .settings-checks label {
   display: flex;
-  gap: 8px;
   align-items: flex-start;
+  gap: 8px;
 }
 
 .settings-checks input {
-  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--primary);
+}
+
+/* форма сотрудника и приглашения в окне */
+.user-form {
+  display: grid;
+  gap: 16px;
+}
+
+.user-form__head {
+  display: grid;
+  gap: 2px;
+  padding-right: 48px;
+}
+
+.user-form__title {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.022em;
+}
+
+.user-form__toggles {
+  display: grid;
+  border-radius: var(--r-tile);
+  background: var(--surface);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.toggle-row + .toggle-row {
+  border-top: 1px solid var(--line);
+}
+
+.toggle-row__text {
+  display: grid;
+  gap: 1px;
+  font-size: 13px;
+}
+
+.toggle-row__title {
+  color: var(--heading);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.user-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.upload-modal__top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-right: 48px;
+}
+
+.upload-modal__done {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.upload-modal__head {
+  display: grid;
+  gap: 2px;
+  font-size: 13.5px;
+}
+
+.upload-modal__title {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.invite-links__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.invite-links__row .field__label {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .settings-list {
+    padding: 4px 18px;
+  }
+
+  .settings-tab > .settings-form {
+    padding: 18px;
+  }
+}
+
+/* Сброс пароля в форме сотрудника */
+.reset {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.reset__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.reset__value {
+  flex: 1 1 180px;
+  width: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.02em;
 }

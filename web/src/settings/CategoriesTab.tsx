@@ -1,8 +1,10 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Category, type Department, type User } from './shared';
+import { Select } from '../app/Select';
 
 function loadAll() {
   return Promise.all([
@@ -19,7 +21,7 @@ export function CategoriesTab() {
   const [editing, setEditing] = useState<number | null>(null);
 
   const s = data.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
+  if (s.status === 'loading') return <RowsSkeleton />;
   if (s.status === 'error')
     return (
       <div className="notice">
@@ -38,7 +40,7 @@ export function CategoriesTab() {
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
-        <p className="muted">Новое обращение категории получает ответственный, а если он отсутствует — заместитель. Уже назначенные обращения при изменении не переназначаются.</p>
+        <p className="muted">Новое обращение получает ответственный за категорию, а когда его нет на месте, заместитель. Уже назначенные обращения остаются у прежнего ответственного.</p>
         {!adding && (
           <button type="button" className="btn" onClick={() => setAdding(true)}>
             Добавить категорию
@@ -77,7 +79,7 @@ export function CategoriesTab() {
                 <strong>{c.name}</strong>
                 <span className="muted">{c.department.name}</span>
                 <span className={c.responsible ? 'muted' : 'error-text'}>
-                  Ответственный: {c.responsible?.full_name ?? 'не назначен — обращения уйдут в очередь администратора'}
+                  Ответственный: {c.responsible?.full_name ?? 'не назначен, обращения уйдут администратору'}
                 </span>
                 <span className="muted">Заместитель: {c.deputy?.full_name ?? 'нет'}</span>
               </div>
@@ -156,7 +158,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
 
   const personSelect = (value: string, set: (v: string) => void, empty: string, field: string) => (
     <>
-      <select className="input" value={value} onChange={(e) => set(e.target.value)} aria-invalid={!!errors[field]}>
+      <Select value={value} onChange={(e) => set(e.target.value)} aria-invalid={!!errors[field]}>
         <option value="">{empty}</option>
         {people.map((u) => (
           <option key={u.id} value={u.id}>
@@ -165,7 +167,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
             {u.is_absent ? ' (отсутствует)' : ''}
           </option>
         ))}
-      </select>
+      </Select>
       {errors[field] && <span className="field__hint error-text">{errors[field]}</span>}
     </>
   );
@@ -180,14 +182,14 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
         </label>
         <label className="field">
           <span className="field__label">Подразделение</span>
-          <select className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
+          <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-invalid={!!errors.department_id}>
             <option value="">Выберите…</option>
             {[...departments].sort(byName).map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
-          </select>
+          </Select>
           {errors.department_id && <span className="field__hint error-text">{errors.department_id}</span>}
         </label>
         <label className="field">
@@ -202,8 +204,8 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
       {category && (
         <div className="settings-checks">
           <label>
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Используется — категорию можно
-            выбрать при подаче обращения
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Категорию можно выбрать при
+            подаче обращения
           </label>
         </div>
       )}

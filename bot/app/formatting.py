@@ -1,6 +1,7 @@
 """Оформление черновика и созданного обращения. Подписи перечислений — из GET /dictionaries."""
 
 import html
+import time
 from datetime import datetime
 from typing import Any
 
@@ -9,6 +10,13 @@ MONTHS = [
     "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ]
 TEXT_LIMIT = 1500
+# Подписи состояния срока — как web/src/appeals/labels.ts (dueStateLabel): в /dictionaries их нет.
+DUE_STATE_LABELS = {
+    "on_time": "В срок",
+    "due_soon": "Срок скоро",
+    "overdue": "Просрочено",
+    "answered": "Ответ дан",
+}
 
 
 def label(dictionaries: dict[str, Any], group: str, code: str | None) -> str:
@@ -62,6 +70,46 @@ def appeal_created(appeal: dict[str, Any]) -> str:
     if appeal.get("first_response_due_at"):
         lines.append(f"<b>Срок первого ответа:</b> {due_text(appeal['first_response_due_at'])}")
     return "\n".join(lines)
+
+
+def appeal_card_data(appeal: dict[str, Any], dictionaries: dict[str, Any], header: str | None = None) -> str:
+    """chat_data карточки обращения (widgets.APPEAL_CARD). Принимает Appeal или AppealRef из контракта."""
+    from app.widgets import pack
+
+    assignee = appeal.get("assignee") or {}
+    status = appeal.get("status") or "new"
+    due_state = appeal.get("due_state") or ("on_time" if appeal.get("first_response_due_at") else "")
+    if status == "closed" or due_state == "no_deadline":  # как на сайте: у закрытых и бессрочных срока не показываем
+        due_state = ""
+    data = {
+        "h": header or "",
+        "n": appeal["number"],
+        "t": appeal.get("type") or "problem",
+        "k": label(dictionaries, "appeal_types", appeal.get("type")),
+        "c": (appeal.get("category") or {}).get("name", ""),
+        "p": label(dictionaries, "priorities", appeal["priority"]) if appeal.get("priority") else "",
+        "st": status,
+        "sl": label(dictionaries, "statuses", status),
+        "a": assignee.get("full_name", ""),
+        "ds": due_state,
+        "dl": DUE_STATE_LABELS.get(due_state, ""),
+        "d": due_text(appeal["first_response_due_at"])
+        if appeal.get("first_response_due_at") and due_state not in ("", "answered")
+        else "",
+        "s": appeal.get("summary") or "",
+    }
+    return pack(data, shrink="s")
+
+
+def login_code_data(code: str, expires_at: str, ttl_seconds: int) -> str:
+    """chat_data виджета кода входа (widgets.LOGIN_CODE): код и момент истечения в мс."""
+    from app.widgets import pack
+
+    try:
+        expires = datetime.fromisoformat(expires_at).timestamp()
+    except ValueError:  # время сервера не разобрать — считаем от своих часов по ttl
+        expires = time.time() + ttl_seconds
+    return pack({"c": code, "e": int(expires * 1000)})
 
 
 def my_appeals(page: dict[str, Any], dictionaries: dict[str, Any]) -> str:

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
@@ -30,26 +31,22 @@ export function BitrixSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated
   }
 
   return (
-    <div className="block bitrix">
-      <h2 className="block__title">Битрикс24</h2>
+    <section className="section section--inline">
+      <h2 className="section__title">Битрикс24</h2>
       {task ? (
-        <p>
-          <a href={task.url} target="_blank" rel="noopener noreferrer">
-            Задача №{task.task_id} в Битрикс24 ↗
-          </a>
-        </p>
+        <a href={task.url} target="_blank" rel="noopener noreferrer" className="more-link">
+          Задача №{task.task_id} <ArrowUpRight size={16} aria-hidden="true" />
+        </a>
       ) : (
-        <div className="form__actions">
-          <button type="button" className="btn btn--ghost" onClick={create} disabled={busy}>
-            {busy ? 'Создаём…' : 'Создать задачу в Битрикс24'}
-          </button>
-          {error && (
-            <span className="error-text" role="alert">
-              {error}
-            </span>
-          )}
-        </div>
+        <button type="button" className="btn btn--soft btn--sm" onClick={create} disabled={busy}>
+          {busy ? 'Создаём…' : 'Создать задачу'}
+        </button>
       )}
-    </div>
+      {error && (
+        <p className="error-text section__error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }

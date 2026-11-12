@@ -1,49 +1,49 @@
 import type { Me } from '../api/types';
 
-export type NavId = 'my' | 'feed' | 'queue' | 'digest' | 'meetings' | 'settings';
+export type NavId = 'home' | 'my' | 'queue' | 'feed' | 'digest' | 'meetings' | 'settings';
 
 export interface NavItem {
   id: NavId;
   path: string;
+  /** Полное название: заголовок раздела и подсказка. */
   label: string;
-  /** Короткая подпись для нижней панели на телефоне. */
+  /** Короткая подпись под иконкой: рейка слева и нижняя панель на телефоне. */
   short: string;
 }
 
 const ITEMS: Record<NavId, NavItem> = {
+  home: { id: 'home', path: '/', label: 'Сегодня', short: 'Сегодня' },
   my: { id: 'my', path: '/my', label: 'Мои обращения', short: 'Мои' },
-  feed: { id: 'feed', path: '/feed', label: 'Обсуждения и лента', short: 'Лента' },
-  queue: { id: 'queue', path: '/queue', label: 'Обработка', short: 'Обработка' },
+  queue: { id: 'queue', path: '/queue', label: 'Входящие', short: 'Входящие' },
+  feed: { id: 'feed', path: '/feed', label: 'Лента', short: 'Лента' },
   digest: { id: 'digest', path: '/digest', label: 'Сводка', short: 'Сводка' },
   meetings: { id: 'meetings', path: '/meetings', label: 'Совещания', short: 'Совещания' },
   settings: { id: 'settings', path: '/settings', label: 'Настройки', short: 'Настройки' },
 };
 
-/** Пункты навигации только по Me.permissions — права клиент не вычисляет. */
+/** Пункты навигации только по Me.permissions — права клиент не вычисляет. «Сегодня» есть у всех. */
 export function buildNav(me: Me): NavItem[] {
   const p = me.permissions;
-  const ids: NavId[] = [];
+  const ids: NavId[] = ['home'];
   if (p.can_create_appeal) ids.push('my');
-  ids.push('feed');
   if (p.can_process_appeals || p.can_view_department || p.can_view_all_appeals || p.can_view_unassigned) {
     ids.push('queue');
   }
+  ids.push('feed');
   if (p.analytics_scope !== 'none') ids.push('digest');
   if (p.can_upload_meetings) ids.push('meetings');
-  if (p.can_manage_settings) ids.push('settings');
+  // Настройки: администратор — все вкладки, собственник — только заявки и приглашения (can_manage_access).
+  if (p.can_manage_settings || p.can_manage_access) ids.push('settings');
   return ids.map((id) => ITEMS[id]);
 }
 
-/** Стартовый экран роли: собственник и руководитель — сводка, администратор — настройки, остальные — свои обращения. */
-export function startPath(me: Me): string {
-  const nav = buildNav(me);
-  const has = (id: NavId) => nav.some((n) => n.id === id);
-  const preferred: NavId[] =
-    me.role === 'owner' || me.role === 'head'
-      ? ['digest', 'queue', 'my']
-      : me.role === 'admin'
-        ? ['settings', 'queue', 'my']
-        : ['my'];
-  const id = preferred.find(has) ?? nav[0].id;
-  return ITEMS[id].path;
+/** Стартовый экран — «Сегодня»: он сам собирается под права пользователя. */
+export function startPath(_me?: Me): string {
+  return ITEMS.home.path;
+}
+
+/** Нижняя панель на телефоне вмещает пять пунктов: если разделов больше, лишние уходят под «Ещё». */
+export function splitForTabbar(nav: NavItem[], max = 5): { main: NavItem[]; more: NavItem[] } {
+  if (nav.length <= max) return { main: nav, more: [] };
+  return { main: nav.slice(0, max - 1), more: nav.slice(max - 1) };
 }

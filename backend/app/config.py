@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     bitrix24_webhook_url: str = ""
     # Кому назначать задачу в портале (ID пользователя Битрикс24); у вебхука это обязательное поле.
     bitrix24_responsible_id: int = 1
+    # Вход через Битрикс24 (B-23): локальное приложение портала. Включён, только когда заданы все три значения.
+    bitrix24_client_id: str = ""
+    bitrix24_client_secret: str = ""
+    # Домен портала, например b24-xxxx.bitrix24.ru.
+    bitrix24_portal: str = ""
+    bitrix24_token_url: str = "https://oauth.bitrix24.tech/oauth/token/"
 
     # Часовой пояс системы — фиксированное смещение, по спеке UTC+5.
     timezone: str = "+05:00"
@@ -77,6 +83,24 @@ class Settings(BaseSettings):
     login_code_max_failures_per_ip: int = 5
     login_code_failure_window_seconds: int = 900
     login_code_burn_after_failures: int = 30
+    # Заявки на доступ и приглашения (B-18): не больше N подач с одного Telegram-аккаунта за окно.
+    access_request_max_per_window: int = 5
+    access_request_window_seconds: int = 3600
+    # Перебор токенов приглашений: неудачные попытки с одного IP (у бота — с одного Telegram ID) за окно -> 429.
+    invite_max_failures: int = 10
+    # Сессия демо-переключателя ролей живёт недолго: это не обычный вход.
+    switch_session_ttl_hours: int = 12
+    # Вход по паролю: 5 неудач подряд по почте — блок на 5 минут; общий порог адреса выше (офис за NAT).
+    password_max_failures: int = 5
+    password_lock_seconds: int = 300
+    password_max_failures_per_ip: int = 50
+    password_ip_window_seconds: int = 900
+    # За NAT офиса все сотрудники на одном адресе: порог адреса выше порога одного человека.
+    invite_max_failures_per_ip: int = 100
+    invite_failure_window_seconds: int = 900
+    # Ссылки приглашений: диплинк бота и страница веба.
+    telegram_bot_username: str = "modus_feedback_bot"
+    public_web_url: str = "http://localhost:5173"
     # Кому верить в X-Forwarded-For (Caddy). Через запятую, можно подсети.
     trusted_proxies: str = "127.0.0.1,::1"
 
@@ -93,6 +117,18 @@ class Settings(BaseSettings):
     @cached_property
     def tz(self) -> timezone:
         return parse_utc_offset(self.timezone)
+
+    @property
+    def bitrix24_portal_host(self) -> str:
+        """Домен портала в нижнем регистре, без схемы и пути — на случай, если в настройке указан адрес целиком."""
+        host = self.bitrix24_portal.strip().lower()
+        return host.split("://", 1)[-1].split("/", 1)[0]
+
+    @property
+    def bitrix24_login_configured(self) -> bool:
+        return bool(
+            self.bitrix24_client_id.strip() and self.bitrix24_client_secret.strip() and self.bitrix24_portal_host
+        )
 
     @property
     def async_database_url(self) -> str:

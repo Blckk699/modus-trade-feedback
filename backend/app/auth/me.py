@@ -22,9 +22,14 @@ class Permissions(BaseModel):
     can_upload_meetings: bool
     can_manage_settings: bool
     can_view_unassigned: bool
+    can_manage_access: bool
 
 
 class MeOut(UserOut):
+    email: str | None
+    has_password: bool
+    telegram_linked: bool
+    switch_targets: list[UserBrief]
     responsible_for: list[CategoryRef]
     deputy_for: list[CategoryRef]
     assigned_open_count: int
@@ -48,6 +53,8 @@ async def user_out(session: AsyncSession, user: User, *, show_telegram_id: bool)
     return UserOut(
         id=user.id,
         telegram_id=user.telegram_id if show_telegram_id else None,
+        email=user.email if show_telegram_id else None,
+        bitrix_user_id=user.bitrix_user_id if show_telegram_id else None,
         full_name=user.full_name,
         position=user.position,
         role=user.role,
@@ -76,6 +83,7 @@ def permissions_for(role: Role, *, has_assignments: bool, heads_department: bool
         can_upload_meetings=role in (Role.HEAD, Role.OWNER),
         can_manage_settings=role == Role.ADMIN,
         can_view_unassigned=role in (Role.ADMIN, Role.OWNER),
+        can_manage_access=role in (Role.ADMIN, Role.OWNER),
     )
 
 
@@ -95,9 +103,21 @@ async def build_me(session: AsyncSession, user: User) -> MeOut:
         .where(Appeal.assignee_id == user.id, Appeal.status.notin_([s.value for s in FINAL_STATUSES]))
     )
     heads = await session.scalar(select(func.count()).select_from(Department).where(Department.head_id == user.id))
+    targets: list[UserBrief] = []
+    if user.switch_group is not None:
+        linked = await session.execute(
+            select(User)
+            .where(User.switch_group == user.switch_group, User.id != user.id, User.is_disabled.is_(False))
+            .order_by(User.id)
+        )
+        targets = [await user_brief(session, u) for u in linked.scalars()]
     base = await user_out(session, user, show_telegram_id=True)
     return MeOut(
-        **base.model_dump(),
+        **base.model_dump(exclude={"email"}),
+        email=user.email,
+        has_password=user.password_hash is not None,
+        telegram_linked=user.telegram_id is not None,
+        switch_targets=targets,
         responsible_for=responsible,
         deputy_for=deputy,
         assigned_open_count=assigned_open or 0,

@@ -22,16 +22,39 @@ from aiogram.filters import StateFilter
 from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    ReplyKeyboardMarkup,
+    WebAppInfo,
+)
 
-from app import texts
+from app import formatting, keyboards, texts, widgets
 from app.api import Api, ApiError
 from app.config import Settings
+from app.registration import RegCb
 
 log = logging.getLogger(__name__)
 
 APPEAL_KEY = "reply_appeal_id"
 NUMBER_KEY = "reply_appeal_number"
+
+
+ACCESS_REQUESTS_PATH = "/settings/access-requests"
+
+# Уведомления по обращению, которые приходят карточкой-виджетом (заголовок над номером).
+# Уточняющий вопрос, переписка и согласие на имя остаются текстом: на них отвечают свайпом и кнопками.
+CARD_HEADERS = {
+    "appeal_created": "Обращение зарегистрировано",
+    "appeal_assigned": "Вам назначено обращение",
+    "status_changed": "Статус изменён",
+    "appeal_merged": "Обращение объединено",
+    "discussion_closed": "Обсуждение завершено",
+    "deadline_reminder": "Срок ответа истёк",
+    "escalation_head": "Нет ответа ответственного",
+}
 
 
 class NotifCb(CallbackData, prefix="n"):
@@ -61,6 +84,8 @@ def notification_keyboard(notification: dict[str, Any], settings: Settings) -> I
             url = settings.mini_app_link(f"/discussions/{button['discussion_id']}")
         elif kind == "open_analytics":
             url = settings.mini_app_link("/analytics")
+        elif kind == "open_access_requests":
+            url = settings.mini_app_link(notification.get("path") or ACCESS_REQUESTS_PATH)
         elif kind == "reply_clarification" and button.get("appeal_id"):
             data = NotifCb(action="reply", appeal_id=button["appeal_id"], number=number)
             rows.append([InlineKeyboardButton(text=text, callback_data=data.pack())])
@@ -90,7 +115,46 @@ def notification_keyboard(notification: dict[str, Any], settings: Settings) -> I
     if appeal and not has_open_button and settings.mini_app_url:
         url = settings.mini_app_link(f"/appeals/{appeal['id']}")
         rows.append([InlineKeyboardButton(text=texts.BTN_OPEN_APPEAL, web_app=WebAppInfo(url=url))])
+    # Новая заявка на доступ ведёт на экран заявок, даже если бэкенд не прислал кнопку.
+    if notification.get("kind") == "access_request_created" and not has_open_button and settings.mini_app_url:
+        url = settings.mini_app_link(notification.get("path") or ACCESS_REQUESTS_PATH)
+        rows.append([InlineKeyboardButton(text=texts.BTN_OPEN_ACCESS_REQUESTS, web_app=WebAppInfo(url=url))])
+    # Отказ по заявке: человек ещё не сотрудник, предлагаем подать заявку снова прямо из уведомления.
+    if notification.get("kind") == "access_request_rejected":
+        data = RegCb(action="start").pack()
+        rows.append([InlineKeyboardButton(text=texts.BTN_REQUEST_AGAIN, callback_data=data)])
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
+
+
+async def approved_menu(api: Api, settings: Settings, telegram_id: int) -> ReplyKeyboardMarkup | None:
+    """После одобрения заявки — меню роли под уведомлением. Нет ответа /me — уведомление уходит без меню."""
+    try:
+        me = await api.me(telegram_id)
+    except ApiError as exc:
+        log.warning("menu for approved user unavailable: %s", exc)
+        return None
+    return keyboards.main_menu(me, settings.mini_app_url)
+
+
+async def _send(
+    bot: Bot, api: Api, settings: Settings, notification: dict[str, Any], markup: Any, plain: bool = False
+) -> Message:
+    """Карточка-виджет для уведомлений по обращению, иначе обычный текст. `plain` — без разметки (битый HTML)."""
+    chat_id = notification["recipient"]["telegram_id"]
+    kind, appeal = notification.get("kind"), notification.get("appeal")
+    if not plain and appeal and kind in CARD_HEADERS:
+        dictionaries = await api.dictionaries()
+        return await widgets.send_card(
+            bot,
+            settings,
+            chat_id,
+            html=widgets.APPEAL_CARD,
+            data=formatting.appeal_card_data(appeal, dictionaries, header=CARD_HEADERS[kind]),
+            caption=notification["text"],
+            reply_markup=markup,
+        )
+    kwargs: dict[str, Any] = {"parse_mode": None} if plain else {}
+    return await bot.send_message(chat_id=chat_id, text=notification["text"], reply_markup=markup, **kwargs)
 
 
 async def deliver(bot: Bot, api: Api, settings: Settings, notification: dict[str, Any]) -> bool:
@@ -98,17 +162,17 @@ async def deliver(bot: Bot, api: Api, settings: Settings, notification: dict[str
     nid = notification["id"]
     chat_id = notification["recipient"]["telegram_id"]
     markup = notification_keyboard(notification, settings)
+    if markup is None and notification.get("kind") == "access_request_approved":
+        markup = await approved_menu(api, settings, chat_id)
     try:
         try:
-            sent = await bot.send_message(chat_id=chat_id, text=notification["text"], reply_markup=markup)
+            sent = await _send(bot, api, settings, notification, markup)
         except TelegramBadRequest as exc:
             if "can't parse entities" not in str(exc).lower():
                 raise
             # Неэкранированный «<» в тексте: иначе уведомление вечно уходило бы в fail. Шлём простым текстом.
             log.warning("notification %s: bad HTML, sending as plain text: %s", nid, exc)
-            sent = await bot.send_message(
-                chat_id=chat_id, text=notification["text"], reply_markup=markup, parse_mode=None
-            )
+            sent = await _send(bot, api, settings, notification, markup, plain=True)
     except TelegramForbiddenError as exc:  # бот заблокирован или пользователь не начинал диалог
         await _fail(api, nid, str(exc), permanent=True)
         return False

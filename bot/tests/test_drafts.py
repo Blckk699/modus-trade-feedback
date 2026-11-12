@@ -108,10 +108,10 @@ async def test_confirm_creates_appeal_and_reports_number_assignee_due(harness, b
         "source": "bot",
         "forwarded_from": None,
     }
-    confirmation = harness.telegram.sent()[-1]
-    assert "<b>A-021</b>" in confirmation.text
-    assert "Марат Сейткали" in confirmation.text
-    assert "13 ноября, 18:00" in confirmation.text
+    confirmation = harness.telegram.widgets()[-1]  # карточка-виджет, текст — в подписи
+    assert "<b>A-021</b>" in confirmation.caption
+    assert "Марат Сейткали" in confirmation.caption
+    assert "13 ноября, 18:00" in confirmation.caption
     # Кнопки с карточки убраны, повторно отправить нельзя.
     assert harness.telegram.of_type(EditMessageReplyMarkup)[-1].reply_markup is None
 

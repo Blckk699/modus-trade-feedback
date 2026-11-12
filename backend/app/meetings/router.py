@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -18,11 +18,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.claude import match_category
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import CategoryRef, UserBrief
 from app.appeals import service
 from app.appeals.schemas import AppealOut, AppealRef
 from app.appeals.views import Directory, appeal_out, appeal_ref
+from app.clock import LocalDatetime
 from app.config import Settings
 from app.domain.enums import AppealSource, AppealType, MeetingDraftStatus, MeetingStatus, Priority, Role
 from app.errors import AppError, Conflict, ExternalServiceError, FileTooLarge, Forbidden, NotFound, ValidationFailed
@@ -51,7 +53,7 @@ class MeetingBriefOut(BaseModel):
     drafts_total: int
     drafts_pending: int
     uploaded_by: UserBrief
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class MeetingDraftOut(BaseModel):
@@ -77,7 +79,7 @@ class MeetingOut(BaseModel):
     transcript: str | None
     uploaded_by: UserBrief
     drafts: list[MeetingDraftOut]
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class MeetingDraftUpdate(BaseModel):
@@ -320,7 +322,7 @@ async def _process(ctx: JobContext, meeting: Meeting) -> None:
                 meeting_id=meeting.id,
                 status=MeetingDraftStatus.PENDING,
                 type=item.type,
-                category_id=categories.get(item.category) if item.category else None,
+                category_id=categories.get(match_category(item.category, list(categories))),
                 priority=item.priority,
                 summary=item.summary[:500],
                 text=f"{item.summary}\n\nЦитата из совещания: {item.quote}",

@@ -1,7 +1,7 @@
 """T-01: запуск, опознание сотрудника, код входа, Mini App, сервисный ключ."""
 
 from aiogram.methods import SetChatMenuButton
-from aiogram.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import ReplyKeyboardMarkup
 
 from app import texts
 from app.config import Settings
@@ -35,19 +35,6 @@ async def test_digest_button_only_for_those_with_analytics(harness):
     assert texts.BTN_DIGEST in buttons(reply.reply_markup)
 
 
-async def test_stranger_is_politely_refused(harness):
-    message = "Вас нет в списке сотрудников. Обратитесь к администратору."
-    harness.backend.error("GET", "/api/v1/me", 403, "user_not_registered", message)
-
-    await harness.send_text("/start", user_id=555)
-    await harness.send_text(texts.BTN_LOGIN_CODE, user_id=555)
-
-    replies = harness.telegram.sent()
-    assert [r.text for r in replies] == [message, message]
-    assert all(isinstance(r.reply_markup, ReplyKeyboardRemove) for r in replies)
-    assert harness.backend.calls("POST", "/api/v1/auth/login-codes") == []
-
-
 async def test_disabled_user_is_refused(harness):
     harness.backend.error("GET", "/api/v1/me", 403, "user_disabled", "Доступ отключён. Обратитесь к администратору.")
 
@@ -69,11 +56,11 @@ async def test_login_code_is_issued_with_instructions(harness):
     await harness.send_text(texts.BTN_LOGIN_CODE)
     await harness.send_text("/code")
 
-    replies = harness.telegram.sent()
+    replies = harness.telegram.widgets()
     assert len(replies) == 2
-    assert "<code>482913</code>" in replies[0].text
-    assert "«Модус Трейд»" in replies[0].text
-    assert "5 минут" in replies[0].text
+    assert "<code>482913</code>" in replies[0].caption
+    assert "«Модус Трейд»" in replies[0].caption
+    assert "5 минут" in replies[0].caption
     assert len(harness.backend.calls("POST", "/api/v1/auth/login-codes")) == 2
 
 
@@ -181,3 +168,13 @@ def test_without_token_bot_reports_not_configured(monkeypatch, capsys):
 
     assert main() == 2
     assert "TELEGRAM_BOT_TOKEN" in capsys.readouterr().err
+
+
+async def test_default_menu_button_opens_mini_app_for_everyone(harness):
+    from app.main import setup_menu_button
+
+    await setup_menu_button(harness.bot, harness.settings)
+
+    [menu] = [c for c in harness.telegram.calls if isinstance(c, SetChatMenuButton)]
+    assert menu.chat_id is None  # по умолчанию для всех чатов
+    assert menu.menu_button.web_app.url == MINI_APP_URL

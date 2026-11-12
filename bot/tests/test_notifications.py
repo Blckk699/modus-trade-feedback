@@ -89,7 +89,7 @@ async def test_every_appeal_notification_opens_card_in_mini_app(harness, backend
 
     await deliver(harness)
 
-    with_button, without_buttons = harness.telegram.sent()
+    with_button, without_buttons = harness.telegram.messages()  # смена статуса — карточкой-виджетом
     urls = [b.web_app.url for row in with_button.reply_markup.inline_keyboard for b in row if b.web_app]
     assert urls == [MINI_APP_URL + "/appeals/5"]
     # Бэкенд не прислал кнопок — бот всё равно добавляет переход к карточке.

@@ -45,6 +45,11 @@ def _require_token(bot_token: str) -> None:
 
 def verify_mini_app(init_data: str, bot_token: str, now: datetime, max_age: timedelta) -> int:
     """Проверяет `Telegram.WebApp.initData` и возвращает Telegram ID пользователя."""
+    return int(verify_mini_app_user(init_data, bot_token, now, max_age)["id"])
+
+
+def verify_mini_app_user(init_data: str, bot_token: str, now: datetime, max_age: timedelta) -> dict[str, Any]:
+    """Проверяет `initData` и возвращает профиль из поля `user` (id, first_name, last_name, username)."""
     _require_token(bot_token)
     fields = dict(parse_qsl(init_data, keep_blank_values=True, strict_parsing=False))
     received = fields.pop("hash", None)
@@ -55,9 +60,10 @@ def verify_mini_app(init_data: str, bot_token: str, now: datetime, max_age: time
     _check_age(fields.get("auth_date"), now, max_age)
     try:
         user = json.loads(fields["user"])
-        return int(user["id"])
+        int(user["id"])
     except (KeyError, ValueError, TypeError):
         raise InvalidTelegramAuth() from None
+    return user
 
 
 def verify_login_widget(data: Mapping[str, Any], bot_token: str, now: datetime, max_age: timedelta) -> int:

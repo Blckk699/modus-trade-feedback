@@ -1,29 +1,52 @@
-import { describe, expect, it } from 'vitest';
-import { themeVariables } from './theme';
+import { describe, expect, it, vi } from 'vitest';
+import { frameColors, syncTelegramFrame } from './theme';
+import type { WebApp } from './webApp';
 
-describe('тема Telegram', () => {
-  it('цвета Telegram переходят в переменные веба', () => {
-    expect(
-      themeVariables({
-        bg_color: '#ffffff',
-        secondary_bg_color: '#f0f0f0',
-        text_color: '#000000',
-        hint_color: '#999999',
-        button_color: '#2481cc',
-        button_text_color: '#ffffff',
-      }),
-    ).toEqual({
-      '--bg': '#f0f0f0',
-      '--surface': '#ffffff',
-      '--surface-2': '#f0f0f0',
-      '--text': '#000000',
-      '--muted': '#999999',
-      '--accent': '#2481cc',
-      '--accent-text': '#ffffff',
+const vars = (map: Record<string, string>) => (name: string) => map[name] ?? '';
+
+function fakeWebApp(isVersionAtLeast: (v: string) => boolean = () => true) {
+  return {
+    platform: 'ios',
+    colorScheme: 'light',
+    // Тема Telegram намеренно другая: она не должна попасть ни в рамку, ни в наши переменные.
+    themeParams: { bg_color: '#17212b', text_color: '#f5f5f5', link_color: '#6ab3f3' },
+    isVersionAtLeast,
+    setHeaderColor: vi.fn(),
+    setBackgroundColor: vi.fn(),
+    setBottomBarColor: vi.fn(),
+  } as unknown as WebApp & Record<'setHeaderColor' | 'setBackgroundColor' | 'setBottomBarColor', ReturnType<typeof vi.fn>>;
+}
+
+describe('Mini App в наших цветах', () => {
+  it('рамка Telegram берёт цвета нашей темы: шапка и нижняя полоса — поверхность, фон — фон страницы', () => {
+    expect(frameColors(vars({ '--surface': ' #FFFFFF', '--bg': '#f4f7fb' }))).toEqual({
+      header: '#ffffff',
+      background: '#f4f7fb',
+      bottomBar: '#ffffff',
     });
   });
 
-  it('не заданный Telegram цвет остаётся из CSS', () => {
-    expect(themeVariables({})).toEqual({});
+  it('значения не в виде #RRGGBB Telegram не передаются', () => {
+    expect(frameColors(vars({ '--surface': 'color-mix(in srgb, red 5%, white)', '--bg': '#fff' }))).toEqual({
+      header: undefined,
+      background: undefined,
+      bottomBar: undefined,
+    });
+  });
+
+  it('рамка красится нашими цветами тёмной темы, а не цветами Telegram', () => {
+    const webApp = fakeWebApp();
+    syncTelegramFrame(webApp, vars({ '--surface': '#0d2236', '--bg': '#071521' }));
+    expect(webApp.setHeaderColor).toHaveBeenCalledWith('#0d2236');
+    expect(webApp.setBackgroundColor).toHaveBeenCalledWith('#071521');
+    expect(webApp.setBottomBarColor).toHaveBeenCalledWith('#0d2236');
+  });
+
+  it('старый клиент Telegram: вызываются только поддерживаемые методы', () => {
+    const webApp = fakeWebApp((v) => v === '6.1');
+    syncTelegramFrame(webApp, vars({ '--surface': '#ffffff', '--bg': '#f4f7fb' }));
+    expect(webApp.setHeaderColor).not.toHaveBeenCalled();
+    expect(webApp.setBottomBarColor).not.toHaveBeenCalled();
+    expect(webApp.setBackgroundColor).toHaveBeenCalledWith('#f4f7fb');
   });
 });

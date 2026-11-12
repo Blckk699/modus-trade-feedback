@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.api.schemas import CategoryRef, DepartmentRef, UserBrief
+from app.clock import LocalDatetime
 from app.domain.enums import (
     AppealAction,
     AppealSource,
@@ -43,7 +43,7 @@ class AppealRef(BaseModel):
 class BitrixTaskOut(BaseModel):
     task_id: str
     url: str
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class DiscussionRef(BaseModel):
@@ -59,7 +59,7 @@ class AttachmentOut(BaseModel):
     size_bytes: int
     download_url: str
     uploaded_by: UserBrief
-    created_at: datetime
+    created_at: LocalDatetime
 
 
 class AppealListItem(BaseModel):
@@ -74,21 +74,21 @@ class AppealListItem(BaseModel):
     author: UserBrief | None
     assignee: UserBrief | None
     source: AppealSource
-    first_response_due_at: datetime | None
+    first_response_due_at: LocalDatetime | None
     due_state: DueState
     escalation_level: int
     participants_count: int
     merged_into: AppealRef | None
     access: Literal["full", "participant"]
     has_unread: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: LocalDatetime
+    updated_at: LocalDatetime
 
 
 class AppealOut(AppealListItem):
     text: str | None
     proposed_solution: str | None
-    first_response_at: datetime | None
+    first_response_at: LocalDatetime | None
     decision: str | None
     rejection_reason: str | None
     result: str | None
@@ -119,4 +119,4 @@ class HistoryEventOut(BaseModel):
     old_value: str | None
     new_value: str | None
     comment: str | None
-    created_at: datetime
+    created_at: LocalDatetime

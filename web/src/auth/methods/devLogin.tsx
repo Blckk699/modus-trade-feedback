@@ -3,6 +3,7 @@ import { api, unwrap } from '../../api/client';
 import { ApiError, errorMessage } from '../../api/errors';
 import type { UserBrief } from '../../api/types';
 import { config } from '../../config';
+import { Avatar } from '../../app/Avatar';
 import { useDictionaries } from '../../app/dictionaries';
 import type { AuthMethod, LoginButtonProps } from '../types';
 
@@ -43,26 +44,26 @@ function DevLoginButton({ onSession, onError }: LoginButtonProps) {
 
   return (
     <section className="dev-login" aria-labelledby="dev-login-title">
-      <h2 id="dev-login-title" className="dev-login__title">
-        Dev-вход
-      </h2>
-      <p className="muted">Только для разработки: выберите пользователя.</p>
+      <div className="dev-login__head">
+        <h2 id="dev-login-title" className="dev-login__title">
+          Вход для разработки
+        </h2>
+        <span className="badge">только на стенде</span>
+      </div>
       {state === 'loading' && <p className="muted">Загружаем пользователей…</p>}
       {state === 'error' && <p className="error-text">{loadError}</p>}
       {users && (
         <ul className="dev-login__list">
           {users.map((u) => (
             <li key={u.id}>
-              <button
-                type="button"
-                className="dev-login__user"
-                disabled={busyId !== null}
-                onClick={() => login(u.id)}
-              >
-                <span className="dev-login__name">{u.full_name}</span>
-                <span className="muted">
-                  {dict.roleLabel(u.role)}
-                  {u.department ? ` · ${u.department.name}` : ''}
+              <button type="button" className="dev-login__user" disabled={busyId !== null} onClick={() => login(u.id)}>
+                <Avatar name={u.full_name} size="sm" />
+                <span className="dev-login__text">
+                  <span className="dev-login__name">{u.full_name}</span>
+                  <span className="dev-login__role">
+                    {dict.roleLabel(u.role)}
+                    {u.department ? ` · ${u.department.name}` : ''}
+                  </span>
                 </span>
               </button>
             </li>

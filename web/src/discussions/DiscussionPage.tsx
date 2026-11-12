@@ -1,87 +1,111 @@
-import { useState, type FormEvent } from 'react';
+import { CardSkeleton } from '../app/CardSkeleton';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUp, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { Avatar } from '../app/Avatar';
+import { useBackground } from '../app/background';
+import { PageHead } from '../app/PageHead';
+import { useInCard } from '../pages/CardModal';
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
+import { useMe } from '../auth';
 import { formatDateTime } from '../lib/format';
+import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 
 type Discussion = Schemas['Discussion'];
 type Vote = Schemas['VoteValue'];
 
+/** Обсуждение: из ленты открывается панелью справа, по прямой ссылке — отдельной страницей. */
 export function DiscussionPage() {
   const id = Number(useParams().id);
+  const inCard = useInCard();
   const d = useAsync(
     () => unwrap(api.GET('/api/v1/discussions/{discussion_id}', { params: { path: { discussion_id: id } } })),
     [id],
   );
 
   const s = d.state;
+  const body =
+    s.status === 'loading' ? (
+      <CardSkeleton label="Открываем обсуждение…" />
+    ) : s.status === 'error' ? (
+      <div className="sheet sheet--state">
+        <p className="error-text">{s.error instanceof ApiError && s.error.status === 404 ? 'Обсуждение не найдено.' : s.message}</p>
+      </div>
+    ) : (
+      <DiscussionView discussion={s.data} onUpdated={d.set} />
+    );
+
+  if (inCard) return body;
   return (
-    <section className="page">
+    <section className="solo">
+      <PageHead over="Лента" title="Обсуждение" />
       <Link to="/feed" className="back-link">
-        ← Обсуждения
+        <ArrowLeft size={16} aria-hidden="true" /> Лента
       </Link>
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {s.status === 'error' && (
-        <div className="notice">
-          <p className="error-text">
-            {s.error instanceof ApiError && s.error.status === 404 ? 'Обсуждение не найдено.' : s.message}
-          </p>
-        </div>
-      )}
-      {s.status === 'ready' && <DiscussionView discussion={s.data} onUpdated={d.set} />}
+      <div className="card solo__card">{body}</div>
     </section>
   );
 }
 
 function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated: (d: Discussion) => void }) {
   const dict = useDictionaries();
+  const background = useBackground();
   // Решать про имя может только автор — значит, это его обращение.
   const isAuthorView = d.can_set_name_consent;
   const open = d.status === 'open';
+  const comments = useComments(d);
 
   return (
-    <article className="discussion">
-      <header className="appeal__head">
-        <h1 className="page__title">{d.public_text}</h1>
-        <div className="appeal-row__meta">
-          <span className={`badge${open ? ' badge--status-in_review' : ''}`}>{open ? 'Идёт обсуждение' : 'Обсуждение завершено'}</span>
-          <span className="muted">
-            {dict.typeLabel(d.appeal.type)} · {d.author_display}
+    <article className="sheet">
+      <header className="sheet__head">
+        <div className="sheet__state">
+          <span className={open ? 'badge badge--dot badge--status-new' : 'badge badge--dot badge--status-closed'}>
+            {open ? 'Идёт обсуждение' : 'Обсуждение завершено'}
           </span>
-          <span className="muted">
-            {open ? 'Голосование до ' : 'Срок был '}
-            {formatDateTime(d.deadline)}
-          </span>
+          <span className="badge">{dict.typeLabel(d.appeal.type)}</span>
         </div>
-        {isAuthorView && (
-          <Link to={`/appeals/${d.appeal.id}`} className="muted">
-            Ваше обращение {d.appeal.number}
-          </Link>
-        )}
       </header>
 
-      {d.can_set_name_consent && <NameConsent discussion={d} onUpdated={onUpdated} />}
-
-      {!open && d.outcome && (
-        <div className="notice notice--success">
-          <h2 className="block__title">Итог</h2>
-          <p className="prose">{d.outcome}</p>
-          {d.closed_at && <p className="muted">Зафиксирован {formatDateTime(d.closed_at)}</p>}
+      <div className="sheet__scroll">
+        <div>
+          <h1 className="sheet__title">{d.public_text}</h1>
+          <p className="sheet__sub">
+            {d.author_display} · {open ? 'голосование до ' : 'срок был '}
+            {formatDateTime(d.deadline)}
+          </p>
+          {isAuthorView && (
+            <Link to={`/appeals/${d.appeal.id}`} state={{ background }} className="more-link sheet__own">
+              Ваше обращение {d.appeal.number} <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
         </div>
-      )}
 
-      <Votes discussion={d} onUpdated={onUpdated} />
-      {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
-      <Comments discussion={d} />
+        {d.can_set_name_consent && <NameConsent discussion={d} onUpdated={onUpdated} />}
+
+        {!open && d.outcome && (
+          <div className="notice notice--success" role="region" aria-label="Итог">
+            <h2 className="notice__title">Итог</h2>
+            <p className="prose">{d.outcome}</p>
+            {d.closed_at && <p className="muted">Подведён {formatDateTime(d.closed_at)}</p>}
+          </div>
+        )}
+
+        <Votes discussion={d} onUpdated={onUpdated} />
+        {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
+        <CommentsList discussion={d} comments={comments} />
+      </div>
+      {/* Поле комментария закреплено внизу карточки и не уезжает вместе с лентой комментариев. */}
+      {open && <CommentComposer comments={comments} />}
     </article>
   );
 }
 
 const CONSENT_TEXT: Record<Schemas['NameConsent'], string> = {
-  pending: 'Ваше обращение вынесли на общее обсуждение. Показывать ваше имя? Пока вы не ответили, указано только подразделение.',
+  pending: 'Ваше обращение вынесли на общее обсуждение. Показать ваше имя? Пока вы не решили, указано только подразделение.',
   shown: 'Ваше имя показано в обсуждении.',
   hidden: 'Ваше имя скрыто, в обсуждении указано только подразделение.',
 };
@@ -116,12 +140,12 @@ function NameConsent({ discussion: d, onUpdated }: { discussion: Discussion; onU
       <p>{CONSENT_TEXT[c]}</p>
       <div className="form__actions">
         {c !== 'shown' && (
-          <button type="button" className="btn" disabled={busy} onClick={() => answer(true)}>
+          <button type="button" className="btn btn--sm" disabled={busy} onClick={() => answer(true)}>
             Показать имя
           </button>
         )}
         {c !== 'hidden' && (
-          <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => answer(false)}>
+          <button type="button" className="btn btn--soft btn--sm" disabled={busy} onClick={() => answer(false)}>
             {c === 'pending' ? 'Не показывать' : 'Скрыть имя'}
           </button>
         )}
@@ -155,48 +179,75 @@ function Votes({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated
     }
   }
 
+  const againstPct = total ? 100 - forPct : 0;
+  const options = [
+    { value: 'for' as const, label: 'За', count: d.votes_for, pct: forPct },
+    { value: 'against' as const, label: 'Против', count: d.votes_against, pct: againstPct },
+  ];
+
   return (
-    <div className="block">
-      <h2 className="block__title">Голосование</h2>
-      <div className="vote-score" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
-        <span>
-          За <strong>{d.votes_for}</strong>
-        </span>
-        <span className="vote-score__bar" aria-hidden="true">
-          {total > 0 && <span className="vote-score__for" style={{ width: `${forPct}%` }} />}
-        </span>
-        <span>
-          Против <strong>{d.votes_against}</strong>
+    <section className="section section--well vote">
+      <div className="section__head">
+        <h2 className="section__title">Голосование</h2>
+        <span className="muted">
+          {total} {plural(total, ['голос', 'голоса', 'голосов'])}
         </span>
       </div>
-      {d.can_vote ? (
-        <div className="form__actions">
-          <button
-            type="button"
-            className={`btn${d.my_vote === 'for' ? '' : ' btn--ghost'}`}
-            aria-pressed={d.my_vote === 'for'}
-            disabled={busy}
-            onClick={() => vote('for')}
-          >
-            👍 За
-          </button>
-          <button
-            type="button"
-            className={`btn${d.my_vote === 'against' ? '' : ' btn--ghost'}`}
-            aria-pressed={d.my_vote === 'against'}
-            disabled={busy}
-            onClick={() => vote('against')}
-          >
-            👎 Против
-          </button>
-          {d.my_vote && <span className="muted">Нажмите на свой голос ещё раз, чтобы отозвать.</span>}
-        </div>
-      ) : (
-        d.status === 'open' && <p className="muted">Голосование для вас недоступно.</p>
-      )}
-      <p className="muted field__hint">Голосование совещательное: итог фиксирует руководитель.</p>
+
+      <div className="vote__options" role="group" aria-label={`За: ${d.votes_for}, против: ${d.votes_against}`}>
+        {options.map((o) => {
+          const mine = d.my_vote === o.value;
+          const Icon = o.value === 'for' ? ThumbsUp : ThumbsDown;
+          const body = (
+            <>
+              <span className="vote__icon" aria-hidden="true">
+                <Icon size={20} />
+              </span>
+              <span className="vote__label">{o.label}</span>
+              <span className="vote__count">{o.count}</span>
+              <span className="vote__pct">{total ? `${o.pct}%` : '—'}</span>
+            </>
+          );
+          return d.can_vote ? (
+            <button
+              key={o.value}
+              type="button"
+              className={`vote__option vote__option--${o.value}${mine ? ' vote__option--mine' : ''}`}
+              aria-pressed={mine}
+              disabled={busy}
+              onClick={() => vote(o.value)}
+            >
+              {body}
+            </button>
+          ) : (
+            <div key={o.value} className={`vote__option vote__option--${o.value} vote__option--static`}>
+              {body}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="vote__bar" aria-hidden="true">
+        {total > 0 ? (
+          <>
+            {d.votes_for > 0 && <span className="vote__bar-for" style={{ flexGrow: d.votes_for }} />}
+            {d.votes_against > 0 && <span className="vote__bar-against" style={{ flexGrow: d.votes_against }} />}
+          </>
+        ) : (
+          <span className="vote__bar-empty" />
+        )}
+      </div>
+
+      <p className="vote__note">
+        {d.can_vote && d.my_vote
+          ? 'Ваш голос учтён. Нажмите на него ещё раз, чтобы отозвать. '
+          : !d.can_vote && d.status === 'open'
+            ? 'Вы не можете голосовать в этом обсуждении. '
+            : ''}
+        Голосование совещательное: итог подводит руководитель.
+      </p>
       {error && <p className="error-text">{error}</p>}
-    </div>
+    </section>
   );
 }
 
@@ -227,15 +278,16 @@ function CloseForm({ discussion: d, onUpdated }: { discussion: Discussion; onUpd
   }
 
   return (
-    <form className="block" onSubmit={submit}>
-      <h2 className="block__title">Зафиксировать итог</h2>
+    <form className="section" onSubmit={submit}>
+      <h2 className="section__title">Подвести итог</h2>
       <label className="field">
-        <span className="field__label">Итог обсуждения — его увидят все</span>
+        <span className="field__label">Что решили</span>
         <textarea className="input" rows={3} value={outcome} onChange={(e) => setOutcome(e.target.value)} required />
+        <span className="field__hint muted">Итог увидят все. После этого голосование и комментарии закроются.</span>
       </label>
       <div className="form__actions">
         <button type="submit" className="btn" disabled={busy || !outcome.trim()}>
-          {busy ? 'Сохраняем…' : 'Зафиксировать итог'}
+          {busy ? 'Сохраняем…' : 'Подвести итог'}
         </button>
         {error && <span className="error-text">{error}</span>}
       </div>
@@ -243,7 +295,8 @@ function CloseForm({ discussion: d, onUpdated }: { discussion: Discussion; onUpd
   );
 }
 
-function Comments({ discussion: d }: { discussion: Discussion }) {
+/** Комментарии обсуждения: лента стоит в прокручиваемой части карточки, поле ввода — в её подвале. */
+function useComments(d: Discussion) {
   const list = useAsync(
     () =>
       unwrap(api.GET('/api/v1/discussions/{discussion_id}/comments', { params: { path: { discussion_id: d.id } } })),
@@ -255,7 +308,7 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || busy) return;
     setBusy(true);
     setError('');
     try {
@@ -275,44 +328,84 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
     }
   }
 
+  return { list, text, setText, busy, error, send };
+}
+
+type CommentsState = ReturnType<typeof useComments>;
+
+function CommentsList({ discussion: d, comments }: { discussion: Discussion; comments: CommentsState }) {
+  const { list } = comments;
+  const end = useRef<HTMLLIElement>(null);
+  const count = list.state.status === 'ready' ? list.state.data.length : null;
+  const sent = useRef(count);
+
+  // Свой новый комментарий показываем сразу: лента прокручивается к нему.
+  useEffect(() => {
+    if (count !== null && sent.current !== null && count > sent.current) end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    sent.current = count;
+  }, [count]);
+
   return (
-    <div className="block">
-      <h2 className="block__title">Комментарии</h2>
-      {list.state.status === 'loading' && <p className="muted">Загружаем…</p>}
+    <section className="section section--well comments">
+      <h2 className="section__title">
+        Комментарии
+        {count !== null && count > 0 && <span className="section__count">{count}</span>}
+      </h2>
+      {list.state.status === 'loading' && <p className="muted section__empty">Загружаем…</p>}
       {list.state.status === 'error' && <p className="error-text">{list.state.message}</p>}
-      {list.state.status === 'ready' && list.state.data.length === 0 && <p className="muted">Комментариев пока нет.</p>}
+      {count === 0 && (
+        <p className="muted section__empty">{d.status === 'open' ? 'Комментариев пока нет. Напишите первым.' : 'Комментариев не было.'}</p>
+      )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
-        <ul className="thread">
-          {list.state.data.map((c) => (
-            <li key={c.id} className="thread__msg">
-              <div className="thread__meta">
-                <span>{c.author.full_name}</span>
-                {c.author.department && <span className="muted">{c.author.department.name}</span>}
-                <span className="muted">{formatDateTime(c.created_at)}</span>
+        <ul className="comments__list">
+          {list.state.data.map((c, i, all) => (
+            <li key={c.id} className="comment" ref={i === all.length - 1 ? end : undefined}>
+              <Avatar name={c.author.full_name} />
+              <div className="comment__body">
+                <div className="comment__meta">
+                  <span className="comment__author">{c.author.full_name}</span>
+                  {c.author.department && <span className="muted">{c.author.department.name}</span>}
+                  <span className="comment__time">{formatDateTime(c.created_at)}</span>
+                </div>
+                <p className="prose">{c.text}</p>
               </div>
-              <p className="prose">{c.text}</p>
             </li>
           ))}
         </ul>
       )}
-      {d.status === 'open' && (
-        <form className="composer" onSubmit={send}>
-          <textarea
-            className="input"
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Поделитесь опытом или мнением"
-            aria-label="Комментарий"
-          />
-          <div className="form__actions">
-            <button type="submit" className="btn" disabled={busy || !text.trim()}>
-              {busy ? 'Отправляем…' : 'Комментировать'}
-            </button>
-            {error && <span className="error-text">{error}</span>}
+    </section>
+  );
+}
+
+function CommentComposer({ comments }: { comments: CommentsState }) {
+  const me = useMe();
+  const { text, setText, busy, error, send } = comments;
+  return (
+    <footer className="sheet__foot sheet__foot--composer">
+        <form className="composer composer--with-avatar" onSubmit={send}>
+          <Avatar name={me.full_name} />
+          <div className="composer__box">
+            <textarea
+              className="composer__input"
+              rows={2}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                // Ctrl/⌘ + Enter отправляет комментарий.
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.currentTarget.form?.requestSubmit();
+              }}
+              placeholder="Что думаете об этой идее?"
+              aria-label="Комментарий"
+            />
+            <div className="composer__foot">
+              {error ? <span className="error-text">{error}</span> : <span className="composer__hint">Ctrl + Enter, чтобы отправить</span>}
+              <button type="submit" className="btn btn--sm composer__send" disabled={busy || !text.trim()}>
+                {busy ? 'Отправляем…' : 'Отправить'}
+                <ArrowUp size={15} aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </form>
-      )}
-    </div>
+    </footer>
   );
 }

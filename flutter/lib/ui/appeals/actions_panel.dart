@@ -5,6 +5,7 @@ import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
 import '../discussions/publish_discussion_form.dart';
+import '../../theme/modus_theme.dart';
 
 /// Действия обработки в карточке. Набор кнопок — ровно `allowed_actions` от бэкенда
 /// (как `ActionsPanel` в вебе).
@@ -96,7 +97,6 @@ class ActionsPanel extends StatelessWidget {
         .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -107,11 +107,11 @@ class ActionsPanel extends StatelessWidget {
             a == AppealAction.reject
                 ? OutlinedButton(
                     key: Key('action-${a.toJson()}'),
-                    style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+                    style: dangerButtonStyle(context),
                     onPressed: () => _open(context, a),
                     child: Text(session.actionLabel(a)),
                   )
-                : FilledButton.tonal(
+                : OutlinedButton(
                     key: Key('action-${a.toJson()}'),
                     onPressed: () => _open(context, a),
                     child: Text(session.actionLabel(a)),
@@ -182,12 +182,19 @@ class _ActionFormState extends State<_ActionForm> {
             Text(_error!, key: const Key('action-error'), style: TextStyle(color: scheme.error)),
           ],
           const SizedBox(height: 16),
-          FilledButton(
-            key: const Key('action-submit'),
-            style: widget.danger ? FilledButton.styleFrom(backgroundColor: scheme.error) : null,
-            onPressed: _busy || !widget.canSubmit ? null : _submit,
-            child: Text(_busy ? 'Сохраняем…' : widget.submitLabel),
-          ),
+          if (widget.danger)
+            OutlinedButton(
+              key: const Key('action-submit'),
+              style: dangerButtonStyle(context),
+              onPressed: _busy || !widget.canSubmit ? null : _submit,
+              child: Text(_busy ? 'Сохраняем…' : widget.submitLabel),
+            )
+          else
+            FilledButton(
+              key: const Key('action-submit'),
+              onPressed: _busy || !widget.canSubmit ? null : _submit,
+              child: Text(_busy ? 'Сохраняем…' : widget.submitLabel),
+            ),
         ]),
       ),
     );

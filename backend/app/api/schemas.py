@@ -27,6 +27,10 @@ class UserBrief(BaseModel):
 class UserOut(BaseModel):
     id: int
     telegram_id: int | None
+    # Почта для входа — как telegram_id, только администратору и самому пользователю.
+    email: str | None = None
+    # ID на портале Битрикс24 — тоже только администратору и самому пользователю.
+    bitrix_user_id: int | None = None
     full_name: str
     position: str | None
     role: Role

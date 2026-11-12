@@ -3,9 +3,10 @@
 Новая модель — добавьте её импорт сюда.
 """
 
-from app.auth.models import AuthSession, LoginAttempt, LoginCode
+from app.auth.models import AccountSwitch, AuthSession, LoginAttempt, LoginCode, LoginTicket, PasswordAttempt
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
+from app.models.access import AccessRequest, AccessSubmission, Invite, InviteAttempt
 from app.models.appeals import (
     Appeal,
     AppealParticipant,
@@ -21,6 +22,9 @@ from app.models.notifications import Notification
 from app.models.org import Category, DeadlineRule, Department, SystemSetting, User
 
 __all__ = [
+    "AccountSwitch",
+    "AccessRequest",
+    "AccessSubmission",
     "Appeal",
     "AppealParticipant",
     "Attachment",
@@ -35,9 +39,13 @@ __all__ = [
     "DiscussionVote",
     "DuplicateSuggestion",
     "HistoryEvent",
+    "Invite",
+    "InviteAttempt",
     "Job",
     "LoginAttempt",
     "LoginCode",
+    "LoginTicket",
+    "PasswordAttempt",
     "Meeting",
     "MeetingDraft",
     "Message",

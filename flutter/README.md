@@ -31,6 +31,16 @@ flutter/tool/build_demo.sh https://другой  # другой адрес
 - **iOS**: сборка для симулятора `build/ios/iphonesimulator/Runner.app` (release для симулятора Flutter не собирает).
 - Адрес сервера зашивается при сборке (`API_BASE_URL`), в приложении его можно поменять на экране «Сервер». Токен, выданный другим сервером, при запуске сбрасывается.
 
+## Дизайн-токены
+
+Цвета, шрифты, радиусы и отступы берутся из `design/tokens.json` (карта и правила — `design/README.md`). После правки токенов перегенерируйте `lib/theme/tokens.g.dart`:
+
+```bash
+python3 flutter/tool/generate_tokens.py
+```
+
+Тема собирается в `lib/theme/modus_theme.dart`. Светлая и тёмная следуют системе. `primary` — тёмно-синий. Фирменный красный (`accent`) — только у главного действия экрана: FAB «Подать обращение» и кнопки со стилем `accentButtonStyle`. Цвета статусов и сроков — `ModusColors.of(context)`. Шрифты Manrope и Montserrat (OFL) лежат в `assets/fonts`: статические начертания с латиницей и кириллицей. `test/theme_test.dart` сверяет сгенерированный файл с `tokens.json`.
+
 ## Клиент API
 
 `packages/modus_api` сгенерирован из `contract/openapi.yaml` генератором `openapi-generator` (`dart`).
