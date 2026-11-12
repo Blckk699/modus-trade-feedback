@@ -58,34 +58,6 @@ class CardBlock extends StatelessWidget {
   }
 }
 
-/// Тип обращения чипом рядом со статусом (#192).
-class TypeChip extends StatelessWidget {
-  const TypeChip(this.type, {super.key});
-
-  final AppealType type;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ModusColors.of(context);
-    final icon = switch (type) {
-      AppealType.problem => Icons.report_problem_outlined,
-      AppealType.suggestion => Icons.lightbulb_outline,
-      _ => Icons.thumb_up_alt_outlined,
-    };
-    return Container(
-      key: const Key('type-chip'),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(ModusRadius.pill)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: c.muted),
-        const SizedBox(width: 4),
-        Text(SessionScope.of(context).typeLabel(type),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: c.muted)),
-      ]),
-    );
-  }
-}
-
 /// Назначение ответственного прямо в карточке (#157). Причина обязательна и попадает в историю.
 class AssignSection extends StatefulWidget {
   const AssignSection({super.key, required this.appeal, required this.onUpdated});

@@ -19,7 +19,7 @@ class FeedScreen extends StatelessWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Общая лента'),
+          title: const Text('Лента'),
           actions: const [RoleSwitchAction()],
           bottom: const TabBar(tabs: [
             Tab(key: Key('tab-open'), text: 'Обсуждения'),

@@ -5,9 +5,9 @@ import 'package:modus_api/api.dart';
 /// сотрудник видит «Мои обращения» и ленту, руководитель и собственник — ещё обработку
 /// и сводку, администратор — настройки. Права клиент не вычисляет, только читает.
 enum Section {
-  myAppeals('Мои обращения', 'Обращения', Icons.inbox_outlined, Icons.inbox),
-  processing('Обработка', 'Обработка', Icons.assignment_outlined, Icons.assignment),
-  feed('Общая лента', 'Лента', Icons.forum_outlined, Icons.forum),
+  myAppeals('Мои обращения', 'Мои', Icons.description_outlined, Icons.description),
+  processing('Входящие', 'Входящие', Icons.inbox_outlined, Icons.inbox),
+  feed('Лента', 'Лента', Icons.forum_outlined, Icons.forum),
   analytics('Сводка', 'Сводка', Icons.insights_outlined, Icons.insights),
   meetings('Совещания', 'Совещания', Icons.groups_outlined, Icons.groups),
   settings('Настройки', 'Настройки', Icons.tune_outlined, Icons.tune),
@@ -27,9 +27,9 @@ List<Section> sectionsFor(Me me) {
   final p = me.permissions;
   return [
     if (p.canCreateAppeal) Section.myAppeals,
-    Section.feed,
     if (p.canProcessAppeals || p.canViewDepartment || p.canViewAllAppeals || p.canViewUnassigned)
       Section.processing,
+    Section.feed,
     if (p.analyticsScope != PermissionsAnalyticsScopeEnum.none) Section.analytics,
     if (p.canUploadMeetings) Section.meetings,
     if (p.canManageSettings) Section.settings,

@@ -71,7 +71,8 @@ class _AppealScreenState extends State<AppealScreen> {
     final appeal = _appeal;
     return Scaffold(
       appBar: AppBar(
-        title: Text(appeal?.number ?? 'Обращение'),
+        toolbarHeight: 52,
+        title: Text(appeal?.number ?? '', style: Theme.of(context).textTheme.bodySmall),
         actions: [RoleSwitchAction(appealId: widget.appealId)],
       ),
       body: _loading
@@ -135,16 +136,29 @@ class _AppealBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        if (a.summary != null) Text(a.summary!, style: theme.textTheme.titleLarge),
-        const SizedBox(height: 8),
+        // Шапка как в карточке веба: чипы типа, статуса и срока, крупная суть, строка «номер · категория · приоритет».
         Wrap(
-          spacing: 8,
-          runSpacing: 4,
+          spacing: 6,
+          runSpacing: 6,
           children: [
+            TypeBadge(a.type),
             StatusBadge(a.status),
-            TypeChip(a.type),
             if (a.status != AppealStatus.closed) DueBadge(state: a.dueState, dueAt: due),
           ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          a.summary ?? 'Без краткой сути',
+          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.6),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          [
+            a.number,
+            a.category?.name ?? 'без категории',
+            'приоритет ${session.priorityLabel(a.priority).toLowerCase()}',
+          ].join(' · '),
+          style: theme.textTheme.bodySmall,
         ),
         if (participant) ...[
           const SizedBox(height: 12),
