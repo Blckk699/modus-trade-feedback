@@ -1,6 +1,7 @@
 """Оформление черновика и созданного обращения. Подписи перечислений — из GET /dictionaries."""
 
 import html
+import re
 import time
 from datetime import datetime
 from typing import Any
@@ -109,7 +110,86 @@ def login_code_data(code: str, expires_at: str, ttl_seconds: int) -> str:
         expires = datetime.fromisoformat(expires_at).timestamp()
     except ValueError:  # время сервера не разобрать — считаем от своих часов по ttl
         expires = time.time() + ttl_seconds
-    return pack({"c": code, "e": int(expires * 1000)})
+    return pack({"c": code, "e": int(expires * 1000), "l": ttl_seconds})
+
+
+def draft_card_data(
+    draft: dict[str, Any], dictionaries: dict[str, Any], state: str = "", number: str = ""
+) -> str:
+    """chat_data виджета черновика (widgets.DRAFT_CARD). state: '' | sent | cancelled."""
+    from app.widgets import pack
+
+    data = {
+        "t": draft.get("type") or "problem",
+        "k": label(dictionaries, "appeal_types", draft.get("type")),
+        "c": (draft.get("category") or {}).get("name", ""),
+        "p": label(dictionaries, "priorities", draft.get("priority")),
+        "s": draft.get("summary") or "",
+        "q": draft.get("text") or "",
+        "o": draft.get("proposed_solution") or "",
+        "v": 1 if draft.get("transcript") else 0,
+        "f": draft.get("forwarded_from") or "",
+        "x": state,
+        "n": number,
+    }
+    return pack(data, shrink=("q", "o", "s"))
+
+
+def short_day(iso: str | None) -> str:
+    """'2026-11-12T10:00:00+05:00' → '12 ноября'."""
+    if not iso:
+        return ""
+    try:
+        moment = datetime.fromisoformat(iso)
+    except ValueError:
+        return ""
+    return f"{moment.day} {MONTHS[moment.month - 1]}"
+
+
+def appeal_list_data(page: dict[str, Any], dictionaries: dict[str, Any]) -> str:
+    """chat_data виджета «Мои обращения» (widgets.APPEAL_LIST). Не влезает в 1024 байта — короче суть, меньше строк."""
+    from app.widgets import DATA_LIMIT, _dump
+
+    items = page["items"]
+    statuses = {item["status"] for item in items}
+    labels = {code: label(dictionaries, "statuses", code) for code in sorted(statuses)}
+
+    def build(clip: int, count: int) -> str:
+        rows = []
+        for item in items[:count]:
+            summary = item.get("summary") or ""
+            if len(summary) > clip:
+                summary = summary[: clip - 1].rstrip() + "…"
+            rows.append([
+                item["number"], item.get("type") or "problem", item["status"], summary,
+                short_day(item.get("created_at")), 1 if item.get("has_unread") else 0,
+            ])
+        return _dump({"T": page.get("total", len(items)), "L": labels, "i": rows})
+
+    count = len(items)
+    for clip in (90, 60, 40):
+        raw = build(clip, count)
+        if len(raw.encode()) <= DATA_LIMIT:
+            return raw
+    while count > 1 and len(raw.encode()) > DATA_LIMIT:
+        count -= 1
+        raw = build(40, count)
+    return raw
+
+
+_SUMMARY_QUOTE = re.compile(r"(</b>) «.*?»(?=[ .,:;!?\n]|$)", re.DOTALL)
+_CARD_LINES = ("Ответственный:", "Срок первого ответа:")
+
+
+def card_caption(text: str) -> str:
+    """Подпись под карточкой уведомления: текст бэкенда без того, что уже есть в карточке.
+
+    Убираем суть в кавычках после номера и строки «Ответственный» и «Срок первого ответа».
+    Остаются событие и подробности, которых в карточке нет (комментарий к статусу, итог, сообщение).
+    """
+    short = _SUMMARY_QUOTE.sub(r"\1", text, count=1)
+    lines = [line for line in short.split("\n") if not line.startswith(_CARD_LINES)]
+    return "\n".join(lines).strip() or text
 
 
 def my_appeals(page: dict[str, Any], dictionaries: dict[str, Any]) -> str:

@@ -8,7 +8,7 @@ from aiogram import Bot
 from aiogram.client.session.base import BaseSession
 from aiogram.methods import GetFile, SendMessage, TelegramMethod
 
-from app.widgets import SendWidget
+from app.widgets import EditMessageWidgetData, SendWidget
 from aiogram.types import Chat, File, InlineKeyboardMarkup, Message
 
 
@@ -24,7 +24,10 @@ class FakeTelegram(BaseSession):
         self.errors: dict[int, Any] = {}
         self.files: dict[str, bytes] = {}
         # Фабрика исключения для sendWidget: так тест изображает Bot API без виджетов
-        self.reject_widgets: Any = None  # file_id → содержимое для getFile и скачивания
+        self.reject_widgets: Any = None
+        # Фабрика исключения для editMessageWidgetData: Telegram не дал перерисовать виджет
+        self.reject_widget_edits: Any = None
+        self.widget_ids: set[int] = set()  # message_id отправленных виджетов
 
     async def make_request(self, bot: Bot, method: TelegramMethod, timeout: int | None = None) -> Any:
         self.calls.append(method)
@@ -49,6 +52,7 @@ class FakeTelegram(BaseSession):
                 raise self.reject_widgets(method)
             message_id = next(self._ids)
             self._message_ids[id(method)] = message_id
+            self.widget_ids.add(message_id)
             return Message(
                 message_id=message_id,
                 date=datetime.now(),
@@ -56,6 +60,8 @@ class FakeTelegram(BaseSession):
                 caption=method.caption,
                 reply_markup=method.reply_markup if isinstance(method.reply_markup, InlineKeyboardMarkup) else None,
             )
+        if isinstance(method, EditMessageWidgetData) and self.reject_widget_edits:
+            raise self.reject_widget_edits(method)
         return True
 
     async def close(self) -> None:

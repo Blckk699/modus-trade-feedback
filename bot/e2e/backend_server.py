@@ -48,7 +48,7 @@ async def seed(database_url: str) -> None:
 
 def build_app(database_url: str):
     from app.adapters.claude import AppealDraft
-    from app.adapters.fakes import FakeBitrix, FakeClaude, FakeSpeech, FakeTelegram
+    from app.adapters.fakes import FakeBitrix, FakeBitrixOAuth, FakeClaude, FakeSpeech, FakeTelegram
     from app.clock import SystemClock
     from app.config import Settings
     from app.container import Services
@@ -73,7 +73,8 @@ def build_app(database_url: str):
         jobs_poll_seconds=1,
         attachments_dir=tempfile.mkdtemp(prefix="modus-e2e-files-"),
     )
-    services = Services(clock=SystemClock(), claude=claude, speech=speech, telegram=FakeTelegram(), bitrix=FakeBitrix())
+    services = Services(clock=SystemClock(), claude=claude, speech=speech, telegram=FakeTelegram(), bitrix=FakeBitrix(),
+                        bitrix_oauth=FakeBitrixOAuth())
     app = create_app(settings, services)
     add_e2e_routes(app)
     return app
