@@ -1,21 +1,20 @@
 import {
   ACESFilmicToneMapping,
-  AdditiveBlending,
+  BackSide,
   BoxGeometry,
   CanvasTexture,
   Color,
-  CylinderGeometry,
   DirectionalLight,
   Group,
   LatheGeometry,
   Mesh,
+  MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   VSMShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   PMREMGenerator,
-  PointLight,
   QuadraticBezierCurve3,
   RepeatWrapping,
   Scene,
@@ -31,7 +30,6 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /** Гироскоп стоит в свободном месте над текстом: центр по ширине панели, доля этого места под его высоту. */
 const ANCHOR = { x: 0.54, height: 0.6, centerY: 0.46 };
@@ -103,7 +101,10 @@ function fadeTexture(): Texture {
   return new CanvasTexture(c);
 }
 
-/** Мягкое пятно света: ореол за гироскопом и размытые огоньки вне фокуса. */
+/**
+ * Мягкое пятно света: ореол за гироскопом и размытые огоньки вне фокуса. Рисуются обычной прозрачностью:
+ * сложение цветов на прозрачном холсте Safari показывает серыми дисками с жёстким краем.
+ */
 function glowTexture(): Texture {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
@@ -121,6 +122,28 @@ function glowTexture(): Texture {
 
 /** Огоньки вне фокуса проплывают назад: ближние быстрее и крупнее — так читается, что камера едет. */
 const BOKEH = { count: 22, spanX: 9, speed: 0.55 };
+
+/**
+ * Студия для отражений: тёмный серо-синий зал и несколько светящихся панелей. Металл выглядит металлом,
+ * когда в нём отражается контраст — яркие полосы софтбоксов на тёмном, а не ровно светлая комната.
+ */
+function studio(): Scene {
+  const room = new Scene();
+  const wall = new Mesh(new SphereGeometry(20, 32, 16), new MeshBasicMaterial({ color: new Color('#26313c'), side: BackSide }));
+  room.add(wall);
+  const panel = (w: number, h: number, power: number, tint: string, pos: [number, number, number]) => {
+    const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ color: new Color(tint).multiplyScalar(power) }));
+    m.position.set(...pos);
+    m.lookAt(0, 0, 0);
+    room.add(m);
+  };
+  panel(14, 8, 9, '#fff3e2', [-4, 10, 6]); // большой верхний софтбокс, тёплый
+  panel(4, 14, 7, '#ffffff', [-11, 1, 4]); // узкая вертикальная полоса слева
+  panel(5, 11, 5, '#a9c8ff', [10, 2, -4]); // холодный контровой справа сзади
+  panel(16, 6, 2.2, '#8ea6bd', [0, -8, 6]); // слабый отсвет снизу
+  panel(7, 4, 6, '#ffffff', [4, 5, 10]); // небольшой блик спереди
+  return room;
+}
 
 /** Тело вращения по контуру «радиус, высота». */
 const lathe = (profile: [number, number][], segments = 96) => new LatheGeometry(profile.map(([r, y]) => new Vector2(r, y)), segments);
@@ -146,11 +169,18 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
 
   const scene = new Scene();
   const pmrem = new PMREMGenerator(renderer);
-  const env = pmrem.fromScene(new RoomEnvironment(), 0.06);
+  const room = studio();
+  const env = pmrem.fromScene(room, 0.035);
+  room.traverse((o) => {
+    if (o instanceof Mesh) {
+      o.geometry.dispose();
+      o.material.dispose();
+    }
+  });
   scene.environment = env.texture;
-  scene.environmentIntensity = 0.75;
+  scene.environmentIntensity = 1.0;
   // Ключевой свет сверху слева даёт тени колец на маховике и тень всей фигуры на «полу».
-  const key = new DirectionalLight(0xfff1de, 2.1);
+  const key = new DirectionalLight(0xfff1de, 1.1);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
   key.shadow.camera.left = key.shadow.camera.bottom = -3;
@@ -161,7 +191,7 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
   key.shadow.normalBias = 0.02;
   key.shadow.radius = 9;
   key.shadow.blurSamples = 20;
-  const rim = new DirectionalLight(0x8fb8ff, 1.5);
+  const rim = new DirectionalLight(0x8fb8ff, 0.6);
   rim.position.set(4, 1.5, -3);
   scene.add(key, key.target, rim);
 
@@ -173,27 +203,14 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
 
   const brushed = brushedTexture();
   const steel = new MeshPhysicalMaterial({
-    color: new Color('#8f8a83'),
+    color: new Color('#8d8880'),
     metalness: 1,
-    roughness: 0.46,
+    roughness: 0.44,
     roughnessMap: brushed,
     bumpMap: brushed,
-    bumpScale: 0.35,
-    anisotropy: 0.55,
-    clearcoat: 0.25,
-    clearcoatRoughness: 0.5,
+    bumpScale: 0.05,
+    anisotropy: 0.75,
   });
-  const dark = new MeshStandardMaterial({ color: new Color('#0d1117'), roughness: 0.85, metalness: 0.2 });
-  const anodized = new MeshPhysicalMaterial({
-    color: new Color('#e2231a'),
-    metalness: 0.9,
-    roughness: 0.28,
-    clearcoat: 1,
-    clearcoatRoughness: 0.15,
-    emissive: new Color('#5a0500'),
-    emissiveIntensity: 0.6,
-  });
-
   // Рамка: ось с остриями, вертикальное и горизонтальное кольца. Прецессирует целиком.
   const frame = new Group();
   root.add(frame);
@@ -225,7 +242,7 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
   const belt = new Mesh(new TorusGeometry(RING, 0.036, 24, 160), steel);
   belt.rotation.x = Math.PI / 2;
   frame.add(axle, hoop, belt);
-  // Узлы рамки: втулки там, где кольцо держит ось, шарики на стыке колец и красные подшипники у маховика.
+  // Узлы рамки: втулки там, где кольцо держит ось, и шарики на стыке колец.
   const collar = lathe(
     [
       [0.03, -0.07],
@@ -237,17 +254,13 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
     ],
     40,
   );
-  const joint = new SphereGeometry(0.062, 32, 24);
-  const bearing = new TorusGeometry(0.082, 0.02, 16, 48);
+  const joint = new SphereGeometry(0.05, 32, 24);
   for (const side of [-1, 1]) {
     const c = new Mesh(collar, steel);
     c.position.y = side * RING;
     const j = new Mesh(joint, steel);
     j.position.x = side * RING;
-    const b = new Mesh(bearing, anodized);
-    b.rotation.x = Math.PI / 2;
-    b.position.y = side * 0.105;
-    frame.add(c, j, b);
+    frame.add(c, j);
   }
 
   // Маховик: ступица, тонкий диск со спицами и тяжёлый обод.
@@ -284,18 +297,16 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
       steel,
     ),
   );
-  // Шесть облегчающих отверстий и рёбра между ними: по ним видно, что маховик крутится.
-  const spoke = new BoxGeometry(0.32, 0.05, 0.024);
-  const hole = new CylinderGeometry(0.07, 0.07, 0.0408, 32);
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2;
-    const h = new Mesh(hole, dark);
-    h.position.set(Math.cos(a) * 0.345, 0, Math.sin(a) * 0.345);
-    const b = a + Math.PI / 6;
-    const s = new Mesh(spoke, steel);
-    s.position.set(Math.cos(b) * 0.345, 0, Math.sin(b) * 0.345);
-    s.rotation.y = -b;
-    wheel.add(h, s);
+  // Восемь тонких спиц, выдавленных на диске: по ним видно, что маховик крутится.
+  const spoke = new BoxGeometry(0.31, 0.012, 0.02);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    for (const side of [-1, 1]) {
+      const sp = new Mesh(spoke, steel);
+      sp.position.set(Math.cos(a) * 0.345, side * 0.022, Math.sin(a) * 0.345);
+      sp.rotation.y = -a;
+      wheel.add(sp);
+    }
   }
 
   // Нить провисает параболой; точка под остриём — её начало координат, вокруг него она и качается.
@@ -316,18 +327,13 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
       metalness: 0,
       emissive: new Color('#ff2a1a'),
       emissiveMap: ropeMap,
-      emissiveIntensity: 0.55,
+      emissiveIntensity: 0.4,
     }),
   );
   const ropePivot = new Group();
   ropePivot.position.y = -AXLE - ROPE.radius;
   ropePivot.add(rope);
   root.add(ropePivot);
-  // Нить подсвечивает остриё и низ рамки красным.
-  const ember = new PointLight(0xff3a24, 2.2, 2.6, 1.6);
-  ember.position.set(0.25, -AXLE + 0.05, 0.5);
-  root.add(ember);
-
   frame.traverse((o) => {
     if (o instanceof Mesh) o.castShadow = o.receiveShadow = true;
   });
@@ -341,15 +347,15 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
   root.add(floor);
 
   const glow = glowTexture();
-  const halo = new Sprite(new SpriteMaterial({ map: glow, color: 0xbcd4ff, opacity: 0.2, blending: AdditiveBlending, depthWrite: false }));
+  const halo = new Sprite(new SpriteMaterial({ map: glow, color: 0xd6e4ff, opacity: 0.1, depthWrite: false }));
   halo.position.set(0.1, 0.1, -1.4);
   halo.scale.setScalar(5.2);
   root.add(halo);
 
   // Тлеющая точка там, где остриё касается нити.
-  const spark = new Sprite(new SpriteMaterial({ map: glow, color: 0xff4a30, opacity: 0.75, blending: AdditiveBlending, depthWrite: false }));
-  spark.position.set(0, -AXLE, 0.05);
-  spark.scale.setScalar(0.5);
+  const spark = new Sprite(new SpriteMaterial({ map: glow, color: 0xff4a30, opacity: 0.5, depthWrite: false }));
+  spark.position.set(0, -AXLE - 0.02, -0.08);
+  spark.scale.setScalar(0.34);
   root.add(spark);
 
   const bokeh = new Group();
@@ -362,8 +368,7 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
       new SpriteMaterial({
         map: glow,
         color: warm ? 0xff6a55 : 0xcfe0ff,
-        opacity: 0.14 + (1 - depth) * 0.28,
-        blending: AdditiveBlending,
+        opacity: 0.08 + (1 - depth) * 0.2,
         depthWrite: false,
       }),
     );
@@ -416,8 +421,7 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
     frame.rotation.set(Math.sin(t * 1.3) * 0.022, 0.9 + t * 0.22, Math.cos(t * 1.3) * 0.022 + (1 - k) * 0.5);
     frame.position.y = Math.sin(t * 2.1) * 0.006;
     wheel.rotation.y = -t * 9;
-    ember.intensity = 2.2 + Math.sin(t * 3.1) * 0.35;
-    spark.material.opacity = 0.62 + Math.sin(t * 3.1) * 0.14;
+    spark.material.opacity = 0.42 + Math.sin(t * 3.1) * 0.1;
     for (const l of lights) {
       const x = ((l.sprite.position.x - l.speed * dtPose + BOKEH.spanX * 1.5) % BOKEH.spanX) - BOKEH.spanX / 2;
       l.sprite.position.x = x;
@@ -484,6 +488,7 @@ export function mountGyroscope(host: HTMLElement, still: boolean, clearHeight: (
       if (o instanceof Sprite) o.material.dispose();
     });
     [brushed, ropeMap, ropeFade, glow].forEach((x) => x.dispose());
+    key.shadow.dispose();
     env.dispose();
     pmrem.dispose();
     renderer.dispose();
