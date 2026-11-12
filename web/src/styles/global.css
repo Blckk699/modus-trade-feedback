@@ -3444,6 +3444,44 @@ a.tile:hover .tile__go {
   margin-right: auto;
 }
 
+/* Кнопка переписки — слева в подвале; действия остаются справа */
+.sheet__chat-slot {
+  display: flex;
+  margin-right: auto;
+}
+
+.sheet__chat-slot:empty {
+  display: none;
+}
+
+/* Ни действий, ни переписки — подвала нет */
+.sheet__foot:has(> .sheet__chat-slot:empty:only-child) {
+  display: none;
+}
+
+.sheet__chat-slot + .sheet__reject {
+  margin-right: 0;
+}
+
+.sheet__chat[aria-expanded='true'] {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.sheet__chat-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
 .sheet__more {
   position: relative;
 }
