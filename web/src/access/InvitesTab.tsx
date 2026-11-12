@@ -72,7 +72,7 @@ export function InvitesTab() {
       {s.status === 'error' && <p className="error-text">{s.message}</p>}
       {s.status === 'ready' && s.data.length === 0 && (
         <EmptyState icon="inbox" title="Приглашений пока нет">
-          По ссылке-приглашению человек получает доступ сразу, без заявки.
+          Создайте первое и отправьте ссылку человеку.
         </EmptyState>
       )}
       {s.status === 'ready' && s.data.length > 0 && (

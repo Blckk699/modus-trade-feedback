@@ -381,10 +381,14 @@ svg {
 
 /* ───────── оболочка: рейка слева, шапка, содержимое ───────── */
 
+/* Шапка и содержимое занимают всю ширину: правый край поиска и правый край карточек совпадают.
+   На очень широком экране вся оболочка вместе с рейкой останавливается на 1800px и встаёт по центру. */
 .shell {
   min-height: 100dvh;
   display: grid;
   grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  max-width: 1800px;
+  margin-inline: auto;
 }
 
 .rail {
@@ -626,7 +630,6 @@ svg {
 
 .content {
   width: 100%;
-  max-width: 1360px;
   flex: 1;
 }
 
@@ -1952,11 +1955,17 @@ textarea.input {
   justify-items: start;
 }
 
+/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки. */
 .empty {
   display: grid;
+  place-content: center;
   justify-items: center;
   gap: 6px;
-  padding: 56px 20px;
+  min-height: clamp(300px, 52dvh, 480px);
+  padding: 40px 24px;
+  border-radius: var(--r-card);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
   text-align: center;
 }
 
