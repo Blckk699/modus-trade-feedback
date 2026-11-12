@@ -17,6 +17,8 @@ type Appeal = Schemas['Appeal'];
 interface Props {
   appeal: Appeal;
   onAppealChanged: () => void;
+  /** Место в подвале карточки для кнопки переписки (его даёт ActionsPanel). */
+  entryHost: HTMLElement | null;
 }
 
 /** Где стоит чат: рядом с карточкой-панелью (внутри её окна) или сбоку страницы, когда обращение открыто по прямой ссылке. */
@@ -26,13 +28,13 @@ interface Place {
 }
 
 /**
- * Закрытая переписка автора и тех, кто ведёт обращение. В карточке она занимает одну строку
- * с последним сообщением; строка работает как выключатель: по нажатию чат встаёт отдельной панелью
+ * Закрытая переписка автора и тех, кто ведёт обращение. В карточке места не занимает: кнопка
+ * «Переписка» со счётчиком стоит в подвале слева и работает как выключатель: по нажатию чат встаёт отдельной панелью
  * слева от карточки на всю её высоту и так же скрывается. На узком экране чат занимает место карточки.
  * Автору, которому задали уточняющий вопрос, окно открыто сразу: ответ — то, зачем он пришёл.
  * Писать можно, если в allowed_actions есть send_message или reply_clarification.
  */
-export function MessagesSection({ appeal, onAppealChanged }: Props) {
+export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
   const me = useMe();
   const list = useAsync(
     () => unwrap(api.GET('/api/v1/appeals/{appeal_id}/messages', { params: { path: { appeal_id: appeal.id } } })),
@@ -143,43 +145,48 @@ export function MessagesSection({ appeal, onAppealChanged }: Props) {
   // Читать нечего и писать нельзя — открывать нечего, остаётся строка-справка.
   const idle = list.state.status === 'ready' && count === 0 && !canWrite;
 
-  const rowBody = (
-    <>
-      <span className="chat-entry__icon" aria-hidden="true">
-        <MessageCircle size={18} />
-      </span>
-      <span className="chat-entry__text">
-        <strong>{asked ? `${asked.author.full_name} спрашивает` : 'Переписка'}</strong>
-        <span className="chat-entry__sub">{sub}</span>
-      </span>
-      {count > 0 && (
-        <span className="chat-entry__count">
-          {count}
-          <span className="sr-only"> {plural(count, ['сообщение', 'сообщения', 'сообщений'])}</span>
-        </span>
-      )}
-    </>
-  );
+  const entryLabel = open ? 'Скрыть переписку' : count > 0 ? `Переписка, ${count} ${plural(count, ['сообщение', 'сообщения', 'сообщений'])}` : 'Переписка';
 
   return (
-    <section ref={section} className="section" aria-label="Переписка">
-      {idle ? (
-        <div className="chat-entry chat-entry--static">{rowBody}</div>
+    <>
+      {/* Якорь в карточке: по нему находится окно, куда кладётся чат. Автору с вопросом здесь же стоит сам вопрос. */}
+      {asked ? (
+        <section ref={section} className="section" aria-label="Вопрос автору">
+          <button type="button" className="chat-entry chat-entry--ask" aria-expanded={open} aria-controls={panelId} onClick={open ? hide : show}>
+            <span className="chat-entry__icon" aria-hidden="true">
+              <MessageCircle size={18} />
+            </span>
+            <span className="chat-entry__text">
+              <strong>{asked.author.full_name} спрашивает</strong>
+              <span className="chat-entry__sub">{asked.text}</span>
+            </span>
+            <span className={open ? 'pill-action' : 'pill-action pill-action--primary'}>{open ? 'Скрыть' : 'Ответить'}</span>
+          </button>
+        </section>
       ) : (
-        <button
-          ref={entry}
-          type="button"
-          className={asked ? 'chat-entry chat-entry--ask' : 'chat-entry'}
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={open ? hide : show}
-        >
-          {rowBody}
-          <span className={asked && !open ? 'pill-action pill-action--primary' : 'pill-action'}>
-            {open ? 'Скрыть' : asked ? 'Ответить' : count > 0 ? 'Открыть' : 'Написать'}
-          </span>
-        </button>
+        <span ref={section} hidden />
       )}
+
+      {/* Кнопка переписки стоит в подвале карточки слева: видна всегда, место в карточке не занимает. */}
+      {!idle &&
+        entryHost &&
+        createPortal(
+          <button
+            ref={entry}
+            type="button"
+            className="btn btn--soft sheet__chat"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={entryLabel}
+            title={list.state.status === 'error' ? sub : undefined}
+            onClick={open ? hide : show}
+          >
+            <MessageCircle size={17} aria-hidden="true" />
+            <span className="sheet__chat-text">Переписка</span>
+            {count > 0 && <span className="sheet__chat-count">{count}</span>}
+          </button>,
+          entryHost,
+        )}
 
       {open &&
         place &&
@@ -288,6 +295,6 @@ export function MessagesSection({ appeal, onAppealChanged }: Props) {
           </div>,
           place.host,
         )}
-    </section>
+    </>
   );
 }
