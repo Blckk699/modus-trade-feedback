@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type { Session } from '../api/types';
 import { AuthFrame } from './AuthFrame';
 import { useAuth } from './AuthProvider';
@@ -26,6 +26,9 @@ export function LoginScreen() {
   const { state, acceptSession, failLogin, needAccess } = useAuth();
   const notice = state.status === 'anonymous' ? state.notice : undefined;
   const methods = authMethods.filter((m) => m.LoginButton && m.isAvailable());
+  // Бот отправляет незнакомый Telegram-аккаунт на /profile. Адрес при входе не меняется,
+  // поэтому после входа откроется профиль с кнопкой «Привязать Telegram»; здесь объясняем, зачем входить.
+  const toProfile = useLocation().pathname === '/profile';
   /** Вошли с временным паролем: почта и он сам нужны, чтобы задать новый. */
   const [temporary, setTemporary] = useState<LoginForm | null>(null);
 
@@ -34,7 +37,14 @@ export function LoginScreen() {
   }
 
   return (
-    <AuthFrame title="Вход" lead="Обращения и предложения сотрудников Модус Трейд.">
+    <AuthFrame
+      title="Вход"
+      lead={
+        toProfile
+          ? 'Войдите по почте и паролю: после входа откроется профиль, в нём привязывается Telegram.'
+          : 'Обращения и предложения сотрудников Модус Трейд.'
+      }
+    >
       {notice && (
         <div className="notice notice--danger" role="alert">
           {notice}

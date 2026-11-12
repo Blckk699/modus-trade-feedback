@@ -49,3 +49,13 @@ test('регистрация создаёт заявку: до одобрени�
   await page.getByRole('button', { name: 'Войти', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Заявка на рассмотрении' })).toBeVisible();
 });
+
+test('ссылка бота на /profile: после входа открывается профиль с привязкой Telegram', async ({ page }) => {
+  await page.goto('/profile');
+  await expect(page.getByText('после входа откроется профиль')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Рабочая почта' }).fill(EMAIL);
+  await page.getByLabel('Пароль', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Войти', exact: true }).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByRole('heading', { name: 'Telegram' })).toBeVisible();
+});
