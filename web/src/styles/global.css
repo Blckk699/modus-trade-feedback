@@ -2,6 +2,7 @@
    Фирменная гамма — из design/tokens.json: тёмно-синий #082742 (главное действие, заголовки), красный #E40000
    (одно главное действие на экран и непрочитанное), статусы и состояния сроков.
    Светлая тема по умолчанию, тёмная — по системе или по выбору (data-theme).
+   Тёмная тема — нейтральные серые без оттенка: цвет остаётся у статусов, ссылок, плиток и красного действия.
    --bg и --surface — простые #RRGGBB: их читает src/telegram/theme.ts, чтобы покрасить рамку Mini App. */
 
 :root {
@@ -86,21 +87,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #071521;
-    --card: #0c1f31;
-    --surface: #12293f;
-    --surface-2: #0f2437;
-    --surface-3: #1a3550;
-    --line: #1c3650;
-    --line-strong: #2c4c6b;
-  --field-line: #5a7ea3;
-    --text: #e6ecf2;
+    --bg: #0d0d0d;
+    --card: #171717;
+    --surface: #202020;
+    --surface-2: #1b1b1b;
+    --surface-3: #2c2c2c;
+    --line: #2a2a2a;
+    --line-strong: #404040;
+  --field-line: #787878;
+    --text: #e8e8e8;
     --heading: #ffffff;
-    --muted: #9aabbf;
-    --faint: #6f8399;
-    --primary: #8cb8e6;
-    --primary-hover: #a9cbef;
-    --primary-text: #082742;
+    --muted: #a6a6a6;
+    --faint: #808080;
+    --primary: #f2f2f2;
+    --primary-hover: #ffffff;
+    --primary-text: #111111;
     --accent: #e40000;
     --accent-hover: #cc0000;
     --accent-text: #ffffff;
@@ -118,8 +119,8 @@
     --info-bg: #12304f;
     --status-new: #8dbbf5;
     --status-new-bg: #12304f;
-    --status-in_review: #c9d6e6;
-    --status-in_review-bg: #1c3047;
+    --status-in_review: #e0e0e0;
+    --status-in_review-bg: #343434;
     --status-awaiting_info: #f7b57a;
     --status-awaiting_info-bg: #3a2614;
     --status-in_progress: #b9a6f5;
@@ -128,37 +129,37 @@
     --status-implemented-bg: #143222;
     --status-rejected: #ff9b92;
     --status-rejected-bg: #3d1b1b;
-    --status-closed: #a9b4c2;
-    --status-closed-bg: #222c38;
-    --tile-navy: linear-gradient(150deg, #123a5e 0%, #15538f 62%, #1a66c9 100%);
+    --status-closed: #a6a6a6;
+    --status-closed-bg: #262626;
+    --tile-navy: linear-gradient(150deg, #262626 0%, #333333 62%, #474747 100%);
     --shadow-card: none;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
     --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
-    --scrim: rgba(2, 8, 14, 0.6);
-    --tip-bg: #e6ecf2;
-    --tip-text: #082742;
+    --scrim: rgba(0, 0, 0, 0.62);
+    --tip-bg: #ededed;
+    --tip-text: #111111;
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #071521;
-  --card: #0c1f31;
-  --surface: #12293f;
-  --surface-2: #0f2437;
-  --surface-3: #1a3550;
-  --line: #1c3650;
-  --line-strong: #2c4c6b;
-  --field-line: #5a7ea3;
-  --text: #e6ecf2;
+  --bg: #0d0d0d;
+  --card: #171717;
+  --surface: #202020;
+  --surface-2: #1b1b1b;
+  --surface-3: #2c2c2c;
+  --line: #2a2a2a;
+  --line-strong: #404040;
+  --field-line: #787878;
+  --text: #e8e8e8;
   --heading: #ffffff;
-  --muted: #9aabbf;
-  --faint: #6f8399;
-  --primary: #8cb8e6;
-  --primary-hover: #a9cbef;
-  --primary-text: #082742;
+  --muted: #a6a6a6;
+  --faint: #808080;
+  --primary: #f2f2f2;
+  --primary-hover: #ffffff;
+  --primary-text: #111111;
   --accent: #e40000;
   --accent-hover: #cc0000;
   --accent-text: #ffffff;
@@ -176,8 +177,8 @@
   --info-bg: #12304f;
   --status-new: #8dbbf5;
   --status-new-bg: #12304f;
-  --status-in_review: #c9d6e6;
-  --status-in_review-bg: #1c3047;
+  --status-in_review: #e0e0e0;
+  --status-in_review-bg: #343434;
   --status-awaiting_info: #f7b57a;
   --status-awaiting_info-bg: #3a2614;
   --status-in_progress: #b9a6f5;
@@ -186,17 +187,17 @@
   --status-implemented-bg: #143222;
   --status-rejected: #ff9b92;
   --status-rejected-bg: #3d1b1b;
-  --status-closed: #a9b4c2;
-  --status-closed-bg: #222c38;
-  --tile-navy: linear-gradient(150deg, #123a5e 0%, #15538f 62%, #1a66c9 100%);
+  --status-closed: #a6a6a6;
+  --status-closed-bg: #262626;
+  --tile-navy: linear-gradient(150deg, #262626 0%, #333333 62%, #474747 100%);
   --shadow-card: none;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
   --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
-  --scrim: rgba(2, 8, 14, 0.6);
-  --tip-bg: #e6ecf2;
-  --tip-text: #082742;
+  --scrim: rgba(0, 0, 0, 0.62);
+  --tip-bg: #ededed;
+  --tip-text: #111111;
   color-scheme: dark;
 }
 
