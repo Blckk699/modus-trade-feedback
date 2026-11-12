@@ -11,6 +11,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { useMe } from '../auth';
 import { StatusBadge } from '../appeals/Badges';
 import { formatDateTime } from '../lib/format';
+import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
 
@@ -150,47 +151,65 @@ function SummaryView({ data: d }: { data: Summary }) {
         hint={d.avg_first_response_hours === null ? 'ответов ещё не было' : 'от подачи до ответа'}
       />
 
-      <Block className="bento__half" title="Просрочен первый ответ" count={d.overdue.length} danger>
-        <StuckList items={d.overdue} empty="Просроченных нет." />
+      <Block className="bento__half" title="Просрочен первый ответ" sub="Ответа нет дольше срока" count={d.overdue.length} danger>
+        <More items={sortStuck(d.overdue)} limit={5}>
+          {(items) => <StuckList items={items} empty="Просроченных нет — все отвечают в срок." />}
+        </More>
       </Block>
-      <Block className="bento__half" title="Зависло" sub="Давно без движения" count={d.stuck.length} danger>
-        <StuckList items={d.stuck} empty="Зависших нет." />
-      </Block>
-
-      <Block className="bento__third" title="Новое за сутки" count={d.new_last_24h.length}>
-        <RefList items={d.new_last_24h} empty="За сутки ничего не подавали." />
-      </Block>
-      <Block className="bento__third" title="Закрыто за неделю" count={d.closed_last_week.length}>
-        <RefList items={d.closed_last_week} empty="За неделю ничего не закрыли." showStatus />
-      </Block>
-      <Block className="bento__third" title="Об этом говорят несколько человек" count={d.repeated_topics.length}>
-        {d.repeated_topics.length === 0 ? (
-          <p className="muted">Повторов нет.</p>
-        ) : (
-          <ul className="rows rows--tight">
-            {d.repeated_topics.map((t) => (
-              <li key={t.appeal.id}>
-                <AppealLink a={t.appeal} side={<span className="badge badge--people">{t.participants_count} сообщили</span>} />
-              </li>
-            ))}
-          </ul>
-        )}
+      <Block className="bento__half" title="Зависло" sub="Дошло до третьего шага эскалации" count={d.stuck.length} danger>
+        <More items={sortStuck(d.stuck)} limit={5}>
+          {(items) => <StuckList items={items} empty="Зависших нет." />}
+        </More>
       </Block>
 
-      <Block className="bento__third" title="По статусам">
+      <Block className="bento__third" title="По статусам" sub={`${d.total} ${plural(d.total, ['обращение', 'обращения', 'обращений'])}`}>
+        <StatusStrip rows={d.by_status} total={d.total} label={dict.statusLabel} />
         <Bars rows={d.by_status.map((r) => ({ key: r.status, label: dict.statusLabel(r.status), count: r.count, tone: r.status }))} />
       </Block>
       <Block className="bento__third" title="По типам">
-        <Bars rows={d.by_type.map((r) => ({ key: r.type, label: dict.typeLabel(r.type), count: r.count }))} />
+        <TypeShares rows={d.by_type} total={d.total} label={dict.typeLabel} />
       </Block>
-      <Block className="bento__third" title="По категориям">
-        <Bars
-          rows={d.by_category.map((r) => ({
-            key: String(r.category?.id ?? 'none'),
-            label: r.category?.name ?? 'Без категории',
-            count: r.count,
-          }))}
-        />
+      <Block className="bento__third" title="По категориям" sub={d.by_category.length > 0 ? 'О чём пишут чаще всего' : undefined}>
+        <More items={[...d.by_category].sort((a, b) => b.count - a.count)} limit={7}>
+          {(items) => (
+            <Bars
+              rows={items.map((r) => ({
+                key: String(r.category?.id ?? 'none'),
+                label: r.category?.name ?? 'Без категории',
+                count: r.count,
+              }))}
+              max={Math.max(...d.by_category.map((r) => r.count), 1)}
+            />
+          )}
+        </More>
+      </Block>
+
+      <Block className="bento__third" title="Новое за сутки" count={d.new_last_24h.length}>
+        <More items={d.new_last_24h} limit={5}>
+          {(items) => <RefList items={items} empty="За сутки ничего не подавали." />}
+        </More>
+      </Block>
+      <Block className="bento__third" title="Закрыто за неделю" count={d.closed_last_week.length}>
+        <More items={d.closed_last_week} limit={5}>
+          {(items) => <RefList items={items} empty="За неделю ничего не закрыли." showStatus />}
+        </More>
+      </Block>
+      <Block className="bento__third" title="Об этом говорят несколько человек" sub="Повторы, склеенные с основным" count={d.repeated_topics.length}>
+        {d.repeated_topics.length === 0 ? (
+          <p className="muted">Повторов нет.</p>
+        ) : (
+          <More items={[...d.repeated_topics].sort((a, b) => b.participants_count - a.participants_count)} limit={5}>
+            {(items) => (
+              <ul className="rows rows--tight">
+                {items.map((t) => (
+                  <li key={t.appeal.id}>
+                    <AppealLink a={t.appeal} side={<span className="badge badge--people">{t.participants_count} сообщили</span>} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </More>
+        )}
       </Block>
 
       {d.assignee_load.length > 0 && (
@@ -206,7 +225,9 @@ function SummaryView({ data: d }: { data: Summary }) {
                 </tr>
               </thead>
               <tbody>
-                {d.assignee_load.map((r) => (
+                {[...d.assignee_load]
+                  .sort((a, b) => b.overdue_count - a.overdue_count || b.open_count - a.open_count)
+                  .map((r) => (
                   <tr key={r.assignee.id}>
                     <td>
                       <span className="table__person">
@@ -333,9 +354,10 @@ function StuckList({ items, empty }: { items: Stuck[]; empty: string }) {
 }
 
 /** Горизонтальные полосы одной серии: длина — количество, подписи и числа текстом (читаются и без цвета). */
-function Bars({ rows }: { rows: { key: string; label: string; count: number; tone?: string }[] }) {
+function Bars({ rows, max: maxOverride }: { rows: { key: string; label: string; count: number; tone?: string }[]; max?: number }) {
   if (rows.length === 0) return <p className="muted">Нет данных.</p>;
-  const max = Math.max(...rows.map((r) => r.count), 1);
+  // Свёрнутый список меряется по полному: иначе полосы прыгают при раскрытии.
+  const max = maxOverride ?? Math.max(...rows.map((r) => r.count), 1);
   return (
     <ul className="bars">
       {rows.map((r) => (
@@ -350,6 +372,76 @@ function Bars({ rows }: { rows: { key: string; label: string; count: number; ton
           </span>
         </li>
       ))}
+    </ul>
+  );
+}
+
+/** Самые запущенные — сверху: выше шаг эскалации, затем больше дней просрочки. */
+function sortStuck(items: Stuck[]): Stuck[] {
+  return [...items].sort((a, b) => b.escalation_level - a.escalation_level || b.days_overdue - a.days_overdue);
+}
+
+/**
+ * Длинный список показывает первые строки и кнопку «Показать все N»: иначе одна карточка
+ * растягивает весь ряд, а соседние стоят пустыми.
+ */
+function More<T>({ items, limit, children }: { items: T[]; limit: number; children: (items: T[]) => ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const extra = items.length - limit;
+  return (
+    <>
+      {children(open || extra <= 0 ? items : items.slice(0, limit))}
+      {extra > 0 && (
+        <button type="button" className="link-btn more-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? 'Свернуть' : `Показать все ${items.length}`}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Одна полоса на все обращения: доли статусов цветом, с подписью для экранного диктора. */
+function StatusStrip({ rows, total, label }: { rows: Summary['by_status']; total: number; label: (s: string) => string }) {
+  if (total === 0) return null;
+  const spoken = rows.map((r) => `${label(r.status)}: ${r.count}`).join(', ');
+  return (
+    <div className="strip" role="img" aria-label={`Распределение по статусам. ${spoken}`}>
+      {rows
+        .filter((r) => r.count > 0)
+        .map((r) => (
+          <span
+            key={r.status}
+            className="strip__part"
+            style={{ flexGrow: r.count, background: `var(--status-${r.status})` }}
+            title={`${label(r.status)}: ${r.count}`}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** Типы — крупными числами с долей: их всего три, тонкие полосы для них теряются. */
+function TypeShares({ rows, total, label }: { rows: Summary['by_type']; total: number; label: (s: string) => string }) {
+  if (rows.length === 0) return <p className="muted">Нет данных.</p>;
+  return (
+    <ul className="shares">
+      {[...rows]
+        .sort((a, b) => b.count - a.count)
+        .map((r) => {
+          const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
+          return (
+            <li key={r.type} className="shares__item">
+              <span className="shares__value">{r.count}</span>
+              <span className="shares__label">
+                {label(r.type)}
+                <span className="muted"> · {pct}%</span>
+              </span>
+              <span className="shares__track" aria-hidden="true">
+                <span className={`shares__fill shares__fill--${r.type}`} style={{ width: `${pct}%` }} />
+              </span>
+            </li>
+          );
+        })}
     </ul>
   );
 }

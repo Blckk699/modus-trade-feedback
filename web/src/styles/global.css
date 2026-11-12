@@ -4532,6 +4532,79 @@ textarea.compose__text--tall {
   background: var(--primary);
 }
 
+/* Сводка: доли статусов одной полосой и «Показать все» под длинными списками */
+.strip {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.strip__part {
+  min-width: 4px;
+  border-radius: 3px;
+}
+
+.shares {
+  display: grid;
+  gap: 10px;
+}
+
+.shares__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 14px;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+.shares__value {
+  color: var(--heading);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.shares__label {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.shares__track {
+  grid-column: 1 / -1;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.shares__fill {
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+
+.shares__fill--suggestion {
+  background: var(--status-in_progress);
+}
+
+.shares__fill--praise {
+  background: var(--status-implemented);
+}
+
+.more-btn {
+  justify-self: start;
+  margin-top: 12px;
+}
+
 .table-wrap {
   overflow-x: auto;
   margin: 0 -8px;
