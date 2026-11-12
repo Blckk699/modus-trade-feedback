@@ -187,6 +187,13 @@ async def deadline_reminder(session: AsyncSession, appeal: Appeal, now: datetime
         "Ответьте автору, иначе обращение уйдёт руководителю.", now, appeal=appeal)
 
 
+def nudge(session: AsyncSession, appeal: Appeal, actor: User, now: datetime, tz) -> None:
+    """Руководитель или собственник просит ответственного ответить по обращению (B-25)."""
+    due = f" Срок первого ответа — {_local(appeal.first_response_due_at, tz)}." if appeal.first_response_due_at else ""
+    add(session, appeal.assignee_id, NotificationKind.NUDGE,
+        f"{escape(actor.full_name)} просит ответить по обращению {_title(appeal)}.{due}", now, appeal=appeal)
+
+
 async def escalation_head(session: AsyncSession, appeal: Appeal, head_id: int, now: datetime) -> None:
     """Эскалация, шаг 2: руководителю подразделения — ответственный не ответил в срок (история 45)."""
     assignee = await session.get(User, appeal.assignee_id) if appeal.assignee_id else None

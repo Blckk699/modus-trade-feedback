@@ -155,6 +155,7 @@ def facts(appeal: Appeal, directory: Directory, extras: Extras) -> policy.Appeal
         viewer_heads_department=directory.appeal_department_id(appeal) in extras.headed,
         has_discussion=appeal.id in extras.discussions,
         has_bitrix_task=appeal.id in extras.bitrix,
+        has_first_response=appeal.first_response_at is not None,
     )
 
 

@@ -44,6 +44,7 @@ ACTIONS: dict[AppealAction, tuple[str, list[AppealStatus], AppealStatus | None]]
     AppealAction.CREATE_BITRIX_TASK: ("Создать задачу в Битрикс24", _NOT_FINAL, None),
     AppealAction.SEND_MESSAGE: ("Написать в переписку", _NOT_FINAL, None),
     AppealAction.UPLOAD_ATTACHMENT: ("Приложить файл", _NOT_FINAL, None),
+    AppealAction.NUDGE: ("Напомнить ответственному", _NOT_FINAL, None),
 }
 
 

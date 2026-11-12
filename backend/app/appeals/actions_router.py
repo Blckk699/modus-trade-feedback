@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.api.deps import ClockDep, CurrentUserDep, SessionDep
+from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import UserBrief
 from app.appeals import lifecycle, service
 from app.appeals.schemas import AppealOut
@@ -63,6 +63,13 @@ async def take(
 ) -> AppealOut:
     appeal = await service.get_visible(session, appeal_id, user, lock=True)
     await lifecycle.take(session, appeal, user, clock.now(), body.comment if body else None)
+    return await appeal_out(session, appeal, user, clock.now())
+
+
+@router.post("/appeals/{appeal_id}/nudge", response_model=AppealOut, summary="Напомнить ответственному")
+async def nudge(appeal_id: int, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep) -> AppealOut:
+    appeal = await service.get_visible(session, appeal_id, user, lock=True)
+    await lifecycle.nudge(session, appeal, user, clock.now(), settings.tz)
     return await appeal_out(session, appeal, user, clock.now())
 
 
