@@ -173,7 +173,19 @@ def _bullets(items: list[str]) -> str:
     return "; ".join(items) if items else "(справочник пуст)"
 
 
+def _category_key(name: str) -> str:
+    """Название без регистра, кавычек, «ё» и лишних пробелов: модель пишет категорию не всегда буква в букву."""
+    cleaned = name.casefold().replace("ё", "е").strip().strip("«»\"'„“”.").strip()
+    return " ".join(cleaned.split())
+
+
+def match_category(name: str | None, categories: list[str]) -> str | None:
+    """Название категории из справочника, которое имела в виду модель, или None."""
+    if not name:
+        return None
+    wanted = _category_key(name)
+    return next((c for c in categories if _category_key(c) == wanted), None)
+
+
 def _clean_category[D: AppealDraft](draft: D, categories: list[str]) -> D:
-    if draft.category is not None and draft.category not in categories:
-        return draft.model_copy(update={"category": None})
-    return draft
+    return draft.model_copy(update={"category": match_category(draft.category, categories)})

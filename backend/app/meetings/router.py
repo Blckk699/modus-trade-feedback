@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.claude import match_category
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import CategoryRef, UserBrief
 from app.appeals import service
@@ -321,7 +322,7 @@ async def _process(ctx: JobContext, meeting: Meeting) -> None:
                 meeting_id=meeting.id,
                 status=MeetingDraftStatus.PENDING,
                 type=item.type,
-                category_id=categories.get(item.category) if item.category else None,
+                category_id=categories.get(match_category(item.category, list(categories))),
                 priority=item.priority,
                 summary=item.summary[:500],
                 text=f"{item.summary}\n\nЦитата из совещания: {item.quote}",
