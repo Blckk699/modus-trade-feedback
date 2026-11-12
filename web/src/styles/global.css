@@ -3066,6 +3066,19 @@ a.tile:hover .tile__go {
   border-top: 1px solid var(--line);
 }
 
+/* Раздел отдельным блоком: голосование и комментарии в обсуждении стоят каждый в своей плашке */
+.section--well {
+  padding: 16px;
+  border-top: 0;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+/* Поле комментария в подвале карточки — на всю ширину */
+.sheet__foot.sheet__foot--composer {
+  display: block;
+}
+
 .section--inline {
   display: flex;
   flex-wrap: wrap;
