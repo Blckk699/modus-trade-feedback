@@ -6,7 +6,6 @@ import { errorMessage } from '../api/errors';
 import type { Me, Schemas } from '../api/types';
 import { Avatar } from '../app/Avatar';
 import { useBackground } from '../app/background';
-import { BrandMark } from '../app/BrandLogo';
 import { useReloadOnCardClose } from '../app/cardClosed';
 import { useDictionaries } from '../app/dictionaries';
 import { DotNumber } from '../app/DotNumber';
@@ -172,9 +171,6 @@ function HomeView({ me, data: d, reload }: { me: Me; data: HomeData; reload: () 
     <div className="bento">
       <article className="card brief bento__brief">
         <header className="brief__head">
-          <span className="brief__mark" aria-hidden="true">
-            <BrandMark />
-          </span>
           <div className="brief__who">
             <h2 className="card__title">Главное на сейчас</h2>
             <p className="card__sub">Данные на {clock.format(d.loadedAt)}</p>
