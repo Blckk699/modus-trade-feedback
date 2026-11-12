@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 import 'tokens.g.dart';
@@ -106,6 +107,15 @@ ThemeData modusTheme(Brightness brightness) {
 
   return ThemeData(
     useMaterial3: true,
+    // Не Material-2016: без «волн» на всю плитку, без серой тонировки поверхностей, переходы как в iOS.
+    splashFactory: NoSplash.splashFactory,
+    highlightColor: Colors.transparent,
+    splashColor: Colors.transparent,
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+    }),
     brightness: brightness,
     colorScheme: scheme,
     fontFamily: ModusFont.body,
@@ -205,14 +215,27 @@ ThemeData modusTheme(Brightness brightness) {
     tabBarTheme: TabBarThemeData(labelColor: p.primary, unselectedLabelColor: p.muted, indicatorColor: p.primary),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      showDragHandle: true,
+      dragHandleColor: x.faint,
+      dragHandleSize: const Size(40, 5),
       shape: const RoundedRectangleBorder(borderRadius: sheet),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(WebLook.cardRadius))),
     ),
-    popupMenuTheme: const PopupMenuThemeData(elevation: 3),
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    popupMenuTheme: PopupMenuThemeData(elevation: 3, color: p.surface, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+      backgroundColor: x.tipBg,
+      contentTextStyle: TextStyle(fontFamily: ModusFont.body, color: x.tipText, fontSize: 14, fontWeight: FontWeight.w600),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    ),
   );
 }
 

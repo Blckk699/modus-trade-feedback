@@ -170,9 +170,9 @@ void main() {
 
   testWidgets('взять: необязательный ответ, карточка обновляется ответом сервера', (tester) async {
     final server = await openCard(tester, ['take']);
-    await tapVisible(tester, find.byKey(const Key('action-take')));
+    await tapAction(tester, 'take');
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.byKey(const Key('action-submit')));
+    await tapAction(tester, 'submit');
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/take').body), {'comment': null});
     expect(find.text('На рассмотрении'), findsOneWidget);
@@ -181,7 +181,7 @@ void main() {
 
   testWidgets('отклонить без причины нельзя; причина уходит в запрос; ошибка сервера видна', (tester) async {
     final server = await openCard(tester, ['reject'], updated: appealJson(status: 'rejected', rejectionReason: 'Нет бюджета.'));
-    await tapVisible(tester, find.byKey(const Key('action-reject')));
+    await tapAction(tester, 'reject');
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<ButtonStyleButton>(submit).onPressed, isNull);
@@ -207,11 +207,11 @@ void main() {
     final server = await openCard(tester, ['request_info', 'start_work', 'accept_feedback'],
         updated: appealJson(allowedActions: const ['request_info', 'start_work', 'accept_feedback']));
     Future<void> run(String action, String? text) async {
-      await tapVisible(tester, find.byKey(Key('action-$action')));
+      await tapAction(tester, action);
       await tester.pumpAndSettle();
       if (text != null) await tester.enterText(find.byKey(const Key('action-text')), text);
       await tester.pump();
-      await tapVisible(tester, find.byKey(const Key('action-submit')));
+      await tapAction(tester, 'submit');
       await tester.pumpAndSettle();
     }
 
@@ -225,7 +225,7 @@ void main() {
 
   testWidgets('реализовано без результата нельзя; публичные формулировки необязательны', (tester) async {
     final server = await openCard(tester, ['implement'], updated: appealJson(status: 'implemented', result: 'Поля добавлены.'));
-    await tapVisible(tester, find.byKey(const Key('action-implement')));
+    await tapAction(tester, 'implement');
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);
@@ -244,7 +244,7 @@ void main() {
 
   testWidgets('переназначение: сотрудник и причина обязательны; админы, отключённые и текущий скрыты', (tester) async {
     final server = await openCard(tester, ['reassign']);
-    await tapVisible(tester, find.byKey(const Key('action-reassign')));
+    await tapAction(tester, 'reassign');
     await tester.pumpAndSettle();
     final submit = find.byKey(const Key('action-submit'));
     expect(tester.widget<FilledButton>(submit).onPressed, isNull);

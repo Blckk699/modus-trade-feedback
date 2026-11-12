@@ -104,7 +104,7 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('block-stuck')), -200, scrollable: list);
     await tester.tap(find.descendant(of: find.byKey(const Key('block-stuck')), matching: find.byKey(const Key('digest-appeal-1'))));
     await tester.pumpAndSettle();
-    expect(find.text('A-001'), findsOneWidget, reason: 'открылась карточка');
+    expect(find.text('A-001'), findsWidgets, reason: 'открылась карточка (большой заголовок и заголовок панели)');
     await tapVisible(tester, find.byTooltip('Назад').first);
     await tester.pumpAndSettle();
 
