@@ -3294,6 +3294,81 @@ a.tile:hover .tile__go {
   align-items: baseline;
 }
 
+/* «Что дальше» для автора: кто, когда, шаги, куда придёт ответ */
+.whowhen {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+.whowhen__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 20px;
+}
+
+.whowhen__facts dt {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.whowhen__facts dd {
+  color: var(--heading);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.whowhen__steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  list-style: decimal;
+  padding-left: 20px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.whowhen__where {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.whowhen__where a {
+  font-weight: 600;
+}
+
+/* Подсказка у срока: раскрывается по нажатию */
+.due-hint {
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.due-hint summary {
+  width: fit-content;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.due-hint p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.due-hint p.due-hint__now {
+  color: var(--status-rejected);
+  font-weight: 600;
+}
+
 /* Назначение ответственного в карточке: видно, пока ответственного нет */
 .assign {
   display: grid;
