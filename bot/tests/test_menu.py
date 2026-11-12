@@ -56,11 +56,11 @@ async def test_login_code_is_issued_with_instructions(harness):
     await harness.send_text(texts.BTN_LOGIN_CODE)
     await harness.send_text("/code")
 
-    replies = harness.telegram.sent()
+    replies = harness.telegram.widgets()
     assert len(replies) == 2
-    assert "<code>482913</code>" in replies[0].text
-    assert "«Модус Трейд»" in replies[0].text
-    assert "5 минут" in replies[0].text
+    assert "<code>482913</code>" in replies[0].caption
+    assert "«Модус Трейд»" in replies[0].caption
+    assert "5 минут" in replies[0].caption
     assert len(harness.backend.calls("POST", "/api/v1/auth/login-codes")) == 2
 
 

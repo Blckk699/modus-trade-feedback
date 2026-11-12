@@ -23,12 +23,21 @@ def as_user(telegram_id: int) -> dict[str, str]:
     return {"X-Telegram-Id": str(telegram_id)}
 
 
+def shown(message) -> str:
+    """Что видит пользователь: текст сообщения или подпись виджета (Bot API 10.4)."""
+    return getattr(message, "text", None) or message.caption or ""
+
+
+def last(bot) -> str:
+    return shown(bot.telegram.messages()[-1])
+
+
 async def drain(bot) -> list:
     """Доставить всю очередь бэкенда (фоновая задача бота делает то же раз в несколько секунд)."""
-    before = len(bot.telegram.sent())
+    before = len(bot.telegram.messages())
     while await deliver_pending(bot.bot, bot.api, bot.settings):
         pass
-    return bot.telegram.sent()[before:]
+    return bot.telegram.messages()[before:]
 
 
 async def submit_text(bot, telegram_id: int, text: str) -> str:
@@ -36,7 +45,7 @@ async def submit_text(bot, telegram_id: int, text: str) -> str:
     card = bot.telegram.sent()[-1]
     assert "Черновик обращения" in card.text, card.text
     await bot.press(card, texts.BTN_DRAFT_SEND, user_id=telegram_id)
-    confirmation = bot.telegram.sent()[-1].text
+    confirmation = last(bot)  # карточка-виджет, номер — в подписи
     number = re.search(r"A-\d{3}", confirmation)
     assert number, confirmation
     return number.group(0)
@@ -59,7 +68,7 @@ async def test_employee_is_recognised_and_stranger_offered_request(bot, people):
 
 async def test_login_code_from_bot_is_accepted_once(bot, backend, people):
     await bot.send_text(texts.BTN_LOGIN_CODE, user_id=people[EMPLOYEE])
-    code = re.search(r"<code>(\d{6})</code>", bot.telegram.sent()[-1].text).group(1)
+    code = re.search(r"<code>(\d{6})</code>", last(bot)).group(1)
 
     first = await backend.post("/api/v1/auth/code", json={"code": code})
     again = await backend.post("/api/v1/auth/code", json={"code": code})
@@ -77,12 +86,12 @@ async def test_text_appeal_is_created_and_notifications_are_delivered(bot, backe
     assert appeal["source"] == "bot"
     assert appeal["category"]["name"] == "Межотдельное взаимодействие"
     assignee = appeal["assignee"]["full_name"]
-    assert assignee in bot.telegram.sent()[-1].text  # бот назвал ответственного
+    assert assignee in last(bot)  # бот назвал ответственного
 
     delivered = await drain(bot)
     recipients = {m.chat_id for m in delivered}
     assert people[assignee] in recipients  # «Вам назначено обращение»
-    assert any(number in m.text for m in delivered)
+    assert any(number in shown(m) for m in delivered)
     # Всё подтверждено: повторно очередь ничего не отдаёт.
     assert (await backend.get("/api/v1/bot/notifications/pending")).json() == []
 
@@ -94,7 +103,7 @@ async def test_voice_appeal_shows_transcript_and_is_created(bot, backend, people
     assert "1С" in card.text  # текст фейковой расшифровки бэкенда
 
     await bot.press(card, texts.BTN_DRAFT_SEND, user_id=people[EMPLOYEE])
-    number = re.search(r"A-\d{3}", bot.telegram.sent()[-1].text).group(0)
+    number = re.search(r"A-\d{3}", last(bot)).group(0)
     appeal = await appeal_by_number(backend, people[EMPLOYEE], number)
     assert appeal["text"].startswith("Счёт сначала забиваю в 1С")
 
@@ -129,7 +138,7 @@ async def test_clarification_answered_in_bot_returns_appeal_to_review(bot, backe
 
     delivered = await drain(bot)
     to_author = [m for m in delivered if m.chat_id == author]
-    assert any("Какие документы теряются" in m.text for m in to_author)
+    assert any("Какие документы теряются" in shown(m) for m in to_author)
     [question] = [m for m in to_author if m.reply_markup and any(
         b.text == "Ответить" for row in m.reply_markup.inline_keyboard for b in row)]
 
@@ -142,7 +151,7 @@ async def test_clarification_answered_in_bot_returns_appeal_to_review(bot, backe
     messages = (await backend.get(f"/api/v1/appeals/{appeal['id']}/messages", headers=as_user(author))).json()
     assert any(m["text"] == "Акты сверки и счета-фактуры" for m in messages)
     answered = await drain(bot)
-    assert any(m.chat_id == responsible and number in m.text for m in answered)
+    assert any(m.chat_id == responsible and number in shown(m) for m in answered)
 
 
 async def test_my_appeals_lists_what_was_submitted(bot, people):
@@ -208,7 +217,7 @@ async def test_name_consent_buttons_reach_discussion(bot, backend, people):
     discussion = created.json()
 
     delivered = await drain(bot)
-    [request] = [m for m in delivered if m.chat_id == author and "Показывать ваше имя" in m.text]
+    [request] = [m for m in delivered if m.chat_id == author and "Показывать ваше имя" in shown(m)]
     await bot.press(request, "Показать имя", user_id=author)
     assert bot.telegram.sent()[-1].text == texts.NAME_SHOWN
 

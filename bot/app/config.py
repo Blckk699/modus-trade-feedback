@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     mini_app_url: str | None = None
     # Как часто забирать очередь уведомлений бэкенда, секунд.
     notifications_poll_seconds: float = 3.0
+    # Карточки HTML-виджетами (Bot API 10.4). false — прежние текстовые сообщения.
+    widgets_enabled: bool = True
 
     def mini_app_link(self, path: str | None) -> str | None:
         """Адрес экрана Mini App по маршруту клиента из контракта (`/appeals/21`)."""
