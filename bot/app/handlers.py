@@ -10,7 +10,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, MenuButtonWebApp, Message, WebAppInfo
 
-from app import formatting, keyboards, texts
+from app import formatting, keyboards, texts, widgets
 from app.api import Api, ApiError
 from app.config import Settings
 
@@ -38,14 +38,21 @@ async def welcome(message: Message, bot: Bot, me: dict[str, Any], settings: Sett
     )
 
 
-async def login_code(message: Message, state: FSMContext, api: Api) -> None:
+async def login_code(message: Message, bot: Bot, state: FSMContext, api: Api, settings: Settings) -> None:
     await state.set_state(None)  # кнопка меню прерывает правку черновика или ответ на вопрос
     try:
         code = await api.issue_login_code(message.from_user.id)
     except ApiError as exc:
         await message.answer(html.escape(exc.message))
         return
-    await message.answer(texts.login_code(html.escape(code.code), code.ttl_seconds))
+    await widgets.send_card(
+        bot,
+        settings,
+        message.chat.id,
+        html=widgets.LOGIN_CODE,
+        data=formatting.login_code_data(code.code, code.expires_at, code.ttl_seconds),
+        caption=texts.login_code(html.escape(code.code), code.ttl_seconds),
+    )
 
 
 async def submit_hint(message: Message, state: FSMContext) -> None:

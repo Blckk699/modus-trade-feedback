@@ -28,7 +28,7 @@ from aiogram.types import (
 
 from aiogram.utils.chat_action import ChatActionSender
 
-from app import formatting, keyboards, texts
+from app import formatting, keyboards, texts, widgets
 from app.api import Api, ApiError
 from app.config import Settings
 
@@ -230,7 +230,9 @@ async def edited_field(message: Message, bot: Bot, state: FSMContext, api: Api) 
     await _show_card(message, bot, state, api, draft)
 
 
-async def on_draft_button(callback: CallbackQuery, callback_data: DraftCb, bot: Bot, state: FSMContext, api: Api) -> None:
+async def on_draft_button(
+    callback: CallbackQuery, callback_data: DraftCb, bot: Bot, state: FSMContext, api: Api, settings: Settings
+) -> None:
     data = await state.get_data()
     draft = data.get(DRAFT_KEY)
     if draft is None or data.get(VERSION_KEY) != callback_data.v:
@@ -245,7 +247,7 @@ async def on_draft_button(callback: CallbackQuery, callback_data: DraftCb, bot: 
     user_id = callback.from_user.id
 
     if action == "send":
-        await _send(callback, state, api, draft)
+        await _send(callback, bot, state, api, settings, draft)
         return
     if action == "cancel":
         await state.clear()
@@ -305,7 +307,9 @@ async def on_draft_button(callback: CallbackQuery, callback_data: DraftCb, bot: 
     await callback.answer()
 
 
-async def _send(callback: CallbackQuery, state: FSMContext, api: Api, draft: dict[str, Any]) -> None:
+async def _send(
+    callback: CallbackQuery, bot: Bot, state: FSMContext, api: Api, settings: Settings, draft: dict[str, Any]
+) -> None:
     body = {
         "type": draft["type"],
         "category_id": draft["category"]["id"] if draft.get("category") else None,
@@ -323,8 +327,16 @@ async def _send(callback: CallbackQuery, state: FSMContext, api: Api, draft: dic
         return
     await state.clear()
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer(formatting.appeal_created(appeal))
     await callback.answer()
+    dictionaries = await api.dictionaries()
+    await widgets.send_card(
+        bot,
+        settings,
+        callback.message.chat.id,
+        html=widgets.APPEAL_CARD,
+        data=formatting.appeal_card_data(appeal, dictionaries, header="Обращение зарегистрировано"),
+        caption=formatting.appeal_created(appeal),
+    )
 
 
 def build_router() -> Router:

@@ -1,6 +1,7 @@
 """Оформление черновика и созданного обращения. Подписи перечислений — из GET /dictionaries."""
 
 import html
+import time
 from datetime import datetime
 from typing import Any
 
@@ -62,6 +63,35 @@ def appeal_created(appeal: dict[str, Any]) -> str:
     if appeal.get("first_response_due_at"):
         lines.append(f"<b>Срок первого ответа:</b> {due_text(appeal['first_response_due_at'])}")
     return "\n".join(lines)
+
+
+def appeal_card_data(appeal: dict[str, Any], dictionaries: dict[str, Any], header: str | None = None) -> str:
+    """chat_data карточки обращения (widgets.APPEAL_CARD). Принимает Appeal или AppealRef из контракта."""
+    from app.widgets import pack
+
+    assignee = appeal.get("assignee") or {}
+    data = {
+        "h": header or "",
+        "n": appeal["number"],
+        "k": label(dictionaries, "appeal_types", appeal.get("type")),
+        "st": appeal.get("status") or "new",
+        "sl": label(dictionaries, "statuses", appeal.get("status") or "new"),
+        "a": assignee.get("full_name", ""),
+        "d": due_text(appeal["first_response_due_at"]) if appeal.get("first_response_due_at") else "",
+        "s": appeal.get("summary") or "",
+    }
+    return pack(data, shrink="s")
+
+
+def login_code_data(code: str, expires_at: str, ttl_seconds: int) -> str:
+    """chat_data виджета кода входа (widgets.LOGIN_CODE): код и момент истечения в мс."""
+    from app.widgets import pack
+
+    try:
+        expires = datetime.fromisoformat(expires_at).timestamp()
+    except ValueError:  # время сервера не разобрать — считаем от своих часов по ttl
+        expires = time.time() + ttl_seconds
+    return pack({"c": code, "e": int(expires * 1000)})
 
 
 def my_appeals(page: dict[str, Any], dictionaries: dict[str, Any]) -> str:
