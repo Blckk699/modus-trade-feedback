@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { escapeClaimed } from './escape';
 import { X } from 'lucide-react';
 
 type Props = {
@@ -64,7 +65,8 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
       aria-label={label}
       onCancel={(e) => {
         e.preventDefault();
-        if (!locked) onClose();
+        // Esc уже закрыл вложенную панель (чат, меню) — само окно остаётся.
+        if (!locked && !escapeClaimed()) onClose();
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget && !locked && closeOnBackdrop) onClose();
