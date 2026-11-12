@@ -53,13 +53,13 @@ void main() {
     await tester.pumpWidget(screen(session, const AppealScreen(appealId: 21)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('action-publish_discussion')));
+    await tapVisible(tester, find.byKey(const Key('action-publish_discussion')));
     await tester.pumpAndSettle();
     final text = tester.widget<TextField>(find.byKey(const Key('discussion-text')));
     expect(text.controller!.text, 'В заявках на оборудование не хватает параметров', reason: 'подставлена суть');
     await tester.enterText(find.byKey(const Key('discussion-text')), 'Обязательные поля в заявке');
     await tester.pump();
-    await tester.tap(find.byKey(const Key('discussion-publish')));
+    await tapVisible(tester, find.byKey(const Key('discussion-publish')));
     await tester.pumpAndSettle();
 
     final body = jsonDecode(server.last('POST', '/api/v1/appeals/21/discussion').body) as Map;
@@ -111,13 +111,13 @@ void main() {
     expect(find.text('2 комментария'), findsOneWidget);
     expect(find.text('вы проголосовали «за»'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('tab-implemented')));
+    await tapVisible(tester, find.byKey(const Key('tab-implemented')));
     await tester.pumpAndSettle();
     expect(find.text('Что предложили'), findsOneWidget);
     expect(find.text('Сверять акты раз в месяц'), findsOneWidget);
     expect(find.text('Ввели ежемесячную сверку'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('tab-closed')));
+    await tapVisible(tester, find.byKey(const Key('tab-closed')));
     await tester.pumpAndSettle();
     expect(find.text('Итог: Внедряем.'), findsOneWidget);
   });
@@ -140,17 +140,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('За 4'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('vote-for')));
+    await tapVisible(tester, find.byKey(const Key('vote-for')));
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('PUT', '/api/v1/discussions/9/vote').body), {'value': 'for'});
     expect(find.text('За 5'), findsOneWidget);
     expect(find.text('Нажмите на свой голос ещё раз, чтобы отозвать.'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('vote-against')));
+    await tapVisible(tester, find.byKey(const Key('vote-against')));
     await tester.pumpAndSettle();
     expect(find.text('Против 2'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('vote-against')));
+    await tapVisible(tester, find.byKey(const Key('vote-against')));
     await tester.pumpAndSettle();
     expect(server.requests.where((r) => r.method == 'DELETE').length, 1);
     expect(find.text('Против 1'), findsOneWidget);
@@ -175,7 +175,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('comment-text')), 'У нас то же самое');
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('comment-send')));
-    await tester.tap(find.byKey(const Key('comment-send')));
+    await tapVisible(tester, find.byKey(const Key('comment-send')));
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/discussions/9/comments').body), {'text': 'У нас то же самое'});
     expect(find.text('У нас то же самое'), findsOneWidget);
@@ -194,7 +194,7 @@ void main() {
     expect(find.textContaining('Показывать ваше имя?'), findsOneWidget);
     expect(find.text('Ваше обращение A-021'), findsOneWidget);
     expect(find.text('Не показывать'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('consent-show')));
+    await tapVisible(tester, find.byKey(const Key('consent-show')));
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/discussions/9/name-consent').body), {'show_name': true});
     expect(find.text('Ваше имя показано в обсуждении.'), findsOneWidget);
@@ -215,7 +215,7 @@ void main() {
     expect(tester.widget<FilledButton>(find.byKey(const Key('close-submit'))).onPressed, isNull);
     await tester.enterText(find.byKey(const Key('close-outcome')), 'Добавляем поля с 1 декабря.');
     await tester.pump();
-    await tester.tap(find.byKey(const Key('close-submit')));
+    await tapVisible(tester, find.byKey(const Key('close-submit')));
     await tester.pumpAndSettle();
     expect(jsonDecode(server.last('POST', '/api/v1/discussions/9/close').body), {'outcome': 'Добавляем поля с 1 декабря.'});
     await tester.scrollUntilVisible(find.byKey(const Key('discussion-outcome')), -200, scrollable: list);

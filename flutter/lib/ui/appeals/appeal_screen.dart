@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
@@ -15,6 +17,7 @@ import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 import '../../theme/modus_theme.dart';
 import '../home/role_switch.dart';
 import 'card_parts.dart';
+import '../web/web_ui.dart';
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
 /// Действия показываются только из `allowed_actions`.
@@ -70,19 +73,17 @@ class _AppealScreenState extends State<AppealScreen> {
   Widget build(BuildContext context) {
     final appeal = _appeal;
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 52,
-        title: Text(appeal?.number ?? '', style: Theme.of(context).textTheme.bodySmall),
-        actions: [RoleSwitchAction(appealId: widget.appealId)],
+      body: SafeArea(
+        bottom: false,
+        child: _loading
+            ? const CardSkeleton()
+            : appeal == null
+            ? _ErrorView(error: _error!, onRetry: _load)
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
+              ),
       ),
-      body: _loading
-          ? const CardSkeleton()
-          : appeal == null
-          ? _ErrorView(error: _error!, onRetry: _load)
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
-            ),
     );
   }
 }
@@ -133,89 +134,126 @@ class _AppealBody extends StatelessWidget {
     final theme = Theme.of(context);
     final participant = a.access == AppealAccessEnum.participant;
     final due = a.firstResponseDueAt;
+    final c = ModusColors.of(context);
+    final facts = <(String, String)>[
+      if (a.author != null && !a.viewerRelations.contains(ViewerRelation.author))
+        ('Автор', [a.author!.fullName, if (a.author!.department != null) a.author!.department!.name].join(' · ')),
+      ('Ответственный', a.assignee?.fullName ?? 'Назначит администратор'),
+      ('Категория', a.category?.name ?? 'Не указана'),
+      ('Срок первого ответа', due != null ? formatDateTime(due) : 'Без срока'),
+      if (a.firstResponseAt != null) ('Первый ответ', formatDateTime(a.firstResponseAt!)),
+      ('Подано', formatDateTime(a.createdAt)),
+    ];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
       children: [
-        // Шапка как в карточке веба: чипы типа, статуса и срока, крупная суть, строка «номер · категория · приоритет».
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            TypeBadge(a.type),
-            StatusBadge(a.status),
-            if (a.status != AppealStatus.closed) DueBadge(state: a.dueState, dueAt: due),
-          ],
+        // Шапка страницы обращения: «Обращение» над номером, назад — круглой кнопкой.
+        WebPageHead(
+          over: 'Обращение',
+          title: a.number,
+          leading: ToolButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onTap: () => Navigator.of(context).maybePop()),
+          tools: [RoleSwitchAction(appealId: a.id)],
         ),
-        const SizedBox(height: 14),
-        Text(
-          a.summary ?? 'Без краткой сути',
-          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.6),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          [
-            a.number,
-            a.category?.name ?? 'без категории',
-            'приоритет ${session.priorityLabel(a.priority).toLowerCase()}',
-          ].join(' · '),
-          style: theme.textTheme.bodySmall,
-        ),
-        if (participant) ...[
-          const SizedBox(height: 12),
-          const _Notice(
-            text:
-                'Вы видите это обращение, потому что ваше присоединили к нему как повтор. '
-                'Статусы и итог приходят вам, текст и автор основного обращения скрыты.',
-          ),
-        ],
-        _Outcome(appeal: a, onOpen: (id) => _openAppeal(context, id)),
-        if (a.participantsCount > 1 && !participant)
-          _Notice(
-            key2: const Key('participants-count'),
-            text:
-                'Об этом сказали ${a.participantsCount} '
-                '${plural(a.participantsCount, ('человек', 'человека', 'человек'))}',
-            tone: _Tone.info,
-          ),
-        if (needsAssignee(a)) AssignSection(appeal: a, onUpdated: onUpdated),
-        ActionsPanel(appeal: a, onUpdated: onUpdated),
-        if (DiscussionRef.fromJson(a.discussion) case final discussion?) _DiscussionLink(discussion: discussion),
-        if (!participant) ...[
-          DuplicatesSection(key: ValueKey('duplicates-$version'), appeal: a, onMerged: onChanged, onOpen: (id) => _openAppeal(context, id)),
-          BitrixSection(appeal: a, onUpdated: onUpdated),
-        ],
-        CardBlock(
-          title: 'Сведения',
-          children: [
-            _Fact('Тип', session.typeLabel(a.type)),
-            _Fact('Категория', a.category?.name ?? 'Не указана'),
-            _Fact('Приоритет', session.priorityLabel(a.priority)),
-            if (a.author != null && !a.viewerRelations.contains(ViewerRelation.author))
-              _Fact('Автор', [a.author!.fullName, if (a.author!.department != null) a.author!.department!.name].join(' · ')),
-            _Fact('Ответственный', a.assignee?.fullName ?? 'Назначит администратор'),
-            _Fact('Срок первого ответа', due != null ? formatDateTime(due) : 'Без срока'),
-            if (a.firstResponseAt != null) _Fact('Первый ответ', formatDateTime(a.firstResponseAt!)),
-            _Fact('Подано', formatDateTime(a.createdAt)),
-          ],
-        ),
-        if (a.text != null || a.proposedSolution != null)
-          CardBlock(
-            title: 'Описание',
+        WebCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (a.text != null) SelectableText(a.text!),
-              if (a.forwardedFrom != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text('Переслано из: ${a.forwardedFrom}', style: theme.textTheme.bodySmall),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  TypeBadge(a.type),
+                  StatusBadge(a.status),
+                  if (a.status != AppealStatus.closed) DueBadge(state: a.dueState, dueAt: due),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                a.summary ?? 'Без краткой сути',
+                style: TextStyle(color: c.heading, fontSize: 21, fontWeight: FontWeight.w500, height: 1.2, letterSpacing: -0.6),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                [a.number, a.category?.name ?? 'без категории', 'приоритет ${session.priorityLabel(a.priority).toLowerCase()}'].join(' · '),
+                style: TextStyle(color: c.muted, fontSize: 13.5),
+              ),
+              if (participant) ...[
+                const SizedBox(height: 12),
+                const _Notice(
+                  text:
+                      'Вы видите это обращение, потому что ваше присоединили к нему как повтор. '
+                      'Статусы и итог приходят вам, текст и автор основного обращения скрыты.',
                 ),
-              if (a.proposedSolution != null) ...[const _Title('Предлагаемое решение'), SelectableText(a.proposedSolution!)],
+              ],
+              _Outcome(appeal: a, onOpen: (id) => _openAppeal(context, id)),
+              if (a.participantsCount > 1 && !participant)
+                _Notice(
+                  key2: const Key('participants-count'),
+                  text: 'Об этом сказали ${a.participantsCount} ${plural(a.participantsCount, ('человек', 'человека', 'человек'))}',
+                  tone: _Tone.info,
+                ),
+              if (a.text != null) ...[
+                const SizedBox(height: 18),
+                SelectableText(a.text!, style: TextStyle(fontSize: 15.5, height: 1.55, color: theme.colorScheme.onSurface)),
+                if (a.forwardedFrom != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('Переслано из: ${a.forwardedFrom}', style: TextStyle(color: c.muted, fontSize: 13)),
+                  ),
+              ],
+              if (a.proposedSolution != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(Web.rTile)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Предлагаемое решение',
+                        style: TextStyle(color: c.muted, fontSize: 12.5, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(a.proposedSolution!, style: const TextStyle(fontSize: 15, height: 1.5)),
+                    ],
+                  ),
+                ),
+              ],
+              if (needsAssignee(a)) AssignSection(appeal: a, onUpdated: onUpdated),
+              if (DiscussionRef.fromJson(a.discussion) case final discussion?) _DiscussionLink(discussion: discussion),
+              // Подвал действий (`.sheet__foot`): переписка и действия по обращению.
+              Container(
+                margin: const EdgeInsets.only(top: 18),
+                padding: const EdgeInsets.only(top: 14),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: c.palette.border)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!participant && canReadMessages(a)) ...[
+                      ChatEntry(key: ValueKey('chat-$version'), appeal: a, onAppealChanged: onChanged),
+                      const SizedBox(height: 8),
+                    ],
+                    ActionsPanel(appeal: a, onUpdated: onUpdated),
+                  ],
+                ),
+              ),
+              CardBlock(children: [FactsTile(facts)]),
+              if (!participant) ...[
+                DuplicatesSection(
+                  key: ValueKey('duplicates-$version'),
+                  appeal: a,
+                  onMerged: onChanged,
+                  onOpen: (id) => _openAppeal(context, id),
+                ),
+                BitrixSection(appeal: a, onUpdated: onUpdated),
+                AttachmentsSection(appeal: a, onChanged: onChanged, pickFiles: pickFiles),
+                HistorySection(key: ValueKey('history-$version'), appealId: a.id),
+              ],
             ],
           ),
-        if (!participant) ...[
-          if (canReadMessages(a)) MessagesSection(key: ValueKey('messages-$version'), appeal: a, onAppealChanged: onChanged),
-          AttachmentsSection(appeal: a, onChanged: onChanged, pickFiles: pickFiles),
-          HistorySection(key: ValueKey('history-$version'), appealId: a.id),
-        ],
+        ),
       ],
     );
   }
@@ -251,44 +289,6 @@ void _openAppeal(BuildContext context, int id) => Navigator.of(context).push(
     builder: (_) => AppealScreen(key: ValueKey('appeal-$id'), appealId: id),
   ),
 );
-
-class _Title extends StatelessWidget {
-  const _Title(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 8),
-    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-  );
-}
-
-class _Fact extends StatelessWidget {
-  const _Fact(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 160,
-            padding: const EdgeInsets.only(right: 12),
-            child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-}
 
 class _Notice extends StatelessWidget {
   const _Notice({required this.text, this.title, this.tone = _Tone.neutral, this.key2});
@@ -472,55 +472,212 @@ class _MessagesSectionState extends State<MessagesSection> {
         rows.add(_DaySeparator(formatDayTitle(m.createdAt)));
       }
       final startsRun = i == 0 || messages[i - 1].author.id != m.author.id || rows.last is _DaySeparator;
-      rows.add(_MessageBubble(
-        // Вопрос, на который ждут ответа, отмечен ключом: он в переписке один раз, без отдельной плашки.
-        key: replying && identical(m, lastQuestion) ? const Key('clarification-question') : null,
-        message: m,
-        mine: m.author.id == me.id,
-        showName: startsRun,
-      ));
+      rows.add(
+        _MessageBubble(
+          // Вопрос, на который ждут ответа, отмечен ключом: он в переписке один раз, без отдельной плашки.
+          key: replying && identical(m, lastQuestion) ? const Key('clarification-question') : null,
+          message: m,
+          mine: m.author.id == me.id,
+          showName: startsRun,
+        ),
+      );
     }
-    return CardBlock(
-      title: 'Переписка',
+    final c = ModusColors.of(context);
+    // Панель переписки как `.chat` в вебе: шапка, лента по дням снизу вверх, поле с кнопкой «Отправить».
+    return Column(
       children: [
-        if (_messages == null && _loadError == null) const LinearProgressIndicator(),
-        if (_loadError != null) Text(_loadError!.message, style: TextStyle(color: theme.colorScheme.error)),
-        if (_messages != null && messages.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('Сообщений пока нет.', style: theme.textTheme.bodySmall),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 12, 10),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: c.palette.border)),
           ),
-        ...rows,
-        if (canWrite) ...[
-          const SizedBox(height: 12),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(
-              child: TextField(
-                key: const Key('message-text'),
-                controller: _text,
-                enabled: !_busy,
-                minLines: 1,
-                maxLines: 6,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: replying ? 'Ответ на вопрос' : 'Сообщение ответственному',
-                  errorText: _sendError,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: c.surface, shape: BoxShape.circle),
+                child: Icon(LucideIcons.messageCircle, size: 20, color: c.heading),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Переписка',
+                      style: TextStyle(color: c.heading, fontSize: 17, fontWeight: FontWeight.w600),
+                    ),
+                    Text('${widget.appeal.number} · в общую ленту не попадает', style: TextStyle(color: c.muted, fontSize: 13)),
+                  ],
                 ),
-                onChanged: (_) => setState(() {}),
+              ),
+              ToolButton(icon: LucideIcons.x, tooltip: 'Закрыть', onTap: () => Navigator.of(context).maybePop()),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _messages == null && _loadError == null
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  children: [
+                    if (_loadError != null) Text(_loadError!.message, style: TextStyle(color: theme.colorScheme.error)),
+                    if (_messages != null && messages.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'Сообщений пока нет.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: c.muted),
+                        ),
+                      ),
+                    ...rows.reversed,
+                  ],
+                ),
+        ),
+        if (canWrite)
+          SafeArea(
+            top: false,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              padding: const EdgeInsets.fromLTRB(16, 6, 8, 8),
+              decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(24), boxShadow: c.extra.shadowRaised),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    key: const Key('message-text'),
+                    controller: _text,
+                    enabled: !_busy,
+                    minLines: 1,
+                    maxLines: 6,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: const TextStyle(fontSize: 16, height: 1.45),
+                    decoration: InputDecoration(
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      hintText: replying ? 'Ответ на вопрос' : 'Напишите сообщение',
+                      hintStyle: TextStyle(color: c.muted, fontSize: 16),
+                      errorText: _sendError,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  Row(
+                    children: [
+                      const Spacer(),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 150),
+                        opacity: _busy || _text.text.trim().isEmpty ? 0.45 : 1,
+                        child: Material(
+                          color: theme.colorScheme.primary,
+                          shape: const StadiumBorder(),
+                          child: InkWell(
+                            key: const Key('message-send'),
+                            customBorder: const StadiumBorder(),
+                            onTap: _busy || _text.text.trim().isEmpty
+                                ? null
+                                : () {
+                                    HapticFeedback.lightImpact();
+                                    _send();
+                                  },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    replying ? 'Ответить' : 'Отправить',
+                                    style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _busy
+                                      ? SizedBox.square(
+                                          dimension: 14,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onPrimary),
+                                        )
+                                      : Icon(LucideIcons.arrowUp, size: 16, color: theme.colorScheme.onPrimary),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              key: const Key('message-send'),
-              tooltip: replying ? 'Ответить' : 'Отправить',
-              onPressed: _busy || _text.text.trim().isEmpty ? null : _send,
-              icon: _busy
-                  ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.send_rounded),
-            ),
-          ]),
-        ],
+          ),
       ],
+    );
+  }
+}
+
+/// Экран переписки — открывается из карточки кнопкой «Переписка» (в вебе — панель рядом с карточкой).
+class ChatScreen extends StatelessWidget {
+  const ChatScreen({super.key, required this.appeal, required this.onAppealChanged});
+
+  final Appeal appeal;
+  final Future<void> Function() onAppealChanged;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: ModusColors.of(context).card,
+    body: SafeArea(
+      bottom: false,
+      child: MessagesSection(appeal: appeal, onAppealChanged: onAppealChanged),
+    ),
+  );
+}
+
+/// Кнопка «Переписка» в подвале карточки (`.chat-entry`): значок, подпись и, если ждут ответа, акцент.
+class ChatEntry extends StatelessWidget {
+  const ChatEntry({super.key, required this.appeal, required this.onAppealChanged});
+
+  final Appeal appeal;
+  final Future<void> Function() onAppealChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    final ask = appeal.allowedActions.contains(AppealAction.replyClarification);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: ask ? c.warnBg : c.extra.surface3,
+        shape: const StadiumBorder(),
+        child: InkWell(
+          key: const Key('chat-entry'),
+          customBorder: const StadiumBorder(),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ChatScreen(appeal: appeal, onAppealChanged: onAppealChanged),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.messageCircle, size: 18, color: ask ? c.warn : c.heading),
+                const SizedBox(width: 10),
+                Text(
+                  ask ? 'Ответить на вопрос' : 'Переписка',
+                  style: TextStyle(color: ask ? c.warn : c.heading, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -532,11 +689,9 @@ class _DaySeparator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Center(
-          child: Text(text, style: Theme.of(context).textTheme.labelSmall),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Center(child: Text(text, style: Theme.of(context).textTheme.labelSmall)),
+  );
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -554,13 +709,13 @@ class _MessageBubble extends StatelessWidget {
     final bg = question
         ? c.warnBg
         : mine
-            ? theme.colorScheme.primary
-            : c.surface;
+        ? theme.colorScheme.primary
+        : c.surface;
     final fg = question
         ? c.warn
         : mine
-            ? theme.colorScheme.onPrimary
-            : theme.colorScheme.onSurface;
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface;
     const r = Radius.circular(18);
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
@@ -585,15 +740,21 @@ class _MessageBubble extends StatelessWidget {
                 bottomRight: mine ? const Radius.circular(6) : r,
               ),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (question)
-                Text('Уточняющий вопрос', style: theme.textTheme.labelSmall?.copyWith(color: fg, fontWeight: FontWeight.w700)),
-              SelectableText(message.text, style: TextStyle(color: fg)),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(formatTime(message.createdAt), style: theme.textTheme.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7))),
-              ),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (question)
+                  Text(
+                    'Уточняющий вопрос',
+                    style: theme.textTheme.labelSmall?.copyWith(color: fg, fontWeight: FontWeight.w700),
+                  ),
+                SelectableText(message.text, style: TextStyle(color: fg)),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(formatTime(message.createdAt), style: theme.textTheme.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7))),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -668,10 +829,7 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
             crossAxisSpacing: 8,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            children: [
-              for (final a in images)
-                AttachmentThumb(key: Key('attachment-${a.id}'), attachment: a, onTap: () => _open(a)),
-            ],
+            children: [for (final a in images) AttachmentThumb(key: Key('attachment-${a.id}'), attachment: a, onTap: () => _open(a))],
           ),
         for (final a in files)
           ListTile(
@@ -690,7 +848,9 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
             child: TextButton.icon(
               key: const Key('upload-attachment'),
               onPressed: _busy ? null : _upload,
-              icon: _busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file),
+              icon: _busy
+                  ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.attach_file),
               label: const Text('Приложить файл'),
             ),
           ),
@@ -741,27 +901,37 @@ class _HistorySectionState extends State<HistorySection> {
     for (var i = 0; i < events.length; i++) {
       final ev = events[i];
       if (i == 0 || dayKey(events[i - 1].createdAt) != dayKey(ev.createdAt)) {
-        rows.add(Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 6),
-          child: Text(formatDayTitle(ev.createdAt), style: theme.textTheme.labelLarge),
-        ));
-      }
-      rows.add(Padding(
-        key: Key('history-${ev.id}'),
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(width: 48, child: Text(formatTime(ev.createdAt), style: muted)),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(historyKindLabel(ev.kind), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-              if (ev.oldValue != null || ev.newValue != null)
-                Text([value(ev.oldValue, ev.field), value(ev.newValue, ev.field)].whereType<String>().join(' → ')),
-              if (ev.comment != null) Text(ev.comment!, style: muted),
-              Text(ev.actor?.fullName ?? 'Система', style: muted),
-            ]),
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 6),
+            child: Text(formatDayTitle(ev.createdAt), style: theme.textTheme.labelLarge),
           ),
-        ]),
-      ));
+        );
+      }
+      rows.add(
+        Padding(
+          key: Key('history-${ev.id}'),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 48, child: Text(formatTime(ev.createdAt), style: muted)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(historyKindLabel(ev.kind), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    if (ev.oldValue != null || ev.newValue != null)
+                      Text([value(ev.oldValue, ev.field), value(ev.newValue, ev.field)].whereType<String>().join(' → ')),
+                    if (ev.comment != null) Text(ev.comment!, style: muted),
+                    Text(ev.actor?.fullName ?? 'Система', style: muted),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     return CardBlock(
       title: _events == null ? 'История' : 'История · ${events.length}',
