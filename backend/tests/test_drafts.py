@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI
 from sqlalchemy import func, select
 
@@ -125,3 +126,11 @@ async def test_voice_validation(client, login_as) -> None:
     assert (long.status_code, long.json()["error"]["code"]) == (422, "audio_too_long")
     blank = await client.post("/api/v1/drafts/text", headers=headers, json={"text": "   "})
     assert blank.status_code == 422
+
+
+@pytest.mark.parametrize("written", ["межотдельное взаимодействие", "«Межотдельное взаимодействие»", "  Межотдельное  взаимодействие. "])
+async def test_category_from_model_is_matched_loosely(client, login_as, fake_claude, written) -> None:
+    """Модель пишет категорию не буква в букву: регистр, кавычки и пробелы не должны терять её."""
+    set_draft(fake_claude, category=written)
+    response = await client.post("/api/v1/drafts/text", headers=await login_as("employee_sales"), json={"text": "Нет назначения"})
+    assert response.json()["category"] == {"id": 1, "name": "Межотдельное взаимодействие"}

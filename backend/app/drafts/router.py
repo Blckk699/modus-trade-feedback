@@ -12,6 +12,7 @@ from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from app.adapters.claude import match_category
 from app.api.deps import ClaudeDep, CurrentUserDep, SessionDep, SpeechDep
 from app.api.schemas import CategoryRef
 from app.domain.enums import AppealType, Priority
@@ -51,7 +52,8 @@ async def _draft(session, claude, text: str, transcript: str | None) -> AppealDr
         draft = await claude.draft_appeal(text, [c.name for c in categories])
     except ExternalServiceError as exc:
         raise AiUnavailable() from exc
-    category = next((c for c in categories if c.name == draft.category), None)
+    name = match_category(draft.category, [c.name for c in categories])
+    category = next((c for c in categories if c.name == name), None)
     return AppealDraftOut(
         type=draft.type,
         category=CategoryRef(id=category.id, name=category.name) if category else None,
