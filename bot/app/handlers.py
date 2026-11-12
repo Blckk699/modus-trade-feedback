@@ -8,7 +8,15 @@ from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, MenuButtonWebApp, Message, WebAppInfo
+from aiogram.types import (
+    CallbackQuery,
+    CopyTextButton,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    MenuButtonWebApp,
+    Message,
+    WebAppInfo,
+)
 
 from app import formatting, keyboards, texts, widgets
 from app.api import Api, ApiError
@@ -52,6 +60,10 @@ async def login_code(message: Message, bot: Bot, state: FSMContext, api: Api, se
         html=widgets.LOGIN_CODE,
         data=formatting.login_code_data(code.code, code.expires_at, code.ttl_seconds),
         caption=texts.login_code(html.escape(code.code), code.ttl_seconds),
+        # Кнопка Telegram, а не кнопка в виджете: copyText в виджете с защитой контента запрещён.
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text=texts.BTN_COPY_CODE, copy_text=CopyTextButton(text=code.code))]]
+        ),
     )
 
 

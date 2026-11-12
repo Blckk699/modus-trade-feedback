@@ -190,8 +190,10 @@ APPEAL_CARD = (
     "</script></body></html>"
 )
 
-# Код входа: крупные цифры, кнопка как .btn--accent сайта (copyText) и бейдж срока действия
-# в цветах .badge--due-*: обычный → «скоро» (последняя минута) → «просрочено».
+# Код входа: крупные цифры и бейдж срока действия в цветах .badge--due-*: обычный → «скоро»
+# (последняя минута) → «просрочено». Копирует код кнопка Telegram под виджетом (copy_text):
+# виджеты в проде идут с защитой контента, и copyText изнутри Telegram запрещает
+# («копирование и пересылка отключены в этом чате»).
 # chat_data: {c: код, e: истекает (мс с эпохи)}
 LOGIN_CODE = (
     "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width\"><style>"
@@ -199,20 +201,15 @@ LOGIN_CODE = (
     + ".w{text-align:center}"
     ".c{font:600 34px/1.2 ui-monospace,monospace;letter-spacing:8px;margin:6px 0 12px;color:var(--heading)}"
     ".c.x{opacity:.35;text-decoration:line-through}"
-    "button{font:600 14px system-ui,sans-serif;border:0;border-radius:999px;min-height:42px;padding:0 24px;"
-    "background:var(--accent);color:var(--accent-text)}"
-    "button:disabled{opacity:.45}"
-    ".t{margin-top:10px}"
+    ".t{margin-top:4px}"
     "</style></head><body><div class=\"w\"><div class=\"m\">Код входа в «Модус Трейд»</div>"
-    "<div class=\"c\" id=\"c\"></div><button id=\"b\">Скопировать</button>"
+    "<div class=\"c\" id=\"c\"></div>"
     "<div class=\"t\"><span class=\"bg\" id=\"t\"></span></div></div><script>"
     + _ESCAPE_JS
-    + "var d=D(),c=document.getElementById('c'),b=document.getElementById('b'),t=document.getElementById('t');"
+    + "var d=D(),c=document.getElementById('c'),t=document.getElementById('t');"
     "c.textContent=d.c||'';"
-    "b.onclick=function(){if(W.copyText&&d.c)W.copyText(String(d.c));"
-    "if(W.HapticFeedback&&W.HapticFeedback.notificationOccurred)W.HapticFeedback.notificationOccurred('success')};"
     "function tick(){var s=Math.round(((d.e||0)-Date.now())/1000);"
-    "if(s<=0){t.textContent='Код истёк — запросите новый';t.className='bg overdue';c.className='c x';b.disabled=true;return false}"
+    "if(s<=0){t.textContent='Код истёк — запросите новый';t.className='bg overdue';c.className='c x';return false}"
     "t.className=s<=60?'bg due_soon':'bg';"
     "t.textContent='Действует ещё '+Math.floor(s/60)+':'+('0'+s%60).slice(-2);return true}"
     "if(tick()&&typeof setInterval==='function'){var iv=setInterval(function(){if(!tick())clearInterval(iv)},1000)}"

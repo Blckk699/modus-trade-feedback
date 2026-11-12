@@ -4,6 +4,7 @@ BTN_SUBMIT = "Подать обращение"
 BTN_MY_APPEALS = "Мои обращения"
 BTN_DIGEST = "Сводка"
 BTN_LOGIN_CODE = "Код входа"
+BTN_COPY_CODE = "Скопировать код"
 BTN_OPEN_APP = "Открыть"
 
 APP_NAME = "Модус Трейд"

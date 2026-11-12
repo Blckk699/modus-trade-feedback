@@ -87,6 +87,10 @@ async def test_login_code_comes_as_widget_with_copyable_code(harness, backend):
     assert widget.html == widgets.LOGIN_CODE
     assert data(widget) == {"c": "482913", "e": 1794494100000}  # 19:35 +05:00
     assert "<code>482913</code>" in widget.caption and widget.parse_mode == "HTML"
+    # Копирует кнопка Telegram под виджетом: copyText внутри защищённого виджета запрещён.
+    [[button]] = widget.reply_markup.inline_keyboard
+    assert button.text == texts.BTN_COPY_CODE and button.copy_text.text == "482913"
+    assert "copyText" not in widgets.LOGIN_CODE
     assert harness.telegram.sent() == []
 
 
@@ -97,6 +101,7 @@ async def test_without_widget_support_the_same_text_is_sent(harness, backend):
 
     [message] = harness.telegram.sent()
     assert "<code>482913</code>" in message.text
+    assert message.reply_markup.inline_keyboard[0][0].copy_text.text == "482913"  # и в простом тексте
 
 
 async def test_after_method_not_found_widgets_are_not_tried_again(harness, backend):
@@ -239,4 +244,3 @@ def test_login_code_script_shows_code_and_countdown():
     expired = run_widget(widgets.LOGIN_CODE, json.dumps({"c": "482913", "e": 1}))
     assert expired["t"]["textContent"].startswith("Код истёк")
     assert expired["t"]["className"] == "bg overdue"  # как .badge--due-overdue на сайте
-    assert expired["b"]["disabled"] is True
