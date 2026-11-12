@@ -9,6 +9,7 @@ import 'badges.dart';
 import 'rows.dart';
 import '../../theme/modus_theme.dart';
 import '../home/role_switch.dart';
+import '../sheet_header.dart';
 
 /// Значение фильтра статуса: все открытые, любой или конкретный статус.
 sealed class StatusFilter {
@@ -383,7 +384,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
       padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('Фильтры', style: Theme.of(context).textTheme.titleLarge),
+          const SheetHeader('Фильтры'),
           const SizedBox(height: 16),
           DropdownButtonFormField<StatusFilter>(
             key: const Key('filter-status'),
