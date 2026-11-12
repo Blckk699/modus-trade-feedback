@@ -1,6 +1,7 @@
 // Строка с выключателем (.toggle-row) описана в стилях настроек.
 import '../settings/settings.css';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { KeyRound, Mail, Send, Volume2, VolumeX } from 'lucide-react';
 import { playNotify, setSoundEnabled, soundEnabled } from '../live/sound';
 import { Avatar } from '../app/Avatar';
@@ -34,9 +35,11 @@ import { getWebApp } from '../telegram/webApp';
  */
 export function ProfilePage() {
   // Переход из колокольчика (/profile#notifications): показываем блок уведомлений, а не верх страницы.
+  // Зависим от hash, а не от монтирования: ссылка из колокольчика работает и когда профиль уже открыт.
+  const { hash, key } = useLocation();
   useEffect(() => {
-    if (window.location.hash === '#notifications') document.getElementById('notifications')?.scrollIntoView({ block: 'start' });
-  }, []);
+    if (hash === '#notifications') document.getElementById('notifications')?.scrollIntoView({ block: 'start' });
+  }, [hash, key]);
   const me = useMe();
   const dict = useDictionaries();
   const { setMe } = useAuth();
