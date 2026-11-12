@@ -31,6 +31,21 @@
   font-size: 13.5px;
 }
 
+/* Панель над списком (поиск, пояснение, «Добавить») — верх той же карточки, что и список, а не отдельная строка */
+.settings-toolbar:has(+ .settings-list),
+.settings-toolbar:has(+ .empty) {
+  margin-bottom: calc(-1 * var(--gap));
+  padding: 18px 24px 14px;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  background: var(--card);
+}
+
+.settings-toolbar + .settings-list,
+.settings-toolbar + .empty {
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--r-card) var(--r-card);
+}
+
 /* список — одна карточка, строки разделены линией */
 .settings-list {
   display: grid;
@@ -233,6 +248,11 @@
 @media (max-width: 760px) {
   .settings-list {
     padding: 4px 18px;
+  }
+
+  .settings-toolbar:has(+ .settings-list),
+  .settings-toolbar:has(+ .empty) {
+    padding: 16px 18px 14px;
   }
 
   .settings-tab > .settings-form {
