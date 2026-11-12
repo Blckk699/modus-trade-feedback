@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../api/files', () => ({ fetchAttachmentBlob: vi.fn() }));
 
 import { tokenStore } from '../auth/tokenStore';
-import { forgetAttachments, rememberLocal } from './useAttachmentUrl';
+import { forgetAttachment, forgetAttachments, rememberLocal } from './useAttachmentUrl';
 
 describe('кеш скачанных вложений живёт в пределах одной сессии', () => {
   const created: string[] = [];
@@ -42,6 +42,14 @@ describe('кеш скачанных вложений живёт в предел�
     tokenStore.set('токен');
     rememberLocal(3, new Blob(['c']));
     tokenStore.set(null);
+    await settle();
+    expect(revoked).toEqual(['blob:test-1']);
+  });
+
+  it('удалённый файл освобождается один, остальные остаются', async () => {
+    rememberLocal(5, new Blob(['e']));
+    rememberLocal(6, new Blob(['f']));
+    forgetAttachment(5);
     await settle();
     expect(revoked).toEqual(['blob:test-1']);
   });

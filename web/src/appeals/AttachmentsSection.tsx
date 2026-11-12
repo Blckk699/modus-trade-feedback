@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { Paperclip, Play, UploadCloud } from 'lucide-react';
-import { errorMessage } from '../api/errors';
-import { downloadAttachment, uploadAttachment } from '../api/files';
+import { Paperclip, Play, Trash2, UploadCloud } from 'lucide-react';
+import { ApiError, errorMessage } from '../api/errors';
+import { deleteAttachment, downloadAttachment, uploadAttachment } from '../api/files';
 import type { Schemas } from '../api/types';
+import { Modal } from '../app/Modal';
 import { formatSize } from '../lib/format';
 import { fileKind, splitBySize } from './attachments';
 import { AttachmentViewer, Thumb } from './AttachmentViewer';
-import { rememberLocal } from './useAttachmentUrl';
+import { forgetAttachment, rememberLocal } from './useAttachmentUrl';
 
 type Appeal = Schemas['Appeal'];
 type Attachment = Schemas['Attachment'];
 
 /**
  * Вложения в карточке — галерея: плитки с превью, просмотр каруселью, загрузка кнопкой
- * или перетаскиванием файлов на раздел. Приложить можно, если в allowed_actions есть upload_attachment.
+ * или перетаскиванием файлов на раздел. Приложить можно, если в allowed_actions есть upload_attachment,
+ * удалить — если у файла can_delete; удаление безвозвратное, поэтому с подтверждением.
  */
 export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
   const [items, setItems] = useState<Attachment[]>(appeal.attachments);
@@ -21,7 +23,13 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
   const [error, setError] = useState('');
   const [over, setOver] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<Attachment | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const depth = useRef(0);
+
+  // Карточку перечитали (живое обновление, действие в карточке) — берём список с сервера.
+  useEffect(() => setItems(appeal.attachments), [appeal.attachments]);
   const canUpload = appeal.allowed_actions.includes('upload_attachment');
   const busy = pending.length > 0;
 
@@ -44,6 +52,31 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
       setPending((names) => names.slice(1));
     }
     setError(errors.join(' '));
+  }
+
+  function askRemove(att: Attachment) {
+    setRemoveError('');
+    setRemoving(att);
+  }
+
+  async function remove() {
+    if (!removing) return;
+    setRemoveBusy(true);
+    setRemoveError('');
+    try {
+      await deleteAttachment(removing.id);
+      forgetAttachment(removing.id);
+      const rest = items.filter((x) => x.id !== removing.id);
+      setItems(rest);
+      // Просмотр остаётся на соседнем файле; файлов не осталось — закрывается.
+      setViewing((v) => (v === null || rest.length === 0 ? null : Math.min(v, rest.length - 1)));
+      setRemoving(null);
+    } catch (e) {
+      // 405 отвечает сервер, на котором удаление ещё не выложено.
+      setRemoveError(e instanceof ApiError && e.status === 405 ? 'Удаление файлов на этом сервере ещё не включено.' : errorMessage(e));
+    } finally {
+      setRemoveBusy(false);
+    }
   }
 
   async function download(att: Attachment) {
@@ -113,8 +146,13 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
       {(items.length > 0 || pending.length > 0) && (
         <ul className="files__grid">
           {items.map((att, i) => (
-            <li key={att.id}>
+            <li key={att.id} className="files__cell">
               <Tile att={att} onOpen={() => setViewing(i)} />
+              {att.can_delete && (
+                <button type="button" className="files__remove" aria-label={`Удалить ${att.filename}`} onClick={() => askRemove(att)}>
+                  <Trash2 size={15} aria-hidden="true" />
+                </button>
+              )}
             </li>
           ))}
           {pending.map((name, i) => (
@@ -142,13 +180,47 @@ export function AttachmentsSection({ appeal }: { appeal: Appeal }) {
       )}
 
       {viewing !== null && (
-        <AttachmentViewer items={items} index={Math.min(viewing, items.length - 1)} onIndex={setViewing} onClose={() => setViewing(null)} onDownload={download} />
+        <AttachmentViewer
+          items={items}
+          index={Math.min(viewing, items.length - 1)}
+          onIndex={setViewing}
+          onClose={() => setViewing(null)}
+          onDownload={download}
+          onDelete={askRemove}
+        />
       )}
+
+      {/* Подтверждение стоит после просмотра: открытое из него окно ложится поверх. */}
+      <Modal open={removing !== null} onClose={() => setRemoving(null)} labelledBy="file-remove-title" locked={removeBusy}>
+        {removing && (
+          <div className="user-form">
+            <div className="user-form__head">
+              <h2 id="file-remove-title" className="user-form__title">
+                Удалить файл?
+              </h2>
+              <p className="muted">«{removing.filename}» исчезнет из обращения. Вернуть его не получится.</p>
+            </div>
+            {removeError && (
+              <p className="error-text" role="alert">
+                {removeError}
+              </p>
+            )}
+            <div className="user-form__actions">
+              <button type="button" className="btn btn--soft" onClick={() => setRemoving(null)} disabled={removeBusy} data-autofocus>
+                Отмена
+              </button>
+              <button type="button" className="btn btn--danger" onClick={remove} disabled={removeBusy}>
+                {removeBusy ? 'Удаляем…' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }
 
-/** Плитка файла. Картинка подгружается, когда плитка показалась на экране: файлы бывают по 10 МБ. */
+/** Плитка файла. Уменьшенная копия подгружается, когда плитка показалась на экране. */
 function Tile({ att, onOpen }: { att: Attachment; onOpen: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [seen, setSeen] = useState(false);

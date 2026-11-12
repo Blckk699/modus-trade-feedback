@@ -907,13 +907,29 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Скачать файл
+         * Скачать файл или его уменьшенную копию
          * @description Отдаётся только тем, кто видит обращение (участнику склеенного повтора — нет).
+         *
+         *     `preview=1` — уменьшенная копия картинки для списка вложений: JPEG, вписанный в 480×480 пикселей
+         *     с сохранением пропорций (прозрачный фон заливается белым, у анимации берётся первый кадр).
+         *     Есть только у картинок JPEG, PNG, WebP и GIF — у них `Attachment.preview_url` не `null`.
+         *     Для остальных файлов и для картинки, которую не удалось прочитать, — `404 not_found`:
+         *     клиент показывает значок файла.
+         *
          */
         get: operations["downloadAttachment"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Удалить файл
+         * @description Кто может: тот, кто загрузил файл, ответственный, руководитель подразделения обращения и собственник —
+         *     пока обращение не в финальном статусе (условие то же, что у загрузки). Остальным и после завершения
+         *     обращения — `403`. Клиенту считать права не нужно: кнопку показывать при `Attachment.can_delete`.
+         *     Файл удаляется безвозвратно. В историю обращения пишется событие `attachment_removed`:
+         *     `field` — `attachment`, `old_value` — имя файла, `comment` — «Файл удалён».
+         *
+         */
+        delete: operations["deleteAttachment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1475,10 +1491,10 @@ export interface paths {
          *
          *     | Код | Причина | Что делать клиенту |
          *     |---|---|---|
-         *     | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта, доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
+         *     | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта (выход, смена или сброс пароля), доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
          *     | `4408` | за 10 секунд после открытия не пришёл `auth` | переподключиться и сразу отправить `auth` |
          *     | `4400` | сообщение не JSON-объект, без `type` или длиннее 4 КБ | исправить клиент |
-         *     | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое | не переподключать закрытое |
+         *     | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое; либо с одного адреса открыто больше 20 соединений, ещё не отправивших `auth`, — закрывается новое | не переподключать закрытое |
          *     | `1001`, `1012` | сервер перезапускается | переподключиться |
          *
          *     Маршрут описан как `GET`, потому что соединение открывается HTTP-запросом с `Upgrade: websocket`.
@@ -2332,7 +2348,7 @@ export interface components {
          * @description Вид события в истории обращения
          * @enum {string}
          */
-        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "attachment_removed" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
         /** @example {
          *       "type": "auth",
          *       "token": "3fa1c0d2e4b54f6c8a7e9d0b1c2f3a4e"
@@ -2389,7 +2405,7 @@ export interface components {
         /** @example {
          *       "type": "appeal.created",
          *       "appeal_id": 42,
-         *       "number": "MT-000042",
+         *       "number": "A-042",
          *       "status": "new"
          *     } */
         WsAppealCreated: {
@@ -2405,7 +2421,7 @@ export interface components {
         /** @example {
          *       "type": "appeal.updated",
          *       "appeal_id": 42,
-         *       "number": "MT-000042",
+         *       "number": "A-042",
          *       "status": "in_review",
          *       "changed": [
          *         "status_changed"
@@ -2511,6 +2527,12 @@ export interface components {
             size_bytes: number;
             /** @description Путь от корня сервера (`/api/v1/attachments/{id}`), требует авторизации */
             download_url: string;
+            /** @description Уменьшенная копия картинки (`/api/v1/attachments/{id}?preview=1`), требует авторизации.
+             *     `null` — файл не картинка, показывать значок
+             *      */
+            preview_url: string | null;
+            /** @description Может ли текущий пользователь удалить файл сейчас (`DELETE /attachments/{id}`) */
+            can_delete: boolean;
             uploaded_by: components["schemas"]["UserBrief"];
             /** Format: date-time */
             created_at: string;
@@ -4423,6 +4445,35 @@ export interface operations {
     };
     downloadAttachment: {
         parameters: {
+            query?: {
+                /** @description Отдать уменьшенную копию картинки вместо файла */
+                preview?: boolean;
+            };
+            header?: never;
+            path: {
+                attachment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Содержимое файла; при `preview=1` — уменьшенная копия */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                    "image/jpeg": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteAttachment: {
+        parameters: {
             query?: never;
             header?: never;
             path: {
@@ -4432,14 +4483,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Содержимое файла */
-            200: {
+            /** @description Файл удалён */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/octet-stream": string;
-                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

@@ -31,9 +31,12 @@ export function uploadMeeting(file: File, title: string): Promise<Schemas['Meeti
   );
 }
 
-/** Содержимое вложения: download_url требует токен, поэтому файл берём через fetch, а не ссылкой. */
-export async function fetchAttachmentBlob(att: Schemas['Attachment']): Promise<Blob> {
-  const url = att.download_url.startsWith('http') ? att.download_url : `${config.apiBaseUrl}${att.download_url}`;
+/**
+ * Содержимое вложения: адреса требуют токен, поэтому файл берём через fetch, а не ссылкой.
+ * `path` — другой адрес того же файла (уменьшенная копия `preview_url`); по умолчанию сам файл.
+ */
+export async function fetchAttachmentBlob(att: Schemas['Attachment'], path: string = att.download_url): Promise<Blob> {
+  const url = path.startsWith('http') ? path : `${config.apiBaseUrl}${path}`;
   const token = tokenStore.get();
   let res: Response;
   try {
@@ -43,6 +46,17 @@ export async function fetchAttachmentBlob(att: Schemas['Attachment']): Promise<B
   }
   if (!res.ok) throw toApiError(res.status, await res.json().catch(() => null));
   return res.blob();
+}
+
+/**
+ * Удалить вложение безвозвратно. 404 — файла уже нет (удалили в другой вкладке): для списка это тот же итог.
+ */
+export async function deleteAttachment(attachmentId: number): Promise<void> {
+  const { error, response } = await api.DELETE('/api/v1/attachments/{attachment_id}', {
+    params: { path: { attachment_id: attachmentId } },
+  });
+  if (response.ok || response.status === 404) return;
+  throw toApiError(response.status, error);
 }
 
 /** Сохранить вложение как файл. */
