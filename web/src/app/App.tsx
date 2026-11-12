@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { InvitePage } from '../access/InvitePage';
-import { AccessRequestScreen, LoginScreen, RegisterScreen, useAuth } from '../auth';
+import { AccessRequestScreen, BITRIX_DONE_PATH, BitrixDoneScreen, LoginScreen, RegisterScreen, useAuth } from '../auth';
 import { DiscussionPage } from '../discussions/DiscussionPage';
 import { FeedPage } from '../discussions/FeedPage';
 import { MeetingPage } from '../meetings/MeetingPage';
@@ -69,6 +69,7 @@ function AuthGate() {
     return (
       <Routes>
         <Route path="/register" element={<RegisterScreen />} />
+        <Route path={BITRIX_DONE_PATH} element={<BitrixDoneScreen />} />
         <Route path="*" element={<LoginScreen />} />
       </Routes>
     );
