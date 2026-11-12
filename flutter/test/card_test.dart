@@ -125,4 +125,43 @@ void main() {
     expect(find.descendant(of: find.byKey(const Key('attachment-gallery')), matching: find.byKey(const Key('attachment-7'))), findsOneWidget);
     expect(find.text('заявка.pdf'), findsOneWidget);
   });
+
+  testWidgets('лист действия закрывается кнопкой «Закрыть»; тап вне поля убирает клавиатуру', (tester) async {
+    final session = SessionController(
+      api: ApiService(
+        baseUrl: 'http://mock.test',
+        httpClient: FakeServer({
+          'GET /api/v1/me': (_) => json(meJson(id: 3, role: 'head', permissions: headPermissions)),
+          'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
+          'GET /api/v1/appeals/21': (_) => json(appealJson(allowedActions: const ['take'], viewerRelations: const ['assignee'])),
+          'GET /api/v1/appeals/21/history': (_) => json([]),
+          'GET /api/v1/appeals/21/messages': (_) => json([]),
+          'GET /api/v1/appeals/21/similar': (_) => json([]),
+          'GET /api/v1/notifications/unread-count': (_) => json({'count': 0}),
+          'POST /api/v1/notifications/read': (_) => json({'count': 0}),
+        }).client,
+      ),
+      store: MemorySessionStore(serverUrl: 'http://mock.test', token: 't', tokenServer: 'http://mock.test'),
+    );
+    await session.restore();
+    await tester.pumpWidget(ModusApp(session: session));
+    await tester.pumpAndSettle();
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+    nav.push(MaterialPageRoute<void>(builder: (_) => const AppealScreen(appealId: 21)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('action-take')));
+    await tester.pumpAndSettle();
+    await tester.showKeyboard(find.byKey(const Key('action-text')));
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.tapAt(tester.getTopLeft(find.byKey(const Key('sheet-close'))) - const Offset(120, -4));
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus?.context?.widget is EditableText, isFalse, reason: 'тап вне поля снял фокус');
+
+    await tester.tap(find.byKey(const Key('sheet-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('action-submit')), findsNothing, reason: 'лист закрыт');
+    await tester.pumpWidget(const SizedBox());
+  });
 }
