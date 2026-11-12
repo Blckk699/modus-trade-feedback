@@ -23,7 +23,7 @@ BACKEND = HERE.parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
 sys.path.insert(0, str(HERE))
 
-from constants import FIRST_TELEGRAM_ID, SERVICE_KEY  # noqa: E402
+from constants import BOT_TOKEN, FIRST_TELEGRAM_ID, SERVICE_KEY  # noqa: E402
 
 
 def telegram_ids() -> dict[str, int]:
@@ -67,6 +67,7 @@ def build_app(database_url: str):
     settings = Settings(
         database_url=database_url,
         bot_service_key=SERVICE_KEY,
+        telegram_bot_token=BOT_TOKEN,
         dev_login_enabled=False,
         jobs_worker_enabled=True,
         jobs_poll_seconds=1,

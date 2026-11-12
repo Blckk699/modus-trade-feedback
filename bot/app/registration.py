@@ -64,6 +64,19 @@ def request_button(text: str = texts.BTN_REQUEST_ACCESS) -> InlineKeyboardMarkup
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=text, callback_data=data)]])
 
 
+# Профиль на сайте с «Привязать Telegram» (W-13).
+PROFILE_PATH = "/profile"
+
+
+def intro_keyboard(settings: Settings) -> InlineKeyboardMarkup:
+    """«Подать заявку» и, если известен адрес сайта, ссылка на привязку Telegram для тех, кто уже есть по почте."""
+    markup = request_button()
+    url = settings.web_link(PROFILE_PATH)
+    if url:  # обычная ссылка в браузер, не Mini App: войти по почте можно только на сайте
+        markup.inline_keyboard.append([InlineKeyboardButton(text=texts.BTN_LINK_TELEGRAM, url=url)])
+    return markup
+
+
 def profile_name(user: User) -> str:
     return " ".join(p for p in (user.first_name, user.last_name) if p).strip()[:NAME_MAX]
 
@@ -79,7 +92,7 @@ async def on_start(
     if args.startswith(INVITE_PREFIX):
         await accept_invite(message, args[len(INVITE_PREFIX) :], bot, api, settings)
         return
-    await show_status(message, api)
+    await show_status(message, api, settings)
 
 
 async def accept_invite(message: Message, token: str, bot: Bot, api: Api, settings: Settings) -> None:
@@ -97,7 +110,7 @@ async def accept_invite(message: Message, token: str, bot: Bot, api: Api, settin
     await welcome(message, bot, result["user"], settings)
 
 
-async def show_status(message: Message, api: Api, user_id: int | None = None) -> None:
+async def show_status(message: Message, api: Api, settings: Settings, user_id: int | None = None) -> None:
     """Экран по состоянию заявки. `user_id` — для нажатия кнопки, где `message` — сообщение бота."""
     try:
         status = await api.access_status(user_id or message.from_user.id)
@@ -122,7 +135,7 @@ async def show_status(message: Message, api: Api, user_id: int | None = None) ->
     elif state == "disabled":
         await message.answer(texts.ACCESS_DISABLED, reply_markup=ReplyKeyboardRemove())
     else:  # none
-        await message.answer(texts.REQUEST_INTRO, reply_markup=request_button())
+        await message.answer(f"{texts.REQUEST_INTRO}\n\n{texts.LINK_HINT}", reply_markup=intro_keyboard(settings))
 
 
 def _date(value: str | None) -> str:
@@ -251,14 +264,14 @@ async def on_form_non_text(message: Message, state: FSMContext) -> None:
 # ------------------------------------------------------------------ всё остальное от незнакомого
 
 
-async def on_other_message(message: Message, state: FSMContext, api: Api) -> None:
+async def on_other_message(message: Message, state: FSMContext, api: Api, settings: Settings) -> None:
     await state.clear()
-    await show_status(message, api)
+    await show_status(message, api, settings)
 
 
-async def on_other_callback(callback: CallbackQuery, api: Api) -> None:
+async def on_other_callback(callback: CallbackQuery, api: Api, settings: Settings) -> None:
     await callback.answer()
-    await show_status(callback.message, api, user_id=callback.from_user.id)
+    await show_status(callback.message, api, settings, user_id=callback.from_user.id)
 
 
 def build_router() -> Router:
