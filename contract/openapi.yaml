@@ -3332,6 +3332,35 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [admin]
+      summary: Удалить категорию, в которой нет обращений
+      description: |
+        Удаляется только категория без обращений (в любом статусе). Если обращения есть — `409 conflict`,
+        `details.reason = category_has_appeals` и `details.appeals_count`: такую категорию можно только
+        выключить (`PATCH` с `is_active: false`). Черновики совещаний с этой категорией остаются без категории.
+        Только администратор, остальным — `403`.
+      operationId: adminDeleteCategory
+      responses:
+        '204':
+          description: Категория удалена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: В категории есть обращения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: conflict
+                  message: В этой категории есть обращения, удалить её нельзя. Выключите категорию — новые обращения в неё не попадут.
+                  details: {reason: category_has_appeals, appeals_count: 3}
   /api/v1/admin/deadline-rules:
     get:
       tags: [admin]
@@ -4246,6 +4275,12 @@ components:
           description: |
             ID сотрудника на портале Битрикс24, если он входил через портал. Только для администратора
             и для самого пользователя
+        has_password:
+          type: boolean
+          nullable: true
+          description: |
+            Задан ли пароль для входа по почте. Только для администратора и для самого пользователя,
+            остальным — `null`. `false` — сбрасывать нечего: сотрудник входит через Telegram или Битрикс24
         full_name:
           type: string
         position:

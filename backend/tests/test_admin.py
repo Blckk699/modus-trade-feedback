@@ -198,3 +198,45 @@ async def test_first_assignment_needs_no_reason_but_change_does(client, login_as
         assert refused.json()["error"]["details"]["fields"][0]["field"] == "reason"
     changed = await client.post(url, headers=admin, json={"assignee_id": 17, "reason": "Вопрос к проектному офису"})
     assert (changed.status_code, changed.json()["assignee"]["id"]) == (200, 17)
+
+
+async def test_category_without_appeals_can_be_deleted(client, login_as) -> None:
+    """B-25 п.7: пустую категорию удаляют, категорию с обращениями — только выключают."""
+    admin = await login_as("admin")
+    created = await admin_call(client, admin, "POST", "/categories", {"name": "Временная", "department_id": 1, "responsible_id": 3})
+    assert created.status_code == 201, created.text
+    category_id = created.json()["id"]
+    assert (await admin_call(client, await login_as("owner"), "DELETE", f"/categories/{category_id}")).status_code == 403
+
+    deleted = await admin_call(client, admin, "DELETE", f"/categories/{category_id}")
+    assert (deleted.status_code, deleted.content) == (204, b"")
+    listed = (await client.get("/api/v1/categories", headers=admin, params={"include_inactive": True})).json()
+    assert category_id not in [c["id"] for c in listed]
+    assert (await admin_call(client, admin, "DELETE", f"/categories/{category_id}")).status_code == 404
+
+    busy = await admin_call(client, admin, "DELETE", "/categories/1")
+    error = busy.json()["error"]
+    assert (busy.status_code, error["code"], error["details"]["reason"]) == (409, "conflict", "category_has_appeals")
+    assert error["details"]["appeals_count"] >= 1
+    assert 1 in [c["id"] for c in (await client.get("/api/v1/categories", headers=admin)).json()]
+
+
+async def test_has_password_is_shown_to_admin_and_owner_of_the_account(client, login_as) -> None:
+    """B-25 п.8: сброс пароля предлагают только тем, у кого пароль есть."""
+    admin = await login_as("admin")
+    sales = await login_as("employee_sales")
+    me = (await client.get("/api/v1/me", headers=sales)).json()
+    users = (await client.get("/api/v1/users", headers=admin)).json()
+    assert all(u["has_password"] is False for u in users), "демо-сотрудники входят через Telegram, пароля у них нет"
+
+    done = await client.put(
+        "/api/v1/me/credentials", headers=sales, json={"email": "kim@company.kz", "new_password": "nadezhnyi-parol-2026"}
+    )
+    assert done.status_code == 200
+    by_id = {u["id"]: u for u in (await client.get("/api/v1/users", headers=admin)).json()}
+    assert by_id[me["id"]]["has_password"] is True
+    assert sum(u["has_password"] for u in by_id.values()) == 1
+
+    # Коллегам чужой признак не показывается, свой — виден.
+    for user in (await client.get("/api/v1/users", headers=sales)).json():
+        assert user["has_password"] is (True if user["id"] == me["id"] else None)

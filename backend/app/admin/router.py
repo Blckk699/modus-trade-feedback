@@ -12,7 +12,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
@@ -25,7 +25,7 @@ from app.auth.service import clear_password_failures, revoke_user_sessions
 from app.directory.router import CategoryOut, DepartmentOut
 from app.domain.enums import Priority, Role
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
-from app.models import Appeal, Category, DeadlineRule, Department, SystemSetting, User
+from app.models import Appeal, Category, DeadlineRule, Department, MeetingDraft, SystemSetting, User
 from app.models.org import User as UserModel
 
 TIME_RE = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -134,6 +134,7 @@ def _user_out(user: User, directory: Directory) -> UserOut:
         telegram_id=user.telegram_id,
         email=user.email,
         bitrix_user_id=user.bitrix_user_id,
+        has_password=user.password_hash is not None,
         full_name=user.full_name,
         position=user.position,
         role=user.role,
@@ -323,6 +324,22 @@ async def update_category(category_id: int, body: CategoryUpdate, _: AdminDep, s
     if data.get("is_active") is not None:
         category.is_active = data["is_active"]
     return _category_out(category, await Directory.load(session))
+
+
+@router.delete("/categories/{category_id}", status_code=204, summary="Удалить категорию без обращений")
+async def delete_category(category_id: int, _: AdminDep, session: SessionDep) -> None:
+    category = await session.get(Category, category_id, with_for_update=True)
+    if category is None:
+        raise NotFound("Категория не найдена")
+    appeals = await session.scalar(select(func.count()).select_from(Appeal).where(Appeal.category_id == category.id))
+    if appeals:
+        raise Conflict(
+            "В этой категории есть обращения, удалить её нельзя. Выключите категорию — новые обращения в неё не попадут.",
+            details={"reason": "category_has_appeals", "appeals_count": appeals},
+        )
+    # Черновики совещаний с этой категорией остаются без категории: её выберут заново при подтверждении.
+    await session.execute(update(MeetingDraft).where(MeetingDraft.category_id == category.id).values(category_id=None))
+    await session.delete(category)
 
 
 # --- сроки и общие настройки ---------------------------------------------------------------------------

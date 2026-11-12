@@ -55,6 +55,7 @@ async def user_out(session: AsyncSession, user: User, *, show_telegram_id: bool)
         telegram_id=user.telegram_id if show_telegram_id else None,
         email=user.email if show_telegram_id else None,
         bitrix_user_id=user.bitrix_user_id if show_telegram_id else None,
+        has_password=(user.password_hash is not None) if show_telegram_id else None,
         full_name=user.full_name,
         position=user.position,
         role=user.role,
@@ -113,7 +114,7 @@ async def build_me(session: AsyncSession, user: User) -> MeOut:
         targets = [await user_brief(session, u) for u in linked.scalars()]
     base = await user_out(session, user, show_telegram_id=True)
     return MeOut(
-        **base.model_dump(exclude={"email"}),
+        **base.model_dump(exclude={"email", "has_password"}),
         email=user.email,
         has_password=user.password_hash is not None,
         telegram_linked=user.telegram_id is not None,
