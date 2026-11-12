@@ -88,16 +88,16 @@ void main() {
     expect(find.byKey(const Key('assign-section')), findsOneWidget);
     expect(find.byKey(const Key('action-reassign')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('assign-submit')));
+    await tapVisible(tester, find.byKey(const Key('assign-submit')));
     await tester.pumpAndSettle();
     expect(find.text('Выберите ответственного.'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('assign-user-true')));
+    await tapVisible(tester, find.byKey(const Key('assign-user-true')));
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Марат Сейткали').last);
+    await tapVisible(tester, find.textContaining('Марат Сейткали').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('assign-reason')), 'Категория без ответственного');
-    await tester.tap(find.byKey(const Key('assign-submit')));
+    await tapVisible(tester, find.byKey(const Key('assign-submit')));
     await tester.pumpAndSettle();
 
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/reassign').body), {'assignee_id': 3, 'reason': 'Категория без ответственного'});
@@ -150,7 +150,7 @@ void main() {
     nav.push(MaterialPageRoute<void>(builder: (_) => const AppealScreen(appealId: 21)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('action-take')));
+    await tapVisible(tester, find.byKey(const Key('action-take')));
     await tester.pumpAndSettle();
     await tester.showKeyboard(find.byKey(const Key('action-text')));
     expect(tester.testTextInput.isVisible, isTrue);
@@ -159,7 +159,7 @@ void main() {
     await tester.pump();
     expect(FocusManager.instance.primaryFocus?.context?.widget is EditableText, isFalse, reason: 'тап вне поля снял фокус');
 
-    await tester.tap(find.byKey(const Key('sheet-close')));
+    await tapVisible(tester, find.byKey(const Key('sheet-close')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('action-submit')), findsNothing, reason: 'лист закрыт');
     await tester.pumpWidget(const SizedBox());

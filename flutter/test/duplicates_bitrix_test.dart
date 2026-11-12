@@ -83,7 +83,7 @@ void main() {
     expect(find.text('Похожие обращения'), findsOneWidget);
     expect(find.text('Обе про обязательные поля в заявке на оборудование.'), findsOneWidget);
     expect(find.text('Присоединить к A-001'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('merge-41')));
+    await tapVisible(tester, find.byKey(const Key('merge-41')));
     await tester.pumpAndSettle();
 
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/merge').body), {'main_appeal_id': 1});
@@ -105,7 +105,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.byKey(const Key('dismiss-41')), 200, scrollable: list);
     expect(find.byKey(const Key('merge-41')), findsNothing);
-    await tester.tap(find.byKey(const Key('dismiss-41')));
+    await tapVisible(tester, find.byKey(const Key('dismiss-41')));
     await tester.pumpAndSettle();
     expect(server.requests.any((r) => r.url.path == '/api/v1/duplicate-suggestions/41/dismiss'), isTrue);
     expect(find.byKey(const Key('duplicates')), findsNothing);
@@ -136,7 +136,7 @@ void main() {
     await pumpCard(tester, session);
 
     await tester.scrollUntilVisible(find.byKey(const Key('bitrix-create')), 200, scrollable: list);
-    await tester.tap(find.byKey(const Key('bitrix-create')));
+    await tapVisible(tester, find.byKey(const Key('bitrix-create')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('bitrix-create')), findsNothing);
     expect(find.text('Задача №1842 в Битрикс24'), findsOneWidget);
@@ -174,7 +174,7 @@ void main() {
     final session = await signedIn(server);
     await pumpCard(tester, session);
     await tester.scrollUntilVisible(find.byKey(const Key('bitrix-create')), 200, scrollable: list);
-    await tester.tap(find.byKey(const Key('bitrix-create')));
+    await tapVisible(tester, find.byKey(const Key('bitrix-create')));
     await tester.pumpAndSettle();
     expect(find.text('Битрикс24 не отвечает. Попробуйте позже.'), findsOneWidget);
   });

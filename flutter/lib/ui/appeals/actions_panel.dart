@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
+import '../web/web_ui.dart';
 import 'card_parts.dart' show needsAssignee;
 
 import '../../api/api_service.dart';
@@ -102,28 +103,42 @@ class ActionsPanel extends StatelessWidget {
         .where((a) => !(a == AppealAction.reassign && needsAssignee(appeal)))
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Действия', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final a in actions)
-            a == AppealAction.reject
-                ? OutlinedButton(
-                    key: Key('action-${a.toJson()}'),
-                    style: dangerButtonStyle(context),
-                    onPressed: () => _open(context, a),
-                    child: Text(session.actionLabel(a)),
-                  )
-                : OutlinedButton(
-                    key: Key('action-${a.toJson()}'),
-                    onPressed: () => _open(context, a),
-                    child: Text(session.actionLabel(a)),
-                  ),
-        ]),
-      ]),
-    );
+    // Как `.sheet__foot` в вебе: главное действие — тёмная кнопка, остальные — мягкие,
+    // «Отклонить» — красный текст без заливки.
+    const primaryOrder = [
+      AppealAction.take,
+      AppealAction.startWork,
+      AppealAction.implement,
+      AppealAction.acceptFeedback,
+      AppealAction.requestInfo,
+    ];
+    final primary = primaryOrder.where(actions.contains).firstOrNull;
+    final rest = actions.where((a) => a != AppealAction.reject && a != primary).toList();
+    final buttons = <Widget>[
+      for (final a in rest)
+        WebButton(
+          key: Key('action-${a.toJson()}'),
+          kind: WebButtonKind.soft,
+          label: session.actionLabel(a),
+          onPressed: () => _open(context, a),
+        ),
+      if (primary != null)
+        WebButton(
+          key: Key('action-${primary.toJson()}'),
+          label: session.actionLabel(primary),
+          onPressed: () => _open(context, primary),
+        ),
+      if (actions.contains(AppealAction.reject))
+        WebButton(
+          key: const Key('action-reject'),
+          kind: WebButtonKind.ghostDanger,
+          label: session.actionLabel(AppealAction.reject),
+          onPressed: () => _open(context, AppealAction.reject),
+        ),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (var i = 0; i < buttons.length; i++) ...[if (i > 0) const SizedBox(height: 8), buttons[i]],
+    ]);
   }
 }
 

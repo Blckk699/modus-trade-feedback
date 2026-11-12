@@ -1,3 +1,4 @@
+import 'package:flutter_test/flutter_test.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -305,3 +306,10 @@ Map<String, dynamic> discussionJson({
       'can_close': canClose,
       'can_set_name_consent': canSetNameConsent,
     };
+
+/// Тап с прокруткой к виджету: карточка как в вебе длиннее экрана теста.
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+}

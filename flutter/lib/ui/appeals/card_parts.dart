@@ -7,6 +7,7 @@ import '../../api/app_error.dart';
 import '../../app.dart';
 import '../../appeals/attachment_files.dart';
 import '../../theme/modus_theme.dart';
+import '../web/web_ui.dart';
 import '../settings/shared.dart' show assignable, PersonField;
 
 /// Кому бэкенд отдаёт приватную переписку: автор, ответственный, руководитель подразделения, собственник.
@@ -22,7 +23,7 @@ bool canReadMessages(Appeal a) => a.viewerRelations.any((r) => const {
 /// в карточке блок назначения, а «Переназначить» из действий убираем.
 bool needsAssignee(Appeal a) => a.assignee == null && a.allowedActions.contains(AppealAction.reassign);
 
-/// Блок карточки на фоне `--card` со скруглением 24, как `.card` в вебе.
+/// Раздел карточки как `.section` в вебе: линия сверху, отступ 20, заголовок 16 / 600, справа — действие.
 class CardBlock extends StatelessWidget {
   const CardBlock({super.key, this.title, required this.children, this.trailing});
 
@@ -32,28 +33,53 @@ class CardBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    // Material, а не DecoratedBox: ListTile внутри рисует отклик на своём Material.
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
+    final c = ModusColors.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.only(top: 20),
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.palette.border))),
+      // Material: ListTile внутри рисует отклик на своём Material.
       child: Material(
-        color: ModusColors.of(context).card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(WebLook.cardRadius)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(children: [
-              Expanded(child: Text(title!, style: theme.textTheme.titleMedium)),
-              ?trailing,
-            ]),
-          ),
-        ...children,
-          ]),
-        ),
+        type: MaterialType.transparency,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(children: [
+                Expanded(
+                  child: Text(title!,
+                      style: TextStyle(color: c.heading, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+                ),
+                ?trailing,
+              ]),
+            ),
+          ...children,
+        ]),
       ),
+    );
+  }
+}
+
+/// `.facts`: плитка `--surface-2`, радиус 18; подпись 12.5 / 600 / --muted над значением 14.5 / 600 / --heading.
+class FactsTile extends StatelessWidget {
+  const FactsTile(this.facts, {super.key});
+
+  final List<(String, String)> facts;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(Web.rTile)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        for (var i = 0; i < facts.length; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          Text(facts[i].$1, style: TextStyle(color: c.muted, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(facts[i].$2, style: TextStyle(color: c.heading, fontSize: 14.5, fontWeight: FontWeight.w600, height: 1.35)),
+        ],
+      ]),
     );
   }
 }

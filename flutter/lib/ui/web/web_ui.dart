@@ -77,10 +77,18 @@ class WebLabel extends StatelessWidget {
     final c = ModusColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text.rich(TextSpan(children: [
-        TextSpan(text: text),
-        if (optional) TextSpan(text: ' · необязательно', style: TextStyle(color: c.muted, fontWeight: FontWeight.w500)),
-      ])),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: text),
+            if (optional)
+              TextSpan(
+                text: ' · необязательно',
+                style: TextStyle(color: c.muted, fontWeight: FontWeight.w500),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -159,68 +167,71 @@ class _WebInputState extends State<WebInput> {
     final c = ModusColors.of(context);
     final theme = Theme.of(context);
     final invalid = widget.error != null;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-      if (widget.label != null)
-        DefaultTextStyle.merge(
-          style: TextStyle(color: c.heading, fontSize: 13.5, fontWeight: FontWeight.w600),
-          child: WebLabel(widget.label!, optional: widget.optional),
-        ),
-      AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        constraints: const BoxConstraints(minHeight: Web.ctlH),
-        decoration: BoxDecoration(
-          color: invalid ? c.dangerBg : c.surface,
-          borderRadius: BorderRadius.circular(Web.rCtl),
-          boxShadow: invalid ? null : (_focus.hasFocus ? c.extra.shadowFocus : c.extra.shadowRaised),
-        ),
-        alignment: Alignment.centerLeft,
-        child: Row(children: [
-          Expanded(
-            child: TextField(
-              key: widget.fieldKey,
-              focusNode: _focus,
-              controller: widget.controller,
-              enabled: widget.enabled,
-              obscureText: widget.obscure,
-              keyboardType: widget.keyboardType,
-              textInputAction: widget.textInputAction,
-              autofillHints: widget.autofillHints,
-              inputFormatters: widget.inputFormatters,
-              minLines: widget.minLines,
-              maxLines: widget.obscure ? 1 : widget.maxLines,
-              autocorrect: widget.autocorrect,
-              textCapitalization: widget.textCapitalization,
-              enableSuggestions: !widget.obscure,
-              style: widget.style ?? TextStyle(fontSize: 15, height: 1.45, color: theme.colorScheme.onSurface),
-              cursorColor: c.heading,
-              decoration: InputDecoration(
-                isDense: true,
-                filled: false,
-                hintText: widget.hint,
-                hintStyle: TextStyle(color: c.muted, fontSize: 15),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.label != null)
+          DefaultTextStyle.merge(
+            style: TextStyle(color: c.heading, fontSize: 13.5, fontWeight: FontWeight.w600),
+            child: WebLabel(widget.label!, optional: widget.optional),
+          ),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          constraints: const BoxConstraints(minHeight: Web.ctlH),
+          decoration: BoxDecoration(
+            color: invalid ? c.dangerBg : c.surface,
+            borderRadius: BorderRadius.circular(Web.rCtl),
+            boxShadow: invalid ? null : (_focus.hasFocus ? c.extra.shadowFocus : c.extra.shadowRaised),
+          ),
+          alignment: Alignment.centerLeft,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: widget.fieldKey,
+                  focusNode: _focus,
+                  controller: widget.controller,
+                  enabled: widget.enabled,
+                  obscureText: widget.obscure,
+                  keyboardType: widget.keyboardType,
+                  textInputAction: widget.textInputAction,
+                  autofillHints: widget.autofillHints,
+                  inputFormatters: widget.inputFormatters,
+                  minLines: widget.minLines,
+                  maxLines: widget.obscure ? 1 : widget.maxLines,
+                  autocorrect: widget.autocorrect,
+                  textCapitalization: widget.textCapitalization,
+                  enableSuggestions: !widget.obscure,
+                  style: widget.style ?? TextStyle(fontSize: 15, height: 1.45, color: theme.colorScheme.onSurface),
+                  cursorColor: c.heading,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    hintText: widget.hint,
+                    hintStyle: TextStyle(color: c.muted, fontSize: 15),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                  ),
+                  onChanged: widget.onChanged,
+                  onSubmitted: widget.onSubmitted,
+                ),
               ),
-              onChanged: widget.onChanged,
-              onSubmitted: widget.onSubmitted,
-            ),
-          ),
-          ?widget.suffix,
-        ]),
-      ),
-      if (widget.error != null || widget.helper != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text(
-            widget.error ?? widget.helper!,
-            style: TextStyle(fontSize: 13, height: 1.45, color: invalid ? c.danger : c.muted),
+              ?widget.suffix,
+            ],
           ),
         ),
-    ]);
+        if (widget.error != null || widget.helper != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(widget.error ?? widget.helper!, style: TextStyle(fontSize: 13, height: 1.45, color: invalid ? c.danger : c.muted)),
+          ),
+      ],
+    );
   }
 }
 
@@ -270,7 +281,10 @@ class _WebButtonState extends State<WebButton> {
         if (widget.busy)
           SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
         else if (widget.icon != null) ...[
-          IconTheme(data: IconThemeData(color: fg, size: 18), child: widget.icon!),
+          IconTheme(
+            data: IconThemeData(color: fg, size: 18),
+            child: widget.icon!,
+          ),
           const SizedBox(width: 8),
         ],
         if (!widget.busy)
@@ -389,14 +403,19 @@ class OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     final line = Expanded(child: Container(height: 1, color: c.palette.border));
-    return Row(children: [
-      line,
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Text(text, style: TextStyle(color: c.muted, fontSize: 13, fontWeight: FontWeight.w600)),
-      ),
-      line,
-    ]);
+    return Row(
+      children: [
+        line,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            text,
+            style: TextStyle(color: c.muted, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        line,
+      ],
+    );
   }
 }
 
@@ -432,7 +451,9 @@ class WebTabBar extends StatelessWidget {
             color: c.surface.withValues(alpha: 0.92),
             border: Border(top: BorderSide(color: c.palette.border)),
           ),
-          child: Row(children: [for (final t in items) Expanded(child: _TabButton(tab: t))]),
+          child: Row(
+            children: [for (final t in items) Expanded(child: _TabButton(tab: t))],
+          ),
         ),
       ),
     );
@@ -473,20 +494,21 @@ class _TabButton extends StatelessWidget {
           curve: Curves.easeOut,
           constraints: const BoxConstraints(minHeight: 50),
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-          decoration: BoxDecoration(
-            color: tab.active ? c.surface2 : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+          decoration: BoxDecoration(color: tab.active ? c.surface2 : Colors.transparent, borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon,
+              const SizedBox(height: 2),
+              Text(
+                tab.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, height: 1.2, color: color),
+              ),
+            ],
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-            icon,
-            const SizedBox(height: 2),
-            Text(
-              tab.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, height: 1.2, color: color),
-            ),
-          ]),
         ),
       ),
     );
@@ -519,12 +541,7 @@ class ToolButton extends StatelessWidget {
       child: btn,
     );
     if (badge > 0) {
-      btn = Badge(
-        backgroundColor: c.accent,
-        offset: const Offset(-2, 2),
-        label: Text(badge > 99 ? '99+' : '$badge'),
-        child: btn,
-      );
+      btn = Badge(backgroundColor: c.accent, offset: const Offset(-2, 2), label: Text(badge > 99 ? '99+' : '$badge'), child: btn);
     }
     return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
   }
@@ -533,45 +550,56 @@ class ToolButton extends StatelessWidget {
 /// Шапка раздела на телефоне (`.head`): знак бренда в плашке 40×40, справа кнопки, ниже —
 /// надзаголовок 12.5 / 600 / --muted и заголовок 27 / 500 / -0.035em.
 class WebPageHead extends StatelessWidget {
-  const WebPageHead({super.key, required this.title, this.over, this.tools = const []});
+  const WebPageHead({super.key, required this.title, this.over, this.tools = const [], this.leading});
 
   final String title;
   final String? over;
   final List<Widget> tools;
+
+  /// Вместо знака бренда (например, «Назад» на вложенном экране).
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 10, 0, 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(13),
-              boxShadow: c.extra.shadowRaised,
-            ),
-            child: const BrandMark(size: 27),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              leading ??
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(13), boxShadow: c.extra.shadowRaised),
+                    child: const BrandMark(size: 27),
+                  ),
+              const Spacer(),
+              for (var i = 0; i < tools.length; i++) ...[if (i > 0) const SizedBox(width: 6), tools[i]],
+            ],
           ),
-          const Spacer(),
-          for (var i = 0; i < tools.length; i++) ...[if (i > 0) const SizedBox(width: 6), tools[i]],
-        ]),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (over != null)
-              Text(over!, style: TextStyle(color: c.muted, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.3)),
-            Text(
-              title,
-              style: TextStyle(color: c.heading, fontSize: 27, fontWeight: FontWeight.w500, height: 1.12, letterSpacing: -0.95),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 16, 4, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (over != null)
+                  Text(
+                    over!,
+                    style: TextStyle(color: c.muted, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.3),
+                  ),
+                Text(
+                  title,
+                  style: TextStyle(color: c.heading, fontSize: 27, fontWeight: FontWeight.w500, height: 1.12, letterSpacing: -0.95),
+                ),
+              ],
             ),
-          ]),
-        ),
-      ]),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -585,11 +613,11 @@ class WebCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: ModusColors.of(context).card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Web.rCard)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(padding: padding, child: child),
-      );
+    color: ModusColors.of(context).card,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Web.rCard)),
+    clipBehavior: Clip.antiAlias,
+    child: Padding(padding: padding, child: child),
+  );
 }
 
 /// `.card__head`: заголовок 17 / 600, счётчик, подзаголовок 13 / --muted, справа — чип-действие.
@@ -606,25 +634,35 @@ class WebCardHead extends StatelessWidget {
     final c = ModusColors.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Flexible(
-                child: Text(title,
-                    style: TextStyle(color: c.heading, fontSize: 17, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.25)),
-              ),
-              if (count != null) ...[const SizedBox(width: 8), WebCount(count!)],
-            ]),
-            if (sub != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: Text(sub!, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
-              ),
-          ]),
-        ),
-        if (action != null) ...[const SizedBox(width: 12), action!],
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: TextStyle(color: c.heading, fontSize: 17, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.25),
+                      ),
+                    ),
+                    if (count != null) ...[const SizedBox(width: 8), WebCount(count!)],
+                  ],
+                ),
+                if (sub != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Text(sub!, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
+                  ),
+              ],
+            ),
+          ),
+          if (action != null) ...[const SizedBox(width: 12), action!],
+        ],
+      ),
     );
   }
 }
@@ -644,7 +682,10 @@ class WebCount extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7),
       alignment: Alignment.center,
       decoration: BoxDecoration(color: s.bg, borderRadius: BorderRadius.circular(99)),
-      child: Text('$n', style: TextStyle(color: s.fg, fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        '$n',
+        style: TextStyle(color: s.fg, fontSize: 12, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
@@ -676,10 +717,16 @@ class WebChip extends StatelessWidget {
           child: Container(
             height: 34,
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (icon != null) ...[Icon(icon, size: 14, color: c.heading), const SizedBox(width: 6)],
-              Text(label, style: TextStyle(color: c.heading, fontSize: 13, fontWeight: FontWeight.w600, height: 1.2)),
-            ]),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[Icon(icon, size: 14, color: c.heading), const SizedBox(width: 6)],
+                Text(
+                  label,
+                  style: TextStyle(color: c.heading, fontSize: 13, fontWeight: FontWeight.w600, height: 1.2),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -699,11 +746,17 @@ class WebMoreLink extends StatelessWidget {
     final c = ModusColors.of(context);
     return GestureDetector(
       onTap: onTap,
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(label, style: TextStyle(color: c.heading, fontSize: 13.5, fontWeight: FontWeight.w600)),
-        const SizedBox(width: 6),
-        Icon(LucideIcons.arrowRight, size: 16, color: c.heading),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: c.heading, fontSize: 13.5, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 6),
+          Icon(LucideIcons.arrowRight, size: 16, color: c.heading),
+        ],
+      ),
     );
   }
 }

@@ -105,16 +105,16 @@ void main() {
     await tester.tap(find.descendant(of: find.byKey(const Key('block-stuck')), matching: find.byKey(const Key('digest-appeal-1'))));
     await tester.pumpAndSettle();
     expect(find.text('A-001'), findsOneWidget, reason: 'открылась карточка');
-    await tester.pageBack();
+    await tapVisible(tester, find.byTooltip('Назад').first);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('digest-filters')));
+    await tapVisible(tester, find.byKey(const Key('digest-filters')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('digest-department-true')));
+    await tapVisible(tester, find.byKey(const Key('digest-department-true')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Бухгалтерия').last);
+    await tapVisible(tester, find.text('Бухгалтерия').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('digest-apply')));
+    await tapVisible(tester, find.byKey(const Key('digest-apply')));
     await tester.pumpAndSettle();
     expect(server.last('GET', '/api/v1/analytics/summary').url.queryParameters['department_id'], '2');
     expect(find.text('Сводка · Бухгалтерия'), findsOneWidget);
@@ -131,7 +131,7 @@ void main() {
     expect(find.text('Сводка · Закупки'), findsOneWidget);
     expect(find.text('—'), findsOneWidget);
     expect(find.text('Ещё нет ответов'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('digest-filters')));
+    await tapVisible(tester, find.byKey(const Key('digest-filters')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('digest-department-true')), findsNothing);
     expect(server.requests.any((r) => r.url.path == '/api/v1/departments'), isFalse);

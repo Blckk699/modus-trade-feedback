@@ -34,7 +34,7 @@ final list = find.byType(Scrollable).first;
 Future<void> tapKey(WidgetTester tester, String key) async {
   final finder = find.byKey(Key(key));
   await tester.scrollUntilVisible(finder, 200, scrollable: list);
-  await tester.tap(finder);
+  await tapVisible(tester, finder);
 }
 
 Widget screen(SessionController session, Widget child) =>
@@ -78,11 +78,11 @@ void main() {
     expect(find.text('Опишите проблему или предложение.'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Предложение'), -200, scrollable: find.byType(Scrollable).first);
 
-    await tester.tap(find.text('Предложение'));
-    await tester.tap(find.byKey(const Key('field-category')));
+    await tapVisible(tester, find.text('Предложение'));
+    await tapVisible(tester, find.byKey(const Key('field-category')));
     await tester.pumpAndSettle();
     expect(find.text('Архивная'), findsNothing, reason: 'неактивные категории скрыты');
-    await tester.tap(find.text('Межотдельное взаимодействие').last);
+    await tapVisible(tester, find.text('Межотдельное взаимодействие').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('field-text')), '  Не хватает параметров в заявках  ');
     await tester.enterText(find.byKey(const Key('field-solution')), 'Добавить поля');
@@ -93,7 +93,7 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('submit-appeal')), 200, scrollable: list);
     // Чтение файла для multipart — настоящий ввод-вывод, ему нужен реальный async.
     await tester.runAsync(() async {
-      await tester.tap(find.byKey(const Key('submit-appeal')));
+      await tapVisible(tester, find.byKey(const Key('submit-appeal')));
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
@@ -175,7 +175,7 @@ void main() {
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
     // Стартовый экран — «Сегодня»; переходим в «Мои».
-    await tester.tap(find.byKey(const Key('nav-myAppeals')));
+    await tapVisible(tester, find.byKey(const Key('nav-myAppeals')));
     await tester.pumpAndSettle();
 
     final query = server.last('GET', '/api/v1/appeals').url.queryParameters;
@@ -255,8 +255,13 @@ void main() {
 
     expect(jsonDecode(server.last('POST', '/api/v1/notifications/read').body), {'appeal_id': 21});
     expect(find.text('Марат Сейткали'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Здравствуйте, посмотрю сегодня.'), 200, scrollable: list);
-    expect(find.text('Сообщение ответственному'), findsOneWidget, reason: 'send_message разрешён');
+    // Переписка — отдельным экраном по кнопке «Переписка», как панель в вебе.
+    await tapVisible(tester, find.byKey(const Key('chat-entry')));
+    await tester.pumpAndSettle();
+    expect(find.text('Здравствуйте, посмотрю сегодня.'), findsOneWidget);
+    expect(find.text('Напишите сообщение'), findsOneWidget, reason: 'send_message разрешён');
+    await tester.tap(find.byTooltip('Закрыть'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('пример_заявки.pdf'), 200, scrollable: list);
     expect(find.text('180 КБ · Айгерим Нурланова'), findsOneWidget);
     expect(find.byKey(const Key('upload-attachment')), findsOneWidget);
@@ -264,7 +269,7 @@ void main() {
     expect(find.text('Статус изменён'), findsNothing, reason: 'история свёрнута по умолчанию');
     await tester.ensureVisible(find.byKey(const Key('history-toggle')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('history-toggle')));
+    await tapVisible(tester, find.byKey(const Key('history-toggle')));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Статус изменён'), 200, scrollable: list);
     expect(find.text('Новое → На рассмотрении'), findsOneWidget);
@@ -318,21 +323,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ожидает уточнения'), findsOneWidget);
-    await tester.scrollUntilVisible(find.byKey(const Key('clarification-question')), 200, scrollable: list);
+    expect(find.text('Ответить на вопрос'), findsOneWidget, reason: 'кнопка переписки зовёт ответить');
+    await tapVisible(tester, find.byKey(const Key('chat-entry')));
+    await tester.pumpAndSettle();
     expect(find.descendant(of: find.byKey(const Key('clarification-question')), matching: find.text('Уточняющий вопрос')), findsOneWidget);
-    await tester.scrollUntilVisible(find.byKey(const Key('message-text')), 200, scrollable: list);
     expect(find.text('Ответ на вопрос'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('message-text')), 'Акты сверки');
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('message-send')));
-    await tester.tap(find.byKey(const Key('message-send')));
+    await tapVisible(tester, find.byKey(const Key('message-send')));
     await tester.pumpAndSettle();
 
     expect(jsonDecode(server.last('POST', '/api/v1/appeals/21/messages').body), {'text': 'Акты сверки'});
     expect(server.requests.where((r) => r.method == 'GET' && r.url.path == '/api/v1/appeals/21').length, 2);
+    await tester.tap(find.byTooltip('Закрыть'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('На рассмотрении'), -200, scrollable: list);
     expect(find.text('На рассмотрении'), findsOneWidget);
-    expect(find.text('Ответ на вопрос'), findsNothing);
+    expect(find.text('Ответить на вопрос'), findsNothing);
   });
 
   test('ошибки полей 422 разбираются без префикса body.', () {
