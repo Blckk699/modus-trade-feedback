@@ -24,6 +24,10 @@ import { TypeChip } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
+import { DueHint, WhoWhenBlock } from '../appeals/WhoWhenBlock';
+
+/** Пока ответа ещё ждут, автору показываем «что дальше». */
+const WAITING: string[] = ['new', 'in_review'];
 import { useInCard } from './CardModal';
 
 type Appeal = Schemas['Appeal'];
@@ -142,6 +146,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
           </section>
         )}
 
+        {isAuthor && !a.first_response_at && WAITING.includes(a.status) && <WhoWhenBlock appeal={a} />}
+
         <dl className="facts">
           {a.author && !isAuthor && (
             <div>
@@ -154,11 +160,18 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
           )}
           <div>
             <dt>Ответственный</dt>
-            <dd>{a.assignee?.full_name ?? (needsAssignee(a) ? 'Не назначен' : 'Назначит администратор')}</dd>
+            <dd>{a.assignee?.full_name ?? (needsAssignee(a) ? 'Не назначен' : 'Ещё не назначен')}</dd>
           </div>
           <div>
             <dt>Срок первого ответа</dt>
-            <dd>{a.first_response_due_at ? formatDateTime(a.first_response_due_at) : 'Без срока'}</dd>
+            <dd>
+              {a.first_response_due_at
+                ? formatDateTime(a.first_response_due_at)
+                : a.type === 'praise'
+                  ? 'Без срока: это отзыв'
+                  : 'Появится вместе с ответственным'}
+              {a.first_response_due_at && !a.first_response_at && <DueHint escalationLevel={a.escalation_level} />}
+            </dd>
           </div>
           {a.first_response_at && (
             <div>
