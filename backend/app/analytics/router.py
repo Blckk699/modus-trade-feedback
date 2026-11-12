@@ -184,6 +184,26 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
         if ids
         else {}
     )
+    # Присоединённые повторы считаем отдельно от фильтров выборки: они закрыты и могли в неё не попасть.
+    merged_count = (
+        dict(
+            (
+                await session.execute(
+                    select(Appeal.merged_into_id, func.count()).where(Appeal.merged_into_id.in_(ids)).group_by(Appeal.merged_into_id)
+                )
+            ).all()
+        )
+        if ids
+        else {}
+    )
+
+    def reports(appeal: Appeal) -> int:
+        """Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы.
+
+        Участников может быть меньше, чем повторов (один человек написал дважды), и больше
+        (повтор пришёл со своими участниками) — берём большее.
+        """
+        return 1 + max(merged_count.get(appeal.id, 0), extra_participants.get(appeal.id, 0))
 
     def stuck_item(appeal: Appeal) -> StuckAppeal:
         return StuckAppeal(
@@ -214,7 +234,7 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
     ]
     load.sort(key=lambda item: (-item.open_count, -item.overdue_count, item.assignee.id))
 
-    repeated = sorted((a for a in appeals if extra_participants.get(a.id)), key=lambda a: (-extra_participants[a.id], a.id))
+    repeated = sorted((a for a in appeals if reports(a) > 1), key=lambda a: (-reports(a), a.id))
     department_id = filters.department_id
     if department_id is None and scope == "department" and len(headed) == 1:
         department_id = next(iter(headed))
@@ -236,7 +256,7 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
         new_last_24h=[appeal_ref(a) for a in appeals if a.created_at >= now - timedelta(hours=24)],
         stuck=[stuck_item(a) for a in overdue if a.escalation_level >= 3],
         closed_last_week=[appeal_ref(a) for a in closed if a.updated_at >= now - timedelta(days=7)],
-        repeated_topics=[RepeatedTopic(appeal=appeal_ref(a), participants_count=1 + extra_participants[a.id]) for a in repeated],
+        repeated_topics=[RepeatedTopic(appeal=appeal_ref(a), participants_count=reports(a)) for a in repeated],
         overdue=[stuck_item(a) for a in overdue],
         assignee_load=load,
         unassigned_count=sum(a.assignee_id is None and not AppealStatus(a.status).is_final for a in appeals),

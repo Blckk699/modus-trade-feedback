@@ -1137,7 +1137,7 @@ paths:
                   - {code: merge, label: Присоединить к основному, from: [new, in_review], to: closed}
                   - {code: reassign, label: Переназначить, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: publish_discussion, label: Вынести на обсуждение, from: [new, in_review, awaiting_info, in_progress, implemented, rejected], to: null}
-                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [in_review, awaiting_info, in_progress], to: null}
+                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: send_message, label: Написать в переписку, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: upload_attachment, label: Приложить файл, from: [new, in_review, awaiting_info, in_progress], to: null}
                 due_filters:
@@ -1679,8 +1679,13 @@ paths:
       tags: [appeal-actions, duplicates]
       summary: Присоединить это обращение как повтор к основному
       description: |
-        `appeal_id` — повтор, `main_appeal_id` — основное. Оба в статусах «Новое» или «На рассмотрении»
-        и оба видны пользователю, иначе `409 merge_not_allowed` / `403`. Повтор между зонами разных
+        `appeal_id` — повтор, `main_appeal_id` — основное. Повтор — в статусе «Новое» или «На рассмотрении».
+        Основное — любое незавершённое: «Новое», «На рассмотрении», «Ожидает уточнения», «В работе».
+        Оба видны пользователю. Иначе `409 merge_not_allowed` / `403`; причина отказа — в `details.reason`
+        и в `message`, его можно показать пользователю:
+        `duplicate_status` — повтор уже разбирают или он завершён, `main_finished` — основное завершено,
+        `praise` — положительный отзыв не склеивается, `same_appeal` — обращение присоединяют к самому себе.
+        Повтор между зонами разных
         ответственных склеивает руководитель или собственник. Повтор переходит в «Закрыто» со ссылкой
         на основное, его автор становится участником основного и получает его статусы.
         Ответ — основное обращение с обновлённым `participants_count`.
@@ -1723,8 +1728,8 @@ paths:
               example:
                 error:
                   code: merge_not_allowed
-                  message: Склеить можно только обращения в статусах «Новое» и «На рассмотрении».
-                  details: {appeal_status: in_progress, main_appeal_status: in_review}
+                  message: Присоединить как повтор можно только обращение в статусах «Новое» и «На рассмотрении»
+                  details: {reason: duplicate_status, appeal_status: in_progress, main_appeal_status: in_review}
 
   # ---------------------------------------------------------------- messages
   /api/v1/appeals/{appeal_id}/messages:
@@ -5440,6 +5445,10 @@ components:
           $ref: '#/components/schemas/AppealRef'
         participants_count:
           type: integer
+          minimum: 2
+          description: |
+            Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы. Повторы одного и того же
+            автора тоже считаются. Темы идут по убыванию этого числа.
     AnalyticsSummary:
       type: object
       required:
@@ -5514,6 +5523,7 @@ components:
             $ref: '#/components/schemas/AppealRef'
         repeated_topics:
           type: array
+          description: Обращения, к которым присоединены повторы, по убыванию числа сообщивших
           items:
             $ref: '#/components/schemas/RepeatedTopic'
         overdue:
