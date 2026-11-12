@@ -98,6 +98,8 @@ class AppealOut(AppealListItem):
     public_result: str | None
     forwarded_from: str | None
     closed_reason: ClosedReason | None
+    # Сколько похожих обращений уже рассматривается. Только число: автор чужих обращений не видит.
+    similar_count: int = 0
     bitrix_task: BitrixTaskOut | None
     discussion: DiscussionRef | None
     attachments: list[AttachmentOut]
