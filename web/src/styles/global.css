@@ -2931,61 +2931,328 @@ a.tile:hover .tile__go {
   min-width: 260px;
 }
 
-/* переписка пузырями */
-.thread {
-  display: grid;
-  gap: 10px;
-}
+/* ───────── переписка: строка в карточке и окно чата ───────── */
 
-.msg {
+/* В карточке переписка занимает одну строку; по нажатию открывается окно чата */
+.chat-entry {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  max-width: 88%;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+  color: inherit;
+  text-align: left;
+  transition: background-color 0.15s;
 }
 
-.msg--mine {
-  justify-self: end;
+button.chat-entry {
+  cursor: pointer;
 }
 
-.msg__bubble {
+button.chat-entry:hover,
+button.chat-entry[aria-expanded='true'] {
+  background: var(--surface-3);
+}
+
+.chat-entry--ask,
+button.chat-entry--ask:hover,
+button.chat-entry--ask[aria-expanded='true'] {
+  background: var(--warn-bg);
+}
+
+.chat-entry__icon {
+  width: 38px;
+  height: 38px;
   display: grid;
-  gap: 2px;
-  padding: 10px 14px;
-  border-radius: 18px 18px 18px 6px;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
   background: var(--surface);
-  font-size: 14.5px;
+  color: var(--muted);
 }
 
-.msg--mine .msg__bubble {
-  border-radius: 18px 18px 6px 18px;
-  background: var(--status-in_review-bg);
-}
-
-.msg__bubble--question {
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 55%, transparent);
-}
-
-.msg__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  font-size: 12.5px;
-}
-
-.msg__author {
-  color: var(--heading);
-  font-weight: 700;
-}
-
-.msg__tag {
+.chat-entry--ask .chat-entry__icon {
   color: var(--warn);
+}
+
+.chat-entry__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+
+.chat-entry__text strong {
+  color: var(--heading);
+  font-size: 14.5px;
   font-weight: 600;
 }
 
-.msg__time {
+.chat-entry__sub {
+  overflow: hidden;
   color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Вопрос автору виден целиком, в две строки */
+.chat-entry--ask .chat-entry__sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text);
+  white-space: normal;
+}
+
+.chat-entry__count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Якорь нулевой высоты между содержимым карточки и нижней панелью: окно чата стоит над панелью */
+.chat-anchor {
+  position: relative;
+  flex: none;
+  height: 0;
+}
+
+.solo .chat-anchor {
+  position: sticky;
+  bottom: 0;
+}
+
+.solo .chat-anchor:has(+ .sheet__foot) {
+  bottom: 73px;
+}
+
+.chat {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  z-index: 3;
+  width: min(400px, calc(100% - 32px));
+  /* Окно растёт вместе с перепиской и останавливается у верхней границы */
+  min-height: 320px;
+  max-height: min(560px, calc(100dvh - 190px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  animation: chat-in 0.22s var(--ease);
+}
+
+.chat:focus-visible {
+  outline: none;
+}
+
+@keyframes chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+.chat__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.chat__icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--heading);
+}
+
+.chat__who {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat__title {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.chat__sub {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__hide {
+  width: 38px;
+  height: 38px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.chat__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 14px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.chat__scroll:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Переписка прижата к низу окна, как в мессенджере */
+.chat__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__day {
+  justify-self: center;
+  margin: 12px 0 4px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chat__msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 86%;
+}
+
+.chat__msg--first {
+  margin-top: 8px;
+}
+
+.chat__msg--mine {
+  justify-self: end;
+}
+
+.chat__gap {
+  flex: none;
+  width: 28px;
+}
+
+.chat__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.chat__author {
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.chat__bubble {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 2px 10px;
+  padding: 8px 12px;
+  border-radius: 18px 18px 18px 6px;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 14.5px;
+}
+
+.chat__bubble .prose {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat__msg--mine .chat__bubble {
+  border-radius: 18px 18px 6px 18px;
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Уточняющий вопрос отмечен заливкой и подписью, а не рамкой */
+.chat__bubble--question,
+.chat__msg--mine .chat__bubble--question {
+  background: var(--warn-bg);
+  color: var(--text);
+}
+
+.chat__tag {
+  flex-basis: 100%;
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chat__time {
+  margin-left: auto;
+  font-size: 11.5px;
+  line-height: 1.7;
+  opacity: 0.72;
+}
+
+.chat__state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: auto;
+  max-width: 28ch;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.chat .chat__composer {
+  flex: none;
+  margin: 0 12px 12px;
+  background: var(--bg);
+  box-shadow: none;
+}
+
+.chat .chat__composer:focus-within {
+  background: var(--surface-3);
+}
+
+.chat__readonly {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 .composer {
@@ -4616,6 +4883,30 @@ button.vote__option:not(.vote__option--mine):hover {
     max-height: none;
     margin: 0;
     border-radius: 0;
+  }
+
+  /* Окно переписки на телефоне занимает весь экран */
+  .chat {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    width: auto;
+    min-height: 0;
+    max-height: none;
+    border-radius: 0;
+    animation-name: sheet-up;
+  }
+
+  .chat__head {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  .chat__composer {
+    margin-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .chat__readonly {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
 
   .modal--sheet[open] {

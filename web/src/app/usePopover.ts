@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { claimEscape } from './escape';
 
 /**
  * Выпадающая панель (уведомления, меню пользователя, «Ещё»): закрывается кликом мимо, по Esc и при переходе
@@ -21,6 +22,7 @@ export function usePopover<T extends HTMLElement>() {
       if (e.key !== 'Escape') return;
       // Панель может быть внутри окна (меню «Ещё» в карточке): Esc закрывает только её, окно остаётся.
       e.preventDefault();
+      claimEscape();
       setOpen(false);
       ref.current?.querySelector<HTMLElement>('[data-popover-trigger]')?.focus();
     };
