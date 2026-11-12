@@ -264,3 +264,25 @@ async def test_seed_roles_get_email_and_password_from_accounts_file(client, app,
     assert "owner" in report.linked
     response = await login(client, email="owner@company.kz", password="demo-parol-1")
     assert (response.status_code, response.json()["user"]["role"]) == (200, "owner")
+
+
+async def test_stranger_cannot_replace_password_of_pending_request(client, demo, login_as) -> None:
+    """Почта не подтверждается: повторная регистрация меняет заявку только с её же паролем."""
+    request_id = (await register(client)).json()["request"]["id"]
+    hijack = await register(client, password="chuzhoi-parol-1", full_name="Не Сергей")
+    assert (hijack.status_code, hijack.json()["error"]["code"]) == (409, "email_taken")
+
+    admin = await login_as("admin")
+    listed = (await client.get("/api/v1/admin/access-requests", headers=admin)).json()["items"]
+    assert listed[0]["full_name"] == "Сергей Ким"
+    await approve(client, admin, request_id)
+    assert (await login(client)).status_code == 200
+    assert (await login(client, password="chuzhoi-parol-1")).status_code == 401
+
+
+async def test_long_comment_with_invite_does_not_break_registration(client, demo, login_as) -> None:
+    admin = await login_as("admin")
+    invite = (await client.post("/api/v1/admin/invites", headers=admin, json={"role": "employee"})).json()
+    response = await register(client, invite_token=invite["token"], comment="д" * 400)
+    assert response.status_code == 201
+    assert len(response.json()["session"]["user"]["position"]) == 200

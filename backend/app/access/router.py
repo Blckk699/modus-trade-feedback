@@ -23,7 +23,7 @@ from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import DepartmentRef, UserBrief
 from app.auth import service as auth_service
 from app.auth.me import MeOut, build_me, user_brief
-from app.auth.passwords import hash_password, normalize_email
+from app.auth.passwords import hash_password, normalize_email, verify_password
 from app.auth.router import SessionOut
 from app.clock import LocalDatetime
 from app.domain.enums import NotificationKind, Role
@@ -416,7 +416,7 @@ async def register_by_email(
             email=email,
             password_hash=hash_password(body.password),
             full_name=(invite.full_name or full_name)[:200],
-            position=_clean(body.comment),
+            position=(_clean(body.comment) or "")[:200] or None,  # должность короче комментария
             role=invite.role,
             department_id=invite.department_id,
             is_absent=False,
@@ -453,17 +453,22 @@ async def register_by_email(
         full_name=full_name,
         department_id=body.department_id,
         comment=_clean(body.comment),
-        password_hash=hash_password(body.password),
         updated_at=now,
     )
     latest = await _latest_email_request(session, email, lock=True)
     if latest is not None and latest.status == "pending":
+        # Почта письмом не подтверждается: менять чужую заявку может только тот, кто знает её пароль.
+        # Иначе знающий почту заявителя подменил бы пароль до одобрения и получил бы аккаунт.
+        if not verify_password(body.password, latest.password_hash):
+            raise EmailTaken("Заявка с этой почтой уже на рассмотрении.")
         for key, value in fields.items():
             setattr(latest, key, value)
         await session.flush()
         response.status_code = 200
         return RegisterResult(status="pending", request=await request_out(session, latest), session=None)
-    access_request = AccessRequest(email=email, status="pending", created_at=now, **fields)
+    access_request = AccessRequest(
+        email=email, status="pending", created_at=now, password_hash=hash_password(body.password), **fields
+    )
     session.add(access_request)
     await session.flush()
     await _notify_managers(session, access_request, now)
