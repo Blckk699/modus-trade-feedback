@@ -29,7 +29,7 @@ from app.models import (
     User,
 )
 from app.seed import data
-from app.seed.accounts import Account
+from app.seed.accounts import Account, SwitchMember
 from app.seed.showcase import add_showcase
 
 ROLE_LABELS = {
@@ -68,6 +68,36 @@ class SeedReport:
         if self.roles_without_login:
             out.append("Dev-вход с выбором пользователя работает и без файла аккаунтов, если DEV_LOGIN_ENABLED=true.")
         return out
+
+
+SWITCH_GROUP = "demo"
+
+
+async def apply_switch_group(session: AsyncSession, members: list[SwitchMember]) -> tuple[int, int]:
+    """Связывает аккаунты группы для демо-переключателя ролей. Возвращает (связано, не найдено).
+
+    Ничего не стирает и повторяется без дублей: группа после вызова — ровно найденные участники.
+    Меньше двух найденных — группы нет, переключатель выключен.
+    """
+    columns = {"key": User.seed_key, "email": User.email, "telegram": User.telegram_id}
+    found: dict[int, User] = {}
+    missing = 0
+    for member in members:
+        user = await session.scalar(select(User).where(columns[member.kind] == member.value))
+        if user is None:
+            missing += 1
+        else:
+            found[user.id] = user
+    if len(found) < 2:
+        found = {}
+    current = (await session.execute(select(User).where(User.switch_group == SWITCH_GROUP))).scalars().all()
+    for user in current:
+        if user.id not in found:
+            user.switch_group = None
+    for user in found.values():
+        user.switch_group = SWITCH_GROUP
+    await session.flush()
+    return len(found), missing
 
 
 async def wipe(session: AsyncSession) -> None:

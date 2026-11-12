@@ -38,7 +38,7 @@ from app.errors import (
     UserDisabled,
     ValidationFailed,
 )
-from app.models import AccessRequest, User
+from app.models import AccessRequest, AccountSwitch, User
 
 router = APIRouter(tags=["auth"])
 
@@ -99,9 +99,9 @@ def _field(field: str, message: str) -> ValidationFailed:
 
 
 async def _session_for(
-    session: SessionDep, user: User, method: str, clock: ClockDep, settings: SettingsDep
+    session: SessionDep, user: User, method: str, clock: ClockDep, settings: SettingsDep, *, ttl: timedelta | None = None
 ) -> SessionOut:
-    token, expires_at = await service.open_session(session, user, method, clock.now(), settings)
+    token, expires_at = await service.open_session(session, user, method, clock.now(), settings, ttl=ttl)
     return SessionOut(access_token=token, expires_at=expires_at, user=await build_me(session, user))
 
 
@@ -272,3 +272,35 @@ async def unlink_telegram(user: CurrentUserDep, session: SessionDep) -> MeOut:
     user.telegram_id = None
     await session.flush()
     return await build_me(session, user)
+
+
+class SwitchIn(BaseModel):
+    user_id: int
+
+
+@router.post("/auth/switch", response_model=SessionOut, summary="Переключиться на связанный аккаунт")
+async def switch_account(
+    body: SwitchIn,
+    credentials: CredentialsDep,
+    user: CurrentUserDep,
+    session: SessionDep,
+    clock: ClockDep,
+    settings: SettingsDep,
+) -> SessionOut:
+    """Демо-переключатель ролей: новая сессия выбранного пользователя с его же правами, как при обычном входе.
+    Группа связанных аккаунтов задаётся только настройкой вне репозитория."""
+    if credentials.kind != "bearer":
+        raise Forbidden("Переключение доступно только для сессии клиента")
+    target = await session.get(User, body.user_id)
+    if (
+        user.switch_group is None
+        or target is None
+        or target.id == user.id
+        or target.switch_group != user.switch_group
+    ):
+        raise Forbidden("Переключиться на этого пользователя нельзя.")
+    service.ensure_can_login(target)
+    session.add(AccountSwitch(from_user_id=user.id, to_user_id=target.id, created_at=clock.now()))
+    # В журнале только кто, на кого и когда: без адресов и токенов.
+    ttl = timedelta(hours=settings.switch_session_ttl_hours)
+    return await _session_for(session, target, "switch", clock, settings, ttl=ttl)

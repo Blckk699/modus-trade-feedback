@@ -3,7 +3,7 @@
 Новая модель — добавьте её импорт сюда.
 """
 
-from app.auth.models import AuthSession, LoginAttempt, LoginCode, PasswordAttempt
+from app.auth.models import AccountSwitch, AuthSession, LoginAttempt, LoginCode, PasswordAttempt
 from app.db import Base
 from app.jobs.models import Job, PeriodicTask
 from app.models.access import AccessRequest, AccessSubmission, Invite, InviteAttempt
@@ -22,6 +22,7 @@ from app.models.notifications import Notification
 from app.models.org import Category, DeadlineRule, Department, SystemSetting, User
 
 __all__ = [
+    "AccountSwitch",
     "AccessRequest",
     "AccessSubmission",
     "Appeal",

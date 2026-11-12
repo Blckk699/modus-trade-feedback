@@ -16,8 +16,6 @@ CONTRACT = Path(__file__).resolve().parents[2] / "contract" / "openapi.yaml"
 
 # Операции незакрытых тикетов. Список только сокращается: смержили тикет — удалите его строки.
 NOT_YET_IMPLEMENTED: set[tuple[str, str]] = {
-    # B-22: демо-переключатель ролей
-    ("post", "/api/v1/auth/switch"),
     # B-23: вход через Битрикс24
     ("get", "/api/v1/auth/methods"),
     ("get", "/api/v1/auth/bitrix/start"),
