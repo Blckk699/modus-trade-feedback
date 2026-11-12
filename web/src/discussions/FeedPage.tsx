@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { ArrowRight, Check, MessageSquare, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
@@ -58,6 +59,7 @@ function DiscussionList({ status }: { status: 'open' | 'closed' }) {
     [status],
   );
   useReloadOnCardClose(list.reload);
+  useLiveReload(['discussions'], list.reload);
   const background = useBackground();
   const s = list.state;
   if (s.status === 'loading') return <RowsSkeleton rows={3} />;

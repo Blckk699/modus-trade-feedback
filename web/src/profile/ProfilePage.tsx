@@ -1,5 +1,8 @@
+// Строка с выключателем (.toggle-row) описана в стилях настроек.
+import '../settings/settings.css';
 import { useState, type FormEvent } from 'react';
-import { KeyRound, Mail, Send } from 'lucide-react';
+import { KeyRound, Mail, Send, Volume2, VolumeX } from 'lucide-react';
+import { playNotify, setSoundEnabled, soundEnabled } from '../live/sound';
 import { Avatar } from '../app/Avatar';
 import { useDictionaries } from '../app/dictionaries';
 import { PageHead } from '../app/PageHead';
@@ -53,6 +56,7 @@ export function ProfilePage() {
       <div className="profile__grid">
         <EmailCard account={account} onChange={setMe} />
         <TelegramCard account={account} onChange={setMe} />
+        <SoundCard />
       </div>
     </section>
   );
@@ -315,6 +319,41 @@ function TelegramCard({ account, onChange }: CardProps) {
           {error}
         </p>
       )}
+    </article>
+  );
+}
+
+/** Звук уведомлений: короткий сигнал на новое сообщение и уведомление. Настройка хранится в браузере. */
+function SoundCard() {
+  const [on, setOn] = useState(soundEnabled);
+  return (
+    <article className="card profile__card">
+      <header className="profile__head">
+        <span className="profile__icon" aria-hidden="true">
+          {on ? <Volume2 size={18} /> : <VolumeX size={18} />}
+        </span>
+        <div>
+          <h2 className="card__title">Звук</h2>
+          <p className="card__sub">{on ? 'Включён' : 'Выключен'}</p>
+        </div>
+      </header>
+      <label className="toggle-row">
+        <span className="toggle-row__text">
+          <span className="toggle-row__title">Сигнал о новом</span>
+          <span className="muted">Короткий звук, когда приходит сообщение или уведомление. На свои действия не звучит.</span>
+        </span>
+        <input
+          className="switch"
+          type="checkbox"
+          role="switch"
+          checked={on}
+          onChange={(e) => {
+            setSoundEnabled(e.target.checked);
+            setOn(e.target.checked);
+            if (e.target.checked) playNotify(true);
+          }}
+        />
+      </label>
     </article>
   );
 }

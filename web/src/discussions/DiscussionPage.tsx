@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { CardSkeleton } from '../app/CardSkeleton';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUp, Ellipsis, Eye, EyeOff, ThumbsDown, ThumbsUp } from 'lucide-react';
@@ -28,6 +29,8 @@ export function DiscussionPage() {
     () => unwrap(api.GET('/api/v1/discussions/{discussion_id}', { params: { path: { discussion_id: id } } })),
     [id],
   );
+  // Чужой голос или итог — обсуждение перечитывается тихо, без сброса набранного комментария.
+  useLiveReload([`discussion:${id}`], d.reload);
 
   const s = d.state;
   const body =
@@ -352,6 +355,7 @@ function useComments(d: Discussion) {
       unwrap(api.GET('/api/v1/discussions/{discussion_id}/comments', { params: { path: { discussion_id: d.id } } })),
     [d.id],
   );
+  useLiveReload([`discussion:${d.id}`], list.reload);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

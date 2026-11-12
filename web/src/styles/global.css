@@ -1097,6 +1097,20 @@ svg {
   pointer-events: none;
 }
 
+.toast__action {
+  /* контейнер сообщений клики пропускает; кнопка в сообщении — нет */
+  pointer-events: auto;
+  margin-left: 6px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .toast {
   display: flex;
   align-items: center;
@@ -3446,6 +3460,16 @@ a.tile:hover .tile__go {
 .sheet__chat[aria-expanded='true'] {
   background: var(--primary);
   color: var(--primary-text);
+}
+
+/* Новые сообщения, пока чат закрыт */
+.sheet__chat-new {
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .sheet__chat-count {

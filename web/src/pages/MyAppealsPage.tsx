@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
@@ -38,6 +39,7 @@ export function MyAppealsPage() {
   const first = useAsync(() => fetchPage(filter, 1), [filter]);
   const background = useBackground();
   useReloadOnCardClose(first.reload);
+  useLiveReload(['appeals'], first.reload);
   const [extra, setExtra] = useState<{ filter: Filter; page: number; items: Item[] }>({ filter, page: 1, items: [] });
   const more = extra.filter === filter ? extra : { filter, page: 1, items: [] };
   const [loadingMore, setLoadingMore] = useState(false);

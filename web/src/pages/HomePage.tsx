@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Check, RefreshCw } from 'lucide-react';
@@ -102,6 +103,7 @@ export function HomePage() {
   const me = useMe();
   const home = useAsync(() => loadHome(me), [me.id]);
   useReloadOnCardClose(home.reload);
+  useLiveReload(['appeals', 'discussions'], home.reload);
   const s = home.state;
 
   return (
