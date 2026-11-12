@@ -15,7 +15,7 @@ from html import escape
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -81,6 +81,26 @@ class AssigneeLoad(BaseModel):
     avg_first_response_hours: float | None
 
 
+class DepartmentStats(BaseModel):
+    department: DepartmentRef | None
+    total: int
+    open_count: int
+    overdue_count: int
+    avg_first_response_hours: float | None
+
+
+class PeriodStats(BaseModel):
+    """Ключевые цифры за семь дней: `(from, to]`."""
+
+    period_from: LocalDatetime = Field(serialization_alias="from")
+    period_to: LocalDatetime = Field(serialization_alias="to")
+    created_count: int
+    closed_count: int
+    implemented_count: int
+    overdue_count: int
+    avg_first_response_hours: float | None
+
+
 class AnalyticsSummary(BaseModel):
     scope: DigestScope
     department: DepartmentRef | None
@@ -99,6 +119,9 @@ class AnalyticsSummary(BaseModel):
     overdue: list[StuckAppeal]
     assignee_load: list[AssigneeLoad]
     unassigned_count: int
+    by_department: list[DepartmentStats]
+    last_week: PeriodStats
+    previous_week: PeriodStats
 
 
 class Digest(BaseModel):
@@ -137,6 +160,36 @@ def _is_overdue(appeal: Appeal, now: datetime) -> bool:
 def _average_hours(appeals: list[Appeal]) -> float | None:
     spans = [(a.first_response_at - a.created_at).total_seconds() / 3600 for a in appeals if a.first_response_at is not None]
     return round(sum(spans) / len(spans), 1) if spans else None
+
+
+def _period_stats(appeals: list[Appeal], start: datetime, end: datetime) -> PeriodStats:
+    """Что произошло за `(start, end]` в выборке сводки: только что поданное попадает в текущую неделю.
+
+    Закрытие и реализация считаются по времени последнего изменения завершённого обращения
+    (как `closed_last_week`); просрочка — по сроку, который истёк в периоде без первого ответа к этому сроку.
+    """
+
+    def within(moment: datetime | None) -> bool:
+        return moment is not None and start < moment <= end
+
+    finished = [a for a in appeals if AppealStatus(a.status).is_final and within(a.updated_at)]
+    answered = [a for a in appeals if within(a.first_response_at)]
+    missed = [
+        a
+        for a in appeals
+        if a.type != AppealType.PRAISE
+        and within(a.first_response_due_at)
+        and (a.first_response_at is None or a.first_response_at > a.first_response_due_at)
+    ]
+    return PeriodStats(
+        period_from=start,
+        period_to=end,
+        created_count=sum(within(a.created_at) for a in appeals),
+        closed_count=len(finished),
+        implemented_count=sum(a.status == AppealStatus.IMPLEMENTED for a in finished),
+        overdue_count=len(missed),
+        avg_first_response_hours=_average_hours(answered),
+    )
 
 
 async def _headed(session: AsyncSession, user: User) -> set[int]:
@@ -235,6 +288,30 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
     load.sort(key=lambda item: (-item.open_count, -item.overdue_count, item.assignee.id))
 
     repeated = sorted((a for a in appeals if reports(a) > 1), key=lambda a: (-reports(a), a.id))
+
+    # Подразделение исполнителя: чья категория; у обращения без категории — подразделение ответственного.
+    def executor_department(appeal: Appeal) -> int | None:
+        own = directory.appeal_department_id(appeal)
+        if own is not None:
+            return own
+        assignee = directory.users.get(appeal.assignee_id) if appeal.assignee_id else None
+        return assignee.department_id if assignee else None
+
+    by_department: dict[int | None, list[Appeal]] = defaultdict(list)
+    for appeal in appeals:
+        by_department[executor_department(appeal)].append(appeal)
+    departments = [
+        DepartmentStats(
+            department=directory.department_ref(dep_id),
+            total=len(items),
+            open_count=sum(not AppealStatus(a.status).is_final for a in items),
+            overdue_count=sum(_is_overdue(a, now) for a in items),
+            avg_first_response_hours=_average_hours(items),
+        )
+        for dep_id, items in by_department.items()
+    ]
+    departments.sort(key=lambda d: (-d.overdue_count, -d.total, d.department.id if d.department else 0))
+    week = timedelta(days=7)
     department_id = filters.department_id
     if department_id is None and scope == "department" and len(headed) == 1:
         department_id = next(iter(headed))
@@ -260,6 +337,9 @@ async def build_summary(session: AsyncSession, user: User, filters: Filters, now
         overdue=[stuck_item(a) for a in overdue],
         assignee_load=load,
         unassigned_count=sum(a.assignee_id is None and not AppealStatus(a.status).is_final for a in appeals),
+        by_department=departments,
+        last_week=_period_stats(appeals, now - week, now),
+        previous_week=_period_stats(appeals, now - 2 * week, now - week),
     )
 
 

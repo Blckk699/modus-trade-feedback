@@ -60,7 +60,7 @@ void main() {
     expect(body(server, '/api/v1/auth/login'), {'email': 'a.nurlanova@modus.example', 'password': 'wrong-pass', 'new_password': null});
 
     await fill(tester, 'a.nurlanova@modus.example', 'korova-2026');
-    expect(find.text('Мои обращения'), findsWidgets);
+    expect(find.byKey(const Key('today-brief')), findsOneWidget);
     expect(store.token, isNotNull);
   });
 
@@ -112,7 +112,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(body(server, '/api/v1/auth/login'),
         {'email': 'a.nurlanova@modus.example', 'password': 'Tmp-7kQ2-xZ9p', 'new_password': 'novyi-parol-2026'});
-    expect(find.text('Мои обращения'), findsWidgets);
+    expect(find.byKey(const Key('today-brief')), findsOneWidget);
   });
 
   testWidgets('регистрация: проверка полей, заявка с подразделением, экран «на рассмотрении»', (tester) async {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
 import 'badges.dart';
+import '../web/web_ui.dart';
 import '../../theme/modus_theme.dart';
 
 /// «человек / человека / человек» для числа.
@@ -97,8 +99,8 @@ class _DuplicatesSectionState extends State<DuplicatesSection> {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(ModusRadius.lg),
+        color: ModusColors.of(context).infoBg,
+        borderRadius: BorderRadius.circular(Web.rTile),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Похожие обращения', style: theme.textTheme.titleMedium),
@@ -123,18 +125,26 @@ class _DuplicatesSectionState extends State<DuplicatesSection> {
               const SizedBox(height: 4),
               Text(s.explanation, style: theme.textTheme.bodySmall),
               const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                if (canMerge && s.canMerge)
-                  FilledButton(
-                    key: Key('merge-${s.id}'),
-                    onPressed: _busy != null ? null : () => _merge(s),
-                    child: Text('Присоединить к ${s.similarAppeal.number}'),
+              Row(children: [
+                Expanded(
+                  child: WebButton(
+                    key: Key('dismiss-${s.id}'),
+                    kind: WebButtonKind.soft,
+                    tint: ModusColors.of(context).surface,
+                    label: 'Это другое',
+                    onPressed: _busy != null ? null : () => _dismiss(s),
                   ),
-                OutlinedButton(
-                  key: Key('dismiss-${s.id}'),
-                  onPressed: _busy != null ? null : () => _dismiss(s),
-                  child: const Text('Это другое'),
                 ),
+                if (canMerge && s.canMerge) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: WebButton(
+                      key: Key('merge-${s.id}'),
+                      label: 'Присоединить',
+                      onPressed: _busy != null ? null : () => _merge(s),
+                    ),
+                  ),
+                ],
               ]),
             ]),
           ),
@@ -160,28 +170,8 @@ class BitrixSection extends StatefulWidget {
 }
 
 class _BitrixSectionState extends State<BitrixSection> {
-  bool _busy = false;
-  String? _error;
-
   /// Сгенерированная модель отдаёт `bitrix_task` сырым объектом (nullable рядом с allOf).
   BitrixTask? get _task => BitrixTask.fromJson(widget.appeal.bitrixTask);
-
-  Future<void> _create() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final task = await SessionScope.read(context).api.bitrix.createBitrixTask(widget.appeal.id);
-      if (task == null) throw const AppError(code: 'internal_error', message: 'Пустой ответ сервера.');
-      // Ответ — сама задача; подставляем её в обращение, как в вебе.
-      widget.onUpdated(widget.appeal..bitrixTask = task.toJson());
-    } catch (e) {
-      if (mounted) setState(() => _error = AppError.from(e).message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
 
   Future<void> _open(BitrixTask task) async {
     final ok = await launchUrl(Uri.parse(task.url), mode: LaunchMode.externalApplication);
@@ -192,33 +182,30 @@ class _BitrixSectionState extends State<BitrixSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Создать задачу — в «Ещё» у действий карточки; здесь только ссылка на созданную.
     final task = _task;
-    final canCreate = widget.appeal.allowedActions.contains(AppealAction.createBitrixTask);
-    if (task == null && !canCreate) return const SizedBox.shrink();
-    final theme = Theme.of(context);
+    if (task == null) return const SizedBox.shrink();
+    final c = ModusColors.of(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Битрикс24', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 4),
-        if (task != null)
-          TextButton.icon(
-            key: const Key('bitrix-link'),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            onPressed: () => _open(task),
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: Text('Задача №${task.taskId} в Битрикс24'),
-          )
-        else ...[
-          OutlinedButton.icon(
-            key: const Key('bitrix-create'),
-            onPressed: _busy ? null : _create,
-            icon: const Icon(Icons.add_task),
-            label: Text(_busy ? 'Создаём…' : 'Создать задачу в Битрикс24'),
-          ),
-          if (_error != null) Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-        ],
-      ]),
+      padding: const EdgeInsets.only(top: 12),
+      child: InkWell(
+        key: const Key('bitrix-link'),
+        borderRadius: BorderRadius.circular(Web.rTile),
+        onTap: () => _open(task),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+          decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(Web.rTile)),
+          child: Row(children: [
+            Icon(LucideIcons.listChecks, size: 20, color: c.muted),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text('Задача №${task.taskId} в Битрикс24',
+                  style: TextStyle(color: c.heading, fontWeight: FontWeight.w600)),
+            ),
+            Icon(LucideIcons.externalLink, size: 18, color: c.faint),
+          ]),
+        ),
+      ),
     );
   }
 }

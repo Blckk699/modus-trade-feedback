@@ -6,6 +6,8 @@ import '../../app.dart';
 import '../../format.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import '../web/web_ui.dart';
+import '../../theme/modus_theme.dart';
 import 'rows.dart';
 import 'new_appeal_screen.dart';
 import '../home/role_switch.dart';
@@ -107,71 +109,74 @@ class _MyAppealsScreenState extends State<MyAppealsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои обращения'), actions: const [RoleSwitchAction()]),
-      floatingActionButton: FloatingActionButton(
-        key: const Key('new-appeal'),
-        tooltip: 'Подать обращение',
-        onPressed: _openNew,
-        child: const Icon(Icons.add_rounded, size: 30),
-      ),
-      body: RefreshIndicator(onRefresh: _reload, child: _body(context)),
+      body: Stack(children: [
+        WebScrollPage(
+          title: 'Мои обращения',
+          tools: const [RoleSwitchAction()],
+          onRefresh: _reload,
+          children: _children(context),
+        ),
+        // В body с extendBody нижний отступ MediaQuery равен высоте панели.
+        Positioned(
+          right: 16,
+          bottom: MediaQuery.paddingOf(context).bottom + 16,
+          child: WebFab(key: const Key('new-appeal'), onTap: _openNew),
+        ),
+      ]),
     );
   }
 
-  Widget _body(BuildContext context) {
-    final theme = Theme.of(context);
-    if (_loading) return const Center(child: CircularProgressIndicator());
+  List<Widget> _children(BuildContext context) {
+    final c = ModusColors.of(context);
+    if (_loading) {
+      return const [Padding(padding: EdgeInsets.only(top: 64), child: Center(child: CircularProgressIndicator.adaptive()))];
+    }
     if (_error != null && _items.isEmpty) {
-      return _Centered(children: [
-        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+      return [
+        const SizedBox(height: 48),
+        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: c.danger)),
         const SizedBox(height: 12),
-        OutlinedButton(onPressed: _reload, child: const Text('Повторить')),
-      ]);
+        Center(child: WebButton(kind: WebButtonKind.soft, expand: false, label: 'Повторить', onPressed: _reload)),
+      ];
     }
     if (_items.isEmpty) {
-      return const _Centered(children: [
-        Text('Вы ещё не подавали обращений.', textAlign: TextAlign.center),
-        SizedBox(height: 8),
-        Text(
-          'Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.',
-          textAlign: TextAlign.center,
+      return [
+        WebCard(
+          child: Column(children: [
+            const SizedBox(height: 8),
+            Text('Вы ещё не подавали обращений',
+                textAlign: TextAlign.center, style: TextStyle(color: c.heading, fontSize: 17, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(
+              'Расскажите о проблеме, предложите улучшение или отметьте то, что работает хорошо.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: c.muted),
+            ),
+            const SizedBox(height: 16),
+            WebButton(kind: WebButtonKind.accent, label: 'Подать обращение', onPressed: _openNew),
+          ]),
         ),
-      ]);
+      ];
     }
     final hasMore = _items.length < _total;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-      children: [
-        RowsCard(children: [
-          for (final item in _items) AppealRow(item: item, onTap: () => _open(item)),
-        ]),
-        if (hasMore)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(children: [
-              OutlinedButton(
-                onPressed: _loadingMore ? null : _loadMore,
-                child: Text(_loadingMore ? 'Загружаем…' : 'Показать ещё'),
-              ),
-              if (_moreError != null) Text(_moreError!, style: TextStyle(color: theme.colorScheme.error)),
-            ]),
-          ),
-      ],
-    );
+    return [
+      RowsCard(children: [
+        for (final item in _items) AppealRow(item: item, onTap: () => _open(item)),
+      ]),
+      if (hasMore)
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            WebButton(
+              kind: WebButtonKind.soft,
+              label: _loadingMore ? 'Загружаем…' : 'Показать ещё',
+              onPressed: _loadingMore ? null : _loadMore,
+            ),
+            if (_moreError != null) Text(_moreError!, style: TextStyle(color: c.danger)),
+          ]),
+        ),
+    ];
   }
-}
-
-class _Centered extends StatelessWidget {
-  const _Centered({required this.children});
-
-  final List<Widget> children;
-
-  // ListView, чтобы работал pull-to-refresh и на пустом экране.
-  @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(32, 96, 32, 32),
-        children: children,
-      );
 }
 
 /// Строка списка обращений как в вебе: значок типа, суть, «номер · тип · дата», статус и срок.
@@ -200,7 +205,18 @@ class AppealRow extends StatelessWidget {
         onTap: onTap,
         badges: [
           StatusBadge(item.status),
-          if (item.status != AppealStatus.closed) DueBadge(state: item.dueState, dueAt: item.firstResponseDueAt),
+          // Срок — только когда он важен: просрочен или вот-вот истечёт.
+          if (item.status != AppealStatus.closed &&
+              (item.dueState == DueState.overdue || item.dueState == DueState.dueSoon))
+            Text(
+              item.dueState == DueState.overdue ? 'ответ задерживается' : 'ответ скоро',
+              key: Key('due-${item.id}'),
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: item.dueState == DueState.overdue ? ModusColors.of(context).danger : ModusColors.of(context).warn,
+              ),
+            ),
         ],
       ),
     );

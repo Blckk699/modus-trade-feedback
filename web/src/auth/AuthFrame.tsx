@@ -1,32 +1,34 @@
 import type { ReactNode } from 'react';
 import { BrandLogo } from '../app/BrandLogo';
 import { DotNumber } from '../app/DotNumber';
+import { AuthScene } from './AuthScene';
 
 /**
  * Рамка экранов до входа: вход, заявка на доступ, приглашение. Слева — фирменная панель с логотипом
- * и коротким объяснением, зачем это всё, справа — содержимое экрана. На телефоне панель сжимается в шапку.
+ * декоративной фигурой и коротким описанием продукта, справа — содержимое экрана. На телефоне панель сжимается в шапку.
  */
 export function AuthFrame({ title, lead, children }: { title: string; lead?: ReactNode; children: ReactNode }) {
   return (
     <main className="auth">
       <aside className="auth__brand">
+        <AuthScene />
         <span className="auth__logo">
           <BrandLogo />
         </span>
         <div className="auth__pitch">
-          <p className="auth__headline">Скажите, что мешает работать. Ответ придёт в срок.</p>
+          <p className="auth__headline">У каждого обращения есть ответственный и срок ответа.</p>
           <ul className="auth__points">
             <li>
               <DotNumber className="auth__num" value="1" label="1." />
-              <span>Напишите о проблеме, идее или хорошей работе коллег.</span>
+              <span>Проблемы, идеи и благодарности коллегам принимаются на сайте и в Telegram, текстом или голосом.</span>
             </li>
             <li>
               <DotNumber className="auth__num" value="2" label="2." />
-              <span>Обращение сразу получит тот, кто отвечает за тему.</span>
+              <span>Обращение попадает к ответственному за тему. Без ответа в срок оно уходит руководителю.</span>
             </li>
             <li>
               <DotNumber className="auth__num" value="3" label="3." />
-              <span>Следите за статусом здесь и в Telegram.</span>
+              <span>Повторы объединяются, спорные предложения выносятся на голосование, итоги видны в сводке.</span>
             </li>
           </ul>
         </div>

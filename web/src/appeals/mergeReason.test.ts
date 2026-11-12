@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergeBlockReason } from './mergeReason';
 
-const labels: Record<string, string> = { new: 'Новое', in_review: 'На рассмотрении', awaiting_info: 'Ожидает уточнения', in_progress: 'В работе' };
+const labels: Record<string, string> = { new: 'Новое', in_review: 'На рассмотрении', awaiting_info: 'Ожидает уточнения', in_progress: 'В работе', implemented: 'Реализовано' };
 const base = { status: 'new' as const, canMergeHere: true, main: { number: 'A-001', status: 'in_review' as const }, canMergeSuggestion: true, statusLabel: (s: string) => labels[s] ?? s };
 
 describe('почему нельзя склеить', () => {
@@ -9,10 +9,14 @@ describe('почему нельзя склеить', () => {
     expect(mergeBlockReason(base)).toBeNull();
   });
 
-  it('основное ждёт уточнения — называем статус основного', () => {
-    expect(mergeBlockReason({ ...base, canMergeSuggestion: false, main: { number: 'A-001', status: 'awaiting_info' } })).toBe(
-      'A-001 сейчас «Ожидает уточнения». Склеить можно, когда оба обращения «Новое» или «На рассмотрении».',
+  it('основное завершено — называем его статус', () => {
+    expect(mergeBlockReason({ ...base, canMergeSuggestion: false, main: { number: 'A-001', status: 'implemented' } })).toBe(
+      'A-001 уже завершено («Реализовано»): к нему повтор не присоединить.',
     );
+  });
+
+  it('основное в работе — статус не мешает, причина в другом', () => {
+    expect(mergeBlockReason({ ...base, canMergeSuggestion: false, main: { number: 'A-001', status: 'in_progress' } })).toMatch(/^A-001 у другого ответственного/);
   });
 
   it('это обращение уже в работе — называем его статус', () => {
