@@ -174,6 +174,9 @@ void main() {
     final session = await signedIn(server);
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
+    // Стартовый экран — «Сегодня»; переходим в «Мои».
+    await tester.tap(find.byKey(const Key('nav-myAppeals')));
+    await tester.pumpAndSettle();
 
     final query = server.last('GET', '/api/v1/appeals').url.queryParameters;
     expect(query['scope'], 'mine');
