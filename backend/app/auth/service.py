@@ -45,7 +45,8 @@ async def open_session(
     return token, expires_at
 
 
-async def user_by_token(session: AsyncSession, token: str, now: datetime) -> User:
+async def session_by_token(session: AsyncSession, token: str, now: datetime) -> tuple[AuthSession, User]:
+    """Действующая сессия и её пользователь. Нет, истекла, закрыта или доступ отключён — ошибка."""
     row = (
         await session.execute(
             select(AuthSession, User)
@@ -58,7 +59,11 @@ async def user_by_token(session: AsyncSession, token: str, now: datetime) -> Use
     auth, user = row
     if auth.revoked_at is not None or auth.expires_at <= now:
         raise Unauthorized("Сессия истекла, войдите снова")
-    return ensure_can_login(user)
+    return auth, ensure_can_login(user)
+
+
+async def user_by_token(session: AsyncSession, token: str, now: datetime) -> User:
+    return (await session_by_token(session, token, now))[1]
 
 
 async def revoke_token(session: AsyncSession, token: str, now: datetime) -> None:

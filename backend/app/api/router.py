@@ -18,6 +18,7 @@ from app.auth import router as auth
 from app.directory import router as directory
 from app.discussions import router as discussions
 from app.drafts import router as drafts
+from app.live import router as live
 from app.meetings import router as meetings
 from app.notifications import router as notifications
 
@@ -40,3 +41,4 @@ api_router.include_router(access.router)
 api_router.include_router(analytics.router)
 api_router.include_router(drafts.router)
 api_router.include_router(meetings.router)
+api_router.include_router(live.router)

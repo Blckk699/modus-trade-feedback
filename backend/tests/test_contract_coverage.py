@@ -9,16 +9,14 @@ from pathlib import Path
 import httpx
 import pytest
 from fastapi import FastAPI
+from starlette.routing import WebSocketRoute
 
 from app.domain.enums import AppealAction, AppealSource, AppealStatus, AppealType, Priority, Role
 
 CONTRACT = Path(__file__).resolve().parents[2] / "contract" / "openapi.yaml"
 
 # Операции незакрытых тикетов. Список только сокращается: смержили тикет — удалите его строки.
-NOT_YET_IMPLEMENTED: set[tuple[str, str]] = {
-    # B-24: живые обновления по WebSocket
-    ("get", "/api/v1/ws"),
-}
+NOT_YET_IMPLEMENTED: set[tuple[str, str]] = set()
 
 
 def _normalized(path: str) -> str:
@@ -40,7 +38,10 @@ def contract_operations() -> set[tuple[str, str]]:
 
 
 def app_operations(app: FastAPI) -> set[tuple[str, str]]:
-    return {(method, _normalized(path)) for path, item in app.openapi()["paths"].items() for method in item}
+    operations = {(method, _normalized(path)) for path, item in app.openapi()["paths"].items() for method in item}
+    # WebSocket в схему FastAPI не попадает; в контракте он описан как GET (запрос с Upgrade).
+    operations |= {("get", _normalized(route.path)) for route in app.routes if isinstance(route, WebSocketRoute)}
+    return operations
 
 
 def test_contract_parser_sees_the_contract() -> None:
