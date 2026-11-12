@@ -66,7 +66,7 @@
   --shadow-raised: 0 1px 2px rgba(8, 39, 66, 0.06), 0 2px 8px rgba(8, 39, 66, 0.05);
   --shadow-pop: 0 2px 6px rgba(8, 39, 66, 0.07), 0 18px 48px rgba(8, 39, 66, 0.16);
   /* поле в фокусе: заливка та же, поле приподнято — мягкий ореол и тень поглубже */
-  --shadow-focus: 0 0 0 4px rgba(8, 39, 66, 0.07), 0 2px 4px rgba(8, 39, 66, 0.08), 0 8px 22px rgba(8, 39, 66, 0.12);
+  --shadow-focus: 0 0 0 2px rgba(8, 39, 66, 0.07), 0 2px 4px rgba(8, 39, 66, 0.08), 0 8px 22px rgba(8, 39, 66, 0.12);
   --shadow-fab: 0 2px 4px rgba(8, 39, 66, 0.12), 0 8px 18px rgba(8, 39, 66, 0.16);
   --shadow-sheet: -24px 0 64px rgba(8, 39, 66, 0.18);
   --scrim: rgba(8, 23, 38, 0.36);
@@ -137,7 +137,7 @@
     --shadow-card: none;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
-    --shadow-focus: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
+    --shadow-focus: 0 0 0 2px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
     --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.62);
@@ -196,7 +196,7 @@
   --shadow-card: none;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
-  --shadow-focus: 0 0 0 4px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 2px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
   --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
   --scrim: rgba(0, 0, 0, 0.62);
