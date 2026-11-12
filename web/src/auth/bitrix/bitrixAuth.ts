@@ -20,13 +20,6 @@ export interface BitrixAuthApi {
   startUrl(): string;
   /** Одноразовый код с экрана возврата — на сессию. */
   exchange(code: string): Promise<Session>;
-  /** Запасной путь: бэкенд вернул готовый токен во фрагменте адреса. */
-  sessionFromToken(token: string): Promise<Session>;
-}
-
-async function sessionFromToken(token: string): Promise<Session> {
-  const user = await unwrap(api.GET('/api/v1/me', { headers: { Authorization: `Bearer ${token}` } }));
-  return { access_token: token, token_type: 'bearer', expires_at: '', user };
 }
 
 export const httpBitrixAuth: BitrixAuthApi = {
@@ -34,13 +27,12 @@ export const httpBitrixAuth: BitrixAuthApi = {
   enabled: () => unwrap(api.GET('/api/v1/auth/methods')).then((m) => m.bitrix24 === true),
   startUrl: () => `${config.apiBaseUrl}/api/v1/auth/bitrix/start`,
   exchange: (code) => unwrap(api.POST('/api/v1/auth/bitrix/exchange', { body: { code } })),
-  sessionFromToken,
 };
 
 /**
  * Мок для проверки экранов без портала (VITE_BITRIX_AUTH_MOCK=true). «Портал» сразу возвращает на экран возврата
  * с кодом mock-ok; другие состояния открываются адресом вручную:
- * /auth/bitrix/done?code=mock-pending | mock-rejected | mock-disabled, ?error=user_disabled | invalid_bitrix_auth | bitrix_unavailable.
+ * /auth/bitrix/done?code=mock-pending | mock-rejected | mock-disabled, ?error=user_disabled | access_denied | invalid_bitrix_auth | bitrix_unavailable.
  * Удачный вход берёт сессию через dev-вход локального бэкенда.
  */
 export function createMockBitrixAuth(): BitrixAuthApi {
@@ -56,8 +48,7 @@ export function createMockBitrixAuth(): BitrixAuthApi {
       if (code !== 'mock-ok') throw new ApiError(401, 'invalid_bitrix_auth', 'Не удалось подтвердить вход через Битрикс24. Попробуйте ещё раз.');
       return unwrap(api.POST('/api/v1/auth/dev/login', { body: { user_id: 4 } }));
     },
-    sessionFromToken,
-  };
+    };
 }
 
 export const bitrixAuth: BitrixAuthApi = config.bitrixAuthMock ? createMockBitrixAuth() : httpBitrixAuth;

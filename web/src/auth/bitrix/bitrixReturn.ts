@@ -6,12 +6,14 @@ export const BITRIX_DONE_PATH = '/auth/bitrix/done';
 
 /**
  * Чем закончился вход через портал. Бэкенд возвращает на BITRIX_DONE_PATH с ?code=<одноразовый код обмена>
- * или ?error=<код отказа> (контракт B-23). Фрагмент (#…) тоже читаем и ставим в приоритет: если бэкенд
- * перейдёт на него, код не попадёт в журналы сервера, а вебу ничего менять не придётся.
+ * или ?error=<код отказа> (контракт B-23). Из адреса берём только эти два параметра:
+ * - сессию даёт лишь обмен code через POST /auth/bitrix/exchange, токен из адреса не принимается никогда,
+ *   иначе ссылкой с чужим токеном жертву молча впустили бы в чужой аккаунт;
+ * - текст на экране — только наш, по известному коду error. message, error_description и reason из адреса
+ *   не выводим: это произвольный текст на нашем домене. Причину отказа показываем только из ответа обмена.
  */
 export type BitrixOutcome =
   | { kind: 'code'; code: string }
-  | { kind: 'token'; token: string }
   | { kind: 'pending' }
   | { kind: 'rejected'; reason: string | null }
   | { kind: 'disabled' }
@@ -21,37 +23,27 @@ export type BitrixOutcome =
 /** Отказы, которые экран объясняет отдельно. Остальные коды — общая ошибка. */
 const REFUSALS: Record<string, BitrixOutcome['kind']> = {
   access_request_pending: 'pending',
-  pending: 'pending',
   access_request_rejected: 'rejected',
-  rejected: 'rejected',
   user_disabled: 'disabled',
-  disabled: 'disabled',
   // OAuth: пользователь нажал «Отменить» на портале.
   access_denied: 'cancelled',
-  cancelled: 'cancelled',
-  canceled: 'cancelled',
 };
 
 const clean = (v: string | null) => (v && v.trim() ? v.trim() : null);
 
-export function parseBitrixReturn(search: string, hash: string): BitrixOutcome {
-  const fromHash = new URLSearchParams(hash.replace(/^#/, ''));
-  const fromQuery = new URLSearchParams(search.replace(/^\?/, ''));
-  const get = (k: string) => clean(fromHash.get(k)) ?? clean(fromQuery.get(k));
+export function parseBitrixReturn(search: string): BitrixOutcome {
+  const params = new URLSearchParams(search.replace(/^\?/, ''));
+  const code = clean(params.get('code'));
+  const error = clean(params.get('error'));
+  if (code && !error) return { kind: 'code', code };
 
-  const token = get('access_token');
-  if (token) return { kind: 'token', token };
-  const code = get('code');
-  const refusal = get('error') ?? get('status');
-  if (code && !refusal) return { kind: 'code', code };
-
-  const kind = refusal ? REFUSALS[refusal] : undefined;
+  const kind = error ? REFUSALS[error] : undefined;
   if (kind === 'pending' || kind === 'disabled' || kind === 'cancelled') return { kind };
-  if (kind === 'rejected') return { kind, reason: get('reason') };
-  return { kind: 'error', message: get('message') ?? get('error_description') ?? (refusal ? ERROR_TEXT[refusal] ?? null : null) };
+  if (kind === 'rejected') return { kind, reason: null };
+  return { kind: 'error', message: (error && ERROR_TEXT[error]) || null };
 }
 
-/** Коды ошибок возврата, у которых сервер не передаёт текст в адресе. */
+/** Свои тексты для известных кодов ошибки возврата. Незнакомый код — общий текст экрана. */
 const ERROR_TEXT: Record<string, string> = {
   // Так же отвечает и администратору или собственнику без привязанного bitrix_user_id: их по почте не сопоставляют.
   invalid_bitrix_auth:

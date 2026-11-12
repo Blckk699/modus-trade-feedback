@@ -3,51 +3,48 @@ import { ApiError } from '../../api/errors';
 import { outcomeOfExchangeError, parseBitrixReturn, returnToStore, safeReturnTo } from './bitrixReturn';
 
 describe('разбор возврата из портала', () => {
-  it('одноразовый код из фрагмента и из строки запроса, фрагмент в приоритете', () => {
-    expect(parseBitrixReturn('', '#code=abc')).toEqual({ kind: 'code', code: 'abc' });
-    expect(parseBitrixReturn('?code=q', '')).toEqual({ kind: 'code', code: 'q' });
-    expect(parseBitrixReturn('?code=q', '#code=h')).toEqual({ kind: 'code', code: 'h' });
+  it('одноразовый код из строки запроса', () => {
+    expect(parseBitrixReturn('?code=abc')).toEqual({ kind: 'code', code: 'abc' });
+    expect(parseBitrixReturn('code=abc')).toEqual({ kind: 'code', code: 'abc' });
   });
 
-  it('готовый токен во фрагменте', () => {
-    expect(parseBitrixReturn('', '#access_token=t1')).toEqual({ kind: 'token', token: 't1' });
+  it('заявка на рассмотрении, отклонена, доступ отключён, отмена на портале', () => {
+    expect(parseBitrixReturn('?error=access_request_pending')).toEqual({ kind: 'pending' });
+    expect(parseBitrixReturn('?error=access_request_rejected')).toEqual({ kind: 'rejected', reason: null });
+    expect(parseBitrixReturn('?error=user_disabled')).toEqual({ kind: 'disabled' });
+    expect(parseBitrixReturn('?error=access_denied')).toEqual({ kind: 'cancelled' });
+    expect(parseBitrixReturn('?code=x&error=access_denied')).toEqual({ kind: 'cancelled' });
   });
 
-  it('заявка на рассмотрении, отклонена с причиной, доступ отключён', () => {
-    expect(parseBitrixReturn('?error=access_request_pending', '')).toEqual({ kind: 'pending' });
-    expect(parseBitrixReturn('', '#status=pending')).toEqual({ kind: 'pending' });
-    expect(parseBitrixReturn('?error=access_request_rejected&reason=%20Нет%20в%20штате%20', '')).toEqual({
-      kind: 'rejected',
-      reason: 'Нет в штате',
-    });
-    expect(parseBitrixReturn('?error=rejected', '')).toEqual({ kind: 'rejected', reason: null });
-    expect(parseBitrixReturn('?error=user_disabled', '')).toEqual({ kind: 'disabled' });
-  });
-
-  it('отмена на портале: OAuth access_denied, даже если рядом есть code', () => {
-    expect(parseBitrixReturn('?error=access_denied', '')).toEqual({ kind: 'cancelled' });
-    expect(parseBitrixReturn('?code=x&error=access_denied', '')).toEqual({ kind: 'cancelled' });
-  });
-
-  it('прочие ошибки и пустой адрес — общая ошибка, текст сервера если есть', () => {
-    expect(parseBitrixReturn('?error=invalid_state&message=Ссылка%20устарела', '')).toEqual({
-      kind: 'error',
-      message: 'Ссылка устарела',
-    });
-    expect(parseBitrixReturn('?error=server_error&error_description=boom', '')).toEqual({ kind: 'error', message: 'boom' });
-    expect(parseBitrixReturn('', '')).toEqual({ kind: 'error', message: null });
-    expect(parseBitrixReturn('?error=unknown_thing', '')).toEqual({ kind: 'error', message: null });
-    expect(parseBitrixReturn('?code=%20', '')).toEqual({ kind: 'error', message: null });
+  it('коды ошибок контракта — свои тексты, незнакомый код и пустой адрес — общий текст экрана', () => {
+    const bad = parseBitrixReturn('?error=invalid_bitrix_auth');
+    expect(bad.kind === 'error' && bad.message).toMatch(
+      /^Для этой учётной записи вход через Битрикс24 не настроен\. Войдите по почте или через Telegram/,
+    );
+    const down = parseBitrixReturn('?error=bitrix_unavailable');
+    expect(down.kind === 'error' && down.message).toMatch(/не ответил/);
+    expect(parseBitrixReturn('?error=unknown_thing')).toEqual({ kind: 'error', message: null });
+    expect(parseBitrixReturn('')).toEqual({ kind: 'error', message: null });
+    expect(parseBitrixReturn('?code=%20')).toEqual({ kind: 'error', message: null });
   });
 });
 
-describe('коды ошибок контракта B-23 без текста в адресе', () => {
-  it('invalid_bitrix_auth и bitrix_unavailable объясняются своими словами', () => {
-    const bad = parseBitrixReturn('?error=invalid_bitrix_auth', '');
-    expect(bad.kind).toBe('error');
-    expect(bad.kind === 'error' && bad.message).toMatch(/^Для этой учётной записи вход через Битрикс24 не настроен\. Войдите по почте или через Telegram/);
-    const down = parseBitrixReturn('?error=bitrix_unavailable', '');
-    expect(down.kind === 'error' && down.message).toMatch(/не ответил/);
+describe('безопасность адреса возврата', () => {
+  it('токен в адресе игнорируется: сессию даёт только обмен кода', () => {
+    expect(parseBitrixReturn('?access_token=evil')).toEqual({ kind: 'error', message: null });
+    expect(parseBitrixReturn('?access_token=evil&code=abc')).toEqual({ kind: 'code', code: 'abc' });
+  });
+
+  it('чужой текст из адреса не выводится', () => {
+    const phishing = 'Позвоните%20по%20номеру%208-800';
+    for (const q of [
+      `?error=server_error&message=${phishing}`,
+      `?error=server_error&error_description=${phishing}`,
+      `?error=invalid_bitrix_auth&message=${phishing}`,
+    ]) {
+      expect(JSON.stringify(parseBitrixReturn(q))).not.toContain('8-800');
+    }
+    expect(parseBitrixReturn(`?error=access_request_rejected&reason=${phishing}`)).toEqual({ kind: 'rejected', reason: null });
   });
 });
 

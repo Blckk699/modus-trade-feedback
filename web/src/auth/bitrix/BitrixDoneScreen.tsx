@@ -5,19 +5,19 @@ import { useAuth } from '../AuthProvider';
 import { bitrixAuth } from './bitrixAuth';
 import { outcomeOfExchangeError, parseBitrixReturn, returnToStore, type BitrixOutcome } from './bitrixReturn';
 
-type View = { kind: 'busy' } | Exclude<BitrixOutcome, { kind: 'code' } | { kind: 'token' }>;
+type View = { kind: 'busy' } | Exclude<BitrixOutcome, { kind: 'code' }>;
 
 /**
- * Возврат из портала Битрикс24 (/auth/bitrix/done). Код или токен из адреса читаем один раз и сразу убираем
+ * Возврат из портала Битрикс24 (/auth/bitrix/done). Код из адреса читаем один раз и сразу убираем
  * из адресной строки и истории. Удачный вход — на исходный адрес или «Сегодня», отказ — объясняем.
  */
 export function BitrixDoneScreen() {
   const { acceptSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [outcome] = useState(() => parseBitrixReturn(location.search, location.hash));
+  const [outcome] = useState(() => parseBitrixReturn(location.search));
   const [view, setView] = useState<View>(() =>
-    outcome.kind === 'code' || outcome.kind === 'token' ? { kind: 'busy' } : outcome,
+    outcome.kind === 'code' ? { kind: 'busy' } : outcome,
   );
   // Код одноразовый: в StrictMode эффект запускается дважды, второй обмен сжёг бы уже использованный код.
   const started = useRef(false);
@@ -27,12 +27,12 @@ export function BitrixDoneScreen() {
     if (started.current) return;
     started.current = true;
 
-    if (outcome.kind !== 'code' && outcome.kind !== 'token') {
+    if (outcome.kind !== 'code') {
       returnToStore.take();
       return;
     }
-    const session = outcome.kind === 'code' ? bitrixAuth.exchange(outcome.code) : bitrixAuth.sessionFromToken(outcome.token);
-    session
+    bitrixAuth
+      .exchange(outcome.code)
       .then((s) => {
         const to = returnToStore.take() ?? '/';
         acceptSession(s);
