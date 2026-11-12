@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../web/web_ui.dart';
 import '../../format.dart';
 import '../appeals/appeal_screen.dart';
 import 'meetings_screen.dart' show MeetingStatusBadge;
@@ -292,7 +294,7 @@ class _DraftCardState extends State<DraftCard> {
     final scheme = theme.colorScheme;
     final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     final pending = d.status == MeetingDraftStatus.pending;
-    return Card.outlined(
+    return Card(elevation: 0, color: ModusColors.of(context).card, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       margin: const EdgeInsets.only(top: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -338,40 +340,58 @@ class _DraftCardState extends State<DraftCard> {
                   .push(MaterialPageRoute<void>(builder: (_) => AppealScreen(appealId: d.appeal!.id))),
               child: Text('Создано обращение ${d.appeal!.number}'),
             ),
-          if (pending) ...[
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              FilledButton(
-                key: Key('draft-confirm-${d.id}'),
-                onPressed: _busy || !_form.valid ? null : _confirm,
-                child: const Text('Подтвердить'),
-              ),
-              if (_editing) ...[
-                OutlinedButton(
-                  key: Key('draft-save-${d.id}'),
-                  onPressed: _busy || !_form.valid ? null : _save,
-                  child: const Text('Сохранить правки'),
+          // Одно главное действие; правка и отказ — под «⋯».
+          if (pending && !_editing) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: WebButton(
+                  key: Key('draft-confirm-${d.id}'),
+                  label: 'Подтвердить',
+                  busy: _busy,
+                  onPressed: _form.valid ? _confirm : null,
                 ),
-                TextButton(
+              ),
+              const SizedBox(width: 8),
+              MoreButton(
+                key: Key('draft-more-${d.id}'),
+                onTap: _busy
+                    ? null
+                    : () async {
+                        final i = await showActionSheet(context, [
+                          SheetAction(key: Key('draft-edit-${d.id}'), label: 'Поправить', icon: LucideIcons.pencil),
+                          SheetAction(
+                              key: Key('draft-discard-${d.id}'), label: 'Отбросить', icon: LucideIcons.trash2, danger: true),
+                        ]);
+                        if (i == 0) setState(() => _editing = true);
+                        if (i == 1) await _discard();
+                      },
+              ),
+            ]),
+          ],
+          if (pending && _editing) ...[
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: WebButton(
+                  kind: WebButtonKind.soft,
+                  label: 'Отменить',
                   onPressed: _busy
                       ? null
                       : () => setState(() {
                             _reset(d);
                             _editing = false;
                           }),
-                  child: const Text('Отменить'),
                 ),
-              ] else
-                OutlinedButton(
-                  key: Key('draft-edit-${d.id}'),
-                  onPressed: _busy ? null : () => setState(() => _editing = true),
-                  child: const Text('Поправить'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: WebButton(
+                  key: Key('draft-save-${d.id}'),
+                  label: 'Сохранить',
+                  busy: _busy,
+                  onPressed: _form.valid ? _save : null,
                 ),
-              TextButton(
-                key: Key('draft-discard-${d.id}'),
-                style: TextButton.styleFrom(foregroundColor: scheme.error),
-                onPressed: _busy ? null : _discard,
-                child: const Text('Отбросить'),
               ),
             ]),
           ],

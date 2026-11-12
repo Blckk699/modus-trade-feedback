@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app.dart';
+import '../../theme/modus_theme.dart';
+import '../appeals/card_parts.dart' show FactsTile;
+import '../web/web_ui.dart';
 import 'role_switch.dart';
 
 /// Кто я: роль, подразделение, назначения ответственным; выход.
@@ -30,50 +34,51 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     final me = session.me;
-    final theme = Theme.of(context);
+    final c = ModusColors.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль'), actions: const [RoleSwitchAction()]),
-      body: ListView(
+      body: WebScrollPage(
+        title: 'Профиль',
+        tools: const [RoleSwitchAction()],
         children: [
-          ListTile(
-            leading: CircleAvatar(child: Text(me.fullName.isEmpty ? '?' : me.fullName[0])),
-            title: Text(me.fullName, style: theme.textTheme.titleMedium),
-            subtitle: Text(me.position ?? session.roleLabel(me.role)),
+          WebCard(
+            child: Row(children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: c.surface2, shape: BoxShape.circle),
+                child: Text(initials(me.fullName),
+                    style: TextStyle(color: c.heading, fontSize: 19, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(me.fullName, style: TextStyle(color: c.heading, fontSize: 18, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(me.position ?? session.roleLabel(me.role), style: TextStyle(color: c.muted, fontSize: 14)),
+                ]),
+              ),
+            ]),
           ),
-          const Divider(),
-          _Row(label: 'Роль', value: session.roleLabel(me.role)),
-          if (me.department != null) _Row(label: 'Подразделение', value: me.department!.name),
-          if (me.responsibleFor.isNotEmpty)
-            _Row(label: 'Ответственный', value: me.responsibleFor.map((c) => c.name).join(', ')),
-          if (me.deputyFor.isNotEmpty)
-            _Row(label: 'Заместитель', value: me.deputyFor.map((c) => c.name).join(', ')),
-          _Row(label: 'Сервер', value: session.serverUrl),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OutlinedButton.icon(
-              key: const Key('logout'),
-              onPressed: () => _confirmLogout(context),
-              icon: const Icon(Icons.logout),
-              label: const Text('Выйти'),
-            ),
+          const SizedBox(height: Web.gap),
+          FactsTile([
+            ('Роль', session.roleLabel(me.role)),
+            if (me.department != null) ('Подразделение', me.department!.name),
+            if (me.responsibleFor.isNotEmpty) ('Отвечаю за', me.responsibleFor.map((x) => x.name).join(', ')),
+            if (me.deputyFor.isNotEmpty) ('Замещаю по темам', me.deputyFor.map((x) => x.name).join(', ')),
+          ]),
+          const SizedBox(height: 28),
+          WebButton(
+            key: const Key('logout'),
+            kind: WebButtonKind.ghostDanger,
+            icon: const Icon(LucideIcons.logOut),
+            label: 'Выйти',
+            onPressed: () => _confirmLogout(context),
           ),
+          const SizedBox(height: 8),
+          Text('Сервер: ${session.serverUrl}', textAlign: TextAlign.center, style: TextStyle(color: c.faint, fontSize: 12)),
         ],
       ),
     );
   }
-}
-
-class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-        dense: true,
-        title: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        subtitle: Text(value, style: Theme.of(context).textTheme.bodyLarge),
-      );
 }

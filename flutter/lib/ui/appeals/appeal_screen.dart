@@ -73,17 +73,13 @@ class _AppealScreenState extends State<AppealScreen> {
   Widget build(BuildContext context) {
     final appeal = _appeal;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: _loading
-            ? const CardSkeleton()
-            : appeal == null
-            ? _ErrorView(error: _error!, onRetry: _load)
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
-              ),
-      ),
+      body: _loading
+          ? const SafeArea(child: CardSkeleton())
+          : appeal == null
+          ? SafeArea(
+              child: _ErrorView(error: _error!, onRetry: _load),
+            )
+          : _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
     );
   }
 }
@@ -144,16 +140,14 @@ class _AppealBody extends StatelessWidget {
       if (a.firstResponseAt != null) ('Первый ответ', formatDateTime(a.firstResponseAt!)),
       ('Подано', formatDateTime(a.createdAt)),
     ];
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+    return WebScrollPage(
+      over: 'Обращение',
+      title: a.number,
+      onRefresh: onChanged,
+      bottomPadding: 48,
+      leading: ToolButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onTap: () => Navigator.of(context).maybePop()),
+      tools: [RoleSwitchAction(appealId: a.id)],
       children: [
-        // Шапка страницы обращения: «Обращение» над номером, назад — круглой кнопкой.
-        WebPageHead(
-          over: 'Обращение',
-          title: a.number,
-          leading: ToolButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onTap: () => Navigator.of(context).maybePop()),
-          tools: [RoleSwitchAction(appealId: a.id)],
-        ),
         WebCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -231,11 +225,13 @@ class _AppealBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!participant && canReadMessages(a)) ...[
-                      ChatEntry(key: ValueKey('chat-$version'), appeal: a, onAppealChanged: onChanged),
-                      const SizedBox(height: 8),
-                    ],
-                    ActionsPanel(appeal: a, onUpdated: onUpdated),
+                    ActionsPanel(
+                      appeal: a,
+                      onUpdated: onUpdated,
+                      chat: !participant && canReadMessages(a)
+                          ? ChatEntry(key: ValueKey('chat-$version'), appeal: a, onAppealChanged: onChanged)
+                          : null,
+                    ),
                   ],
                 ),
               ),
@@ -646,36 +642,17 @@ class ChatEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     final ask = appeal.allowedActions.contains(AppealAction.replyClarification);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: ask ? c.warnBg : c.extra.surface3,
-        shape: const StadiumBorder(),
-        child: InkWell(
-          key: const Key('chat-entry'),
-          customBorder: const StadiumBorder(),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ChatScreen(appeal: appeal, onAppealChanged: onAppealChanged),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.messageCircle, size: 18, color: ask ? c.warn : c.heading),
-                const SizedBox(width: 10),
-                Text(
-                  ask ? 'Ответить на вопрос' : 'Переписка',
-                  style: TextStyle(color: ask ? c.warn : c.heading, fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
+    final fg = ask ? c.warn : c.heading;
+    return WebButton(
+      key: const Key('chat-entry'),
+      kind: WebButtonKind.soft,
+      tint: ask ? c.warnBg : null,
+      foreground: ask ? fg : null,
+      icon: const Icon(LucideIcons.messageCircle),
+      label: ask ? 'Ответить на вопрос' : 'Переписка',
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(appeal: appeal, onAppealChanged: onAppealChanged),
         ),
       ),
     );

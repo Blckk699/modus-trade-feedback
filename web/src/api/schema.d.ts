@@ -830,8 +830,13 @@ export interface paths {
         put?: never;
         /**
          * Присоединить это обращение как повтор к основному
-         * @description `appeal_id` — повтор, `main_appeal_id` — основное. Оба в статусах «Новое» или «На рассмотрении»
-         *     и оба видны пользователю, иначе `409 merge_not_allowed` / `403`. Повтор между зонами разных
+         * @description `appeal_id` — повтор, `main_appeal_id` — основное. Повтор — в статусе «Новое» или «На рассмотрении».
+         *     Основное — любое незавершённое: «Новое», «На рассмотрении», «Ожидает уточнения», «В работе».
+         *     Оба видны пользователю. Иначе `409 merge_not_allowed` / `403`; причина отказа — в `details.reason`
+         *     и в `message`, его можно показать пользователю:
+         *     `duplicate_status` — повтор уже разбирают или он завершён, `main_finished` — основное завершено,
+         *     `praise` — положительный отзыв не склеивается, `same_appeal` — обращение присоединяют к самому себе.
+         *     Повтор между зонами разных
          *     ответственных склеивает руководитель или собственник. Повтор переходит в «Закрыто» со ссылкой
          *     на основное, его автор становится участником основного и получает его статусы.
          *     Ответ — основное обращение с обновлённым `participants_count`.
@@ -2719,9 +2724,49 @@ export interface components {
         };
         RepeatedTopic: {
             appeal: components["schemas"]["AppealRef"];
+            /** @description Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы. Повторы одного и того же
+             *     автора тоже считаются. Темы идут по убыванию этого числа.
+             *      */
             participants_count: number;
         };
+        DepartmentStats: {
+            department: components["schemas"]["DepartmentRef"] | null;
+            total: number;
+            /** @description Незавершённые */
+            open_count: number;
+            /** @description С просроченным сроком первого ответа сейчас */
+            overdue_count: number;
+            /** @description Среднее время первого ответа в часах; null — ответов ещё не было */
+            avg_first_response_hours: number | null;
+        };
+        /** @description Ключевые цифры выборки за семь дней; момент `to` входит в период, момент `from` — нет */
+        PeriodStats: {
+            /** Format: date-time */
+            from: string;
+            /** Format: date-time */
+            to: string;
+            /** @description Подано за период */
+            created_count: number;
+            /** @description Завершено за период (отклонено, реализовано, закрыто) */
+            closed_count: number;
+            /** @description Из них реализовано */
+            implemented_count: number;
+            /** @description Срок первого ответа истёк в этом периоде, а ответа к сроку не было */
+            overdue_count: number;
+            /** @description Среднее время первого ответа по ответам, данным в этом периоде; null — ответов не было */
+            avg_first_response_hours: number | null;
+        };
         AnalyticsSummary: {
+            /** @description Выборка по подразделениям исполнителя: подразделение категории обращения, а у обращения без категории —
+             *     подразделение ответственного (`department: null` — нет ни того, ни другого). Не подразделение автора.
+             *     Сначала подразделения с наибольшим числом просроченных. Фильтр `department_id` работает так же —
+             *     по подразделению категории.
+             *      */
+            by_department: components["schemas"]["DepartmentStats"][];
+            /** @description Последние семь дней до `generated_at` */
+            last_week: components["schemas"]["PeriodStats"];
+            /** @description Семь дней перед ними — для сравнения */
+            previous_week: components["schemas"]["PeriodStats"];
             /** @enum {string} */
             scope: "company" | "department";
             department: components["schemas"]["DepartmentRef"] | null;
@@ -2744,6 +2789,7 @@ export interface components {
             /** @description Зависшие — шаг эскалации 3 */
             stuck: components["schemas"]["StuckAppeal"][];
             closed_last_week: components["schemas"]["AppealRef"][];
+            /** @description Обращения, к которым присоединены повторы, по убыванию числа сообщивших */
             repeated_topics: components["schemas"]["RepeatedTopic"][];
             /** @description Все с просроченным сроком первого ответа */
             overdue: components["schemas"]["StuckAppeal"][];

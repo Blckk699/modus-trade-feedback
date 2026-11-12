@@ -82,7 +82,7 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('merge-41')), 200, scrollable: list);
     expect(find.text('Похожие обращения'), findsOneWidget);
     expect(find.text('Обе про обязательные поля в заявке на оборудование.'), findsOneWidget);
-    expect(find.text('Присоединить к A-001'), findsOneWidget);
+    expect(find.text('Присоединить'), findsOneWidget);
     await tapVisible(tester, find.byKey(const Key('merge-41')));
     await tester.pumpAndSettle();
 
@@ -135,8 +135,8 @@ void main() {
     final session = await signedIn(server);
     await pumpCard(tester, session);
 
-    await tester.scrollUntilVisible(find.byKey(const Key('bitrix-create')), 200, scrollable: list);
-    await tapVisible(tester, find.byKey(const Key('bitrix-create')));
+    // Задача в Битрикс24 — второстепенное действие карточки.
+    await tapAction(tester, 'bitrix-create');
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('bitrix-create')), findsNothing);
     expect(find.text('Задача №1842 в Битрикс24'), findsOneWidget);
@@ -173,8 +173,8 @@ void main() {
     });
     final session = await signedIn(server);
     await pumpCard(tester, session);
-    await tester.scrollUntilVisible(find.byKey(const Key('bitrix-create')), 200, scrollable: list);
-    await tapVisible(tester, find.byKey(const Key('bitrix-create')));
+    // Задача в Битрикс24 — второстепенное действие карточки.
+    await tapAction(tester, 'bitrix-create');
     await tester.pumpAndSettle();
     expect(find.text('Битрикс24 не отвечает. Попробуйте позже.'), findsOneWidget);
   });

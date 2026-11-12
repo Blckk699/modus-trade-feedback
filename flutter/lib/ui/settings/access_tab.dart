@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../web/web_ui.dart';
 import '../../format.dart';
 import '../../theme/modus_theme.dart';
 import '../sheet_header.dart';
@@ -154,6 +156,7 @@ class _RequestCardState extends State<_RequestCard> {
   AssignableRole _role = AssignableRole.employee;
   late int? _departmentId = widget.request.department?.id;
   bool _rejecting = false;
+  bool _tune = false;
   final _reason = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -225,33 +228,61 @@ class _RequestCardState extends State<_RequestCard> {
           ),
         if (pending) ...[
           const SizedBox(height: 12),
-          DropdownButtonFormField<AssignableRole>(
-            key: Key('request-role-${r.id}'),
-            initialValue: _role,
-            decoration: const InputDecoration(labelText: 'Роль'),
-            items: [
-              for (final role in assignableRoles)
-                DropdownMenuItem(value: role, child: Text(session.roleLabel(Role.fromJson(role.toJson())!))),
-            ],
-            onChanged: _busy ? null : (v) => setState(() => _role = v ?? _role),
+          // Роль и подразделение заданы по умолчанию — свёрнуты в одну строку.
+          InkWell(
+            key: Key('request-tune-${r.id}'),
+            borderRadius: BorderRadius.circular(Web.rCtl),
+            onTap: _busy ? null : () => setState(() => _tune = !_tune),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+              decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(Web.rCtl)),
+              child: Row(children: [
+                Expanded(
+                  child: Text(
+                    '${session.roleLabel(Role.fromJson(_role.toJson())!)} · '
+                    '${deps.where((x) => x.id == _departmentId).map((x) => x.name).firstOrNull ?? 'без подразделения'}',
+                    style: TextStyle(color: c.heading, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                AnimatedRotation(
+                  turns: _tune ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(LucideIcons.chevronDown, size: 18, color: c.muted),
+                ),
+              ]),
+            ),
           ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<int?>(
-            key: Key('request-department-${r.id}-${deps.length}'),
-            initialValue: deps.any((d) => d.id == _departmentId) ? _departmentId : null,
-            decoration: const InputDecoration(labelText: 'Подразделение'),
-            items: [
-              const DropdownMenuItem<int?>(value: null, child: Text('Без подразделения')),
-              for (final d in deps) DropdownMenuItem<int?>(value: d.id, child: Text(d.name)),
-            ],
-            onChanged: _busy ? null : (v) => setState(() => _departmentId = v),
-          ),
+          if (_tune) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<AssignableRole>(
+              key: Key('request-role-${r.id}'),
+              initialValue: _role,
+              decoration: const InputDecoration(labelText: 'Роль'),
+              items: [
+                for (final role in assignableRoles)
+                  DropdownMenuItem(value: role, child: Text(session.roleLabel(Role.fromJson(role.toJson())!))),
+              ],
+              onChanged: _busy ? null : (v) => setState(() => _role = v ?? _role),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int?>(
+              key: Key('request-department-${r.id}-${deps.length}'),
+              initialValue: deps.any((d) => d.id == _departmentId) ? _departmentId : null,
+              decoration: const InputDecoration(labelText: 'Подразделение'),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('Без подразделения')),
+                for (final d in deps) DropdownMenuItem<int?>(value: d.id, child: Text(d.name)),
+              ],
+              onChanged: _busy ? null : (v) => setState(() => _departmentId = v),
+            ),
+          ],
           if (_rejecting) ...[
             const SizedBox(height: 8),
             TextField(
               key: Key('request-reason-${r.id}'),
               controller: _reason,
               enabled: !_busy,
+              autofocus: true,
               decoration: const InputDecoration(
                 labelText: 'Причина отказа',
                 helperText: 'Необязательно, придёт заявителю',
@@ -263,39 +294,49 @@ class _RequestCardState extends State<_RequestCard> {
             Text(_error!, style: TextStyle(color: c.danger)),
           ],
           const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: [
+          Row(children: [
             if (!_rejecting) ...[
-              FilledButton(
-                key: Key('request-approve-${r.id}'),
-                onPressed: _busy
-                    ? null
-                    : () => _run(() => api.approveAccessRequest(
-                          r.id,
-                          AccessRequestApprove(role: _role, departmentId: _departmentId),
-                        )),
-                child: Text(_busy ? 'Сохраняем…' : 'Одобрить'),
+              Expanded(
+                child: WebButton(
+                  key: Key('request-reject-${r.id}'),
+                  kind: WebButtonKind.ghostDanger,
+                  label: 'Отклонить',
+                  onPressed: _busy ? null : () => setState(() => _rejecting = true),
+                ),
               ),
-              OutlinedButton(
-                key: Key('request-reject-${r.id}'),
-                style: dangerButtonStyle(context),
-                onPressed: _busy ? null : () => setState(() => _rejecting = true),
-                child: const Text('Отклонить'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: WebButton(
+                  key: Key('request-approve-${r.id}'),
+                  label: 'Одобрить',
+                  busy: _busy,
+                  onPressed: () => _run(() => api.approveAccessRequest(
+                        r.id,
+                        AccessRequestApprove(role: _role, departmentId: _departmentId),
+                      )),
+                ),
               ),
             ] else ...[
-              OutlinedButton(
-                key: Key('request-reject-confirm-${r.id}'),
-                style: dangerButtonStyle(context),
-                onPressed: _busy
-                    ? null
-                    : () => _run(() => api.rejectAccessRequest(
-                          r.id,
-                          AccessRequestReject(reason: _reason.text.trim().isEmpty ? null : _reason.text.trim()),
-                        )),
-                child: const Text('Отклонить заявку'),
+              Expanded(
+                child: WebButton(
+                  kind: WebButtonKind.soft,
+                  label: 'Отмена',
+                  onPressed: _busy ? null : () => setState(() => _rejecting = false),
+                ),
               ),
-              TextButton(
-                onPressed: _busy ? null : () => setState(() => _rejecting = false),
-                child: const Text('Отмена'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: WebButton(
+                  key: Key('request-reject-confirm-${r.id}'),
+                  kind: WebButtonKind.ghostDanger,
+                  tint: c.dangerBg,
+                  label: 'Отклонить заявку',
+                  busy: _busy,
+                  onPressed: () => _run(() => api.rejectAccessRequest(
+                        r.id,
+                        AccessRequestReject(reason: _reason.text.trim().isEmpty ? null : _reason.text.trim()),
+                      )),
+                ),
               ),
             ],
           ]),

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show Key;
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:convert';
 
@@ -312,4 +313,14 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
+}
+
+/// Действие в карточке: главное и единственное второстепенное — на виду, остальные — в листе «Ещё».
+Future<void> tapAction(WidgetTester tester, String action) async {
+  final button = find.byKey(action == 'bitrix-create' ? const Key('bitrix-create') : Key('action-$action'));
+  if (button.evaluate().isEmpty) {
+    await tapVisible(tester, find.byKey(const Key('actions-more')));
+    await tester.pumpAndSettle();
+  }
+  await tapVisible(tester, button);
 }
