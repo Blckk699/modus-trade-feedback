@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
 import '../../app.dart';
+import '../../theme/modus_theme.dart';
 import '../../format.dart';
 import '../appeals/appeal_screen.dart';
 import 'shared.dart';
@@ -30,7 +31,7 @@ class UnassignedTab extends StatelessWidget {
             if (items.isEmpty)
               const Padding(padding: EdgeInsets.all(16), child: Text('Нераспределённых обращений нет.')),
             for (final item in items)
-              Card.outlined(
+              Card(elevation: 0, color: ModusColors.of(context).card, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                 key: Key('unassigned-${item.id}'),
                 margin: const EdgeInsets.only(top: 12),
                 child: Padding(

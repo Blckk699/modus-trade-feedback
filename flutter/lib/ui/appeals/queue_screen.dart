@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter/services.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
@@ -6,6 +8,7 @@ import '../../app.dart';
 import '../../appeals/queue_scopes.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import '../web/web_ui.dart';
 import 'rows.dart';
 import '../../theme/modus_theme.dart';
 import '../home/role_switch.dart';
@@ -207,83 +210,112 @@ class _QueueScreenState extends State<QueueScreen> {
     final me = SessionScope.of(context).me;
     final scopes = queueScopes(me);
     final active = _filters.activeCount;
+    final c = ModusColors.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Входящие'),
-        actions: [
-          const RoleSwitchAction(),
-          IconButton(
+      body: WebScrollPage(
+        title: 'Входящие',
+        onRefresh: _reload,
+        tools: [
+          ToolButton(
             key: const Key('queue-filters'),
+            icon: LucideIcons.slidersHorizontal,
             tooltip: 'Фильтры',
-            onPressed: _openFilters,
-            icon: Badge(
-              isLabelVisible: active > 0,
-              label: Text('$active'),
-              child: const Icon(Icons.filter_list),
-            ),
+            badge: active,
+            onTap: _openFilters,
           ),
+          const RoleSwitchAction(),
         ],
-        bottom: scopes.length > 1
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(52),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                  child: Row(children: [
-                    for (final s in scopes)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          key: Key('scope-${s.toJson()}'),
-                          label: Text(scopeLabel(s)),
-                          selected: _filters.scope == s,
-                          onSelected: (_) => _apply(_filters.copyWith(scope: s)),
+        children: [
+          if (scopes.length > 1) ...[
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: c.extra.surface3, borderRadius: BorderRadius.circular(99)),
+                child: Row(children: [
+                  for (final sc in scopes)
+                    GestureDetector(
+                      key: Key('scope-${sc.toJson()}'),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _apply(_filters.copyWith(scope: sc));
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _filters.scope == sc ? c.surface : Colors.transparent,
+                          borderRadius: BorderRadius.circular(99),
+                          boxShadow: _filters.scope == sc ? c.extra.shadowRaised : null,
+                        ),
+                        child: Text(
+                          scopeLabel(sc),
+                          style: TextStyle(
+                            color: _filters.scope == sc ? c.heading : c.muted,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                  ]),
-                ),
-              )
-            : null,
+                    ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: Web.gap),
+          ],
+          ..._children(context),
+        ],
       ),
-      body: RefreshIndicator(onRefresh: _reload, child: _body(context)),
     );
   }
 
-  Widget _body(BuildContext context) {
-    final theme = Theme.of(context);
-    if (_loading) return const Center(child: CircularProgressIndicator());
+  List<Widget> _children(BuildContext context) {
+    final c = ModusColors.of(context);
+    if (_loading) {
+      return const [Padding(padding: EdgeInsets.only(top: 64), child: Center(child: CircularProgressIndicator.adaptive()))];
+    }
     if (_error != null) {
-      return ListView(padding: const EdgeInsets.fromLTRB(32, 96, 32, 32), children: [
-        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: theme.colorScheme.error)),
+      return [
+        const SizedBox(height: 48),
+        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: c.danger)),
         const SizedBox(height: 12),
-        Center(child: OutlinedButton(onPressed: _reload, child: const Text('Повторить'))),
-      ]);
+        Center(child: WebButton(kind: WebButtonKind.soft, expand: false, label: 'Повторить', onPressed: _reload)),
+      ];
     }
     if (_items.isEmpty) {
-      return ListView(padding: const EdgeInsets.fromLTRB(32, 96, 32, 32), children: const [
-        Text('Обращений нет.', textAlign: TextAlign.center),
-      ]);
+      return [
+        WebCard(
+          child: Column(children: [
+            Icon(LucideIcons.inbox, size: 28, color: c.faint),
+            const SizedBox(height: 8),
+            Text('Обращений нет', style: TextStyle(color: c.heading, fontSize: 16, fontWeight: FontWeight.w600)),
+            if (_filters.activeCount > 0) ...[
+              const SizedBox(height: 4),
+              Text('Попробуйте снять фильтры.', style: TextStyle(color: c.muted)),
+            ],
+          ]),
+        ),
+      ];
     }
     final hasMore = _items.length < _total;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
-      children: [
-        RowsCard(children: [
-          for (final item in _items) QueueRow(item: item, now: _now, onTap: () => _open(item)),
-        ]),
-        if (hasMore)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(children: [
-              OutlinedButton(
-                onPressed: _loadingMore ? null : _loadMore,
-                child: Text(_loadingMore ? 'Загружаем…' : 'Показать ещё'),
-              ),
-              if (_moreError != null) Text(_moreError!, style: TextStyle(color: theme.colorScheme.error)),
-            ]),
-          ),
-      ],
-    );
+    return [
+      RowsCard(children: [
+        for (final item in _items) QueueRow(item: item, now: _now, onTap: () => _open(item)),
+      ]),
+      if (hasMore)
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(children: [
+            WebButton(
+              kind: WebButtonKind.soft,
+              label: _loadingMore ? 'Загружаем…' : 'Показать ещё',
+              onPressed: _loadingMore ? null : _loadMore,
+            ),
+            if (_moreError != null) Text(_moreError!, style: TextStyle(color: c.danger)),
+          ]),
+        ),
+    ];
   }
 }
 

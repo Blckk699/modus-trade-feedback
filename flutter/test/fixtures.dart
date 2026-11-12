@@ -317,7 +317,7 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 
 /// Действие в карточке: главное и единственное второстепенное — на виду, остальные — в листе «Ещё».
 Future<void> tapAction(WidgetTester tester, String action) async {
-  final button = find.byKey(Key('action-$action'));
+  final button = find.byKey(action == 'bitrix-create' ? const Key('bitrix-create') : Key('action-$action'));
   if (button.evaluate().isEmpty) {
     await tapVisible(tester, find.byKey(const Key('actions-more')));
     await tester.pumpAndSettle();

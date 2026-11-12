@@ -769,6 +769,101 @@ class WebMoreLink extends StatelessWidget {
   }
 }
 
+/// Пункт листа действий «Ещё».
+class SheetAction {
+  const SheetAction({required this.key, required this.label, required this.icon, this.danger = false});
+
+  final Key key;
+  final String label;
+  final IconData icon;
+  final bool danger;
+}
+
+/// Лист «Ещё»: обычные действия группой, опасные — отдельной красной группой. Возвращает индекс.
+Future<int?> showActionSheet(BuildContext context, List<SheetAction> actions) => showModalBottomSheet<int>(
+      context: context,
+      builder: (sheet) {
+        final c = ModusColors.of(sheet);
+        Widget group(List<int> idx) => ClipRRect(
+              borderRadius: BorderRadius.circular(Web.rTile),
+              child: ColoredBox(
+                color: c.surface2,
+                child: Column(children: [
+                  for (var j = 0; j < idx.length; j++) ...[
+                    if (j > 0) Divider(height: 1, indent: 52, color: c.palette.border),
+                    InkWell(
+                      key: actions[idx[j]].key,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.of(sheet).pop(idx[j]);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        child: Row(children: [
+                          Icon(actions[idx[j]].icon, size: 20, color: actions[idx[j]].danger ? c.danger : c.muted),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              actions[idx[j]].label,
+                              style: TextStyle(
+                                color: actions[idx[j]].danger ? c.danger : c.heading,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ]),
+              ),
+            );
+        final normal = [for (var i = 0; i < actions.length; i++) if (!actions[i].danger) i];
+        final danger = [for (var i = 0; i < actions.length; i++) if (actions[i].danger) i];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (normal.isNotEmpty) group(normal),
+              if (normal.isNotEmpty && danger.isNotEmpty) const SizedBox(height: 12),
+              if (danger.isNotEmpty) group(danger),
+            ]),
+          ),
+        );
+      },
+    );
+
+/// Круглая кнопка «⋯» на подложке — открывает лист «Ещё».
+class MoreButton extends StatelessWidget {
+  const MoreButton({super.key, required this.onTap, this.tooltip = 'Ещё'});
+
+  final VoidCallback? onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: c.extra.surface3,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap!();
+                },
+          child: SizedBox.square(dimension: Web.ctlH, child: Icon(LucideIcons.ellipsis, size: 20, color: c.heading)),
+        ),
+      ),
+    );
+  }
+}
+
 /// Ссылка в шапке карточки («Все ›»): акцентный текст без подложки, чтобы не плодить кнопки.
 class WebHeadLink extends StatelessWidget {
   const WebHeadLink({super.key, this.label = 'Все', required this.onTap});

@@ -212,7 +212,18 @@ ThemeData modusTheme(Brightness brightness) {
       ),
     ),
 
-    tabBarTheme: TabBarThemeData(labelColor: p.primary, unselectedLabelColor: p.muted, indicatorColor: p.primary),
+    // Вкладки — сегменты: выбранная на белой плашке, без подчёркивания (как переключатели в вебе).
+    tabBarTheme: TabBarThemeData(
+      labelColor: p.heading,
+      unselectedLabelColor: p.muted,
+      labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      unselectedLabelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      indicatorSize: TabBarIndicatorSize.tab,
+      dividerColor: Colors.transparent,
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      splashFactory: NoSplash.splashFactory,
+      indicator: BoxDecoration(color: p.surface, borderRadius: BorderRadius.circular(99), boxShadow: x.shadowRaised),
+    ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
       surfaceTintColor: Colors.transparent,

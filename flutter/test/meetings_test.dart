@@ -14,6 +14,7 @@ import 'package:modus_feedback/session/session_store.dart';
 import 'package:modus_feedback/ui/meetings/meeting_screen.dart';
 import 'package:modus_feedback/ui/meetings/meetings_screen.dart';
 
+import 'package:modus_feedback/ui/web/web_ui.dart';
 import 'fixtures.dart';
 
 Map<String, dynamic> draftJson({int id = 1, String status = 'pending', Map<String, dynamic>? appeal}) => {
@@ -160,11 +161,13 @@ void main() {
     await tester.pumpWidget(screen(session, const MeetingScreen(meetingId: 5)));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('draft-more-1')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('draft-edit-1')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('draft-summary')), '');
     await tester.pump();
-    expect(tester.widget<FilledButton>(find.byKey(const Key('draft-confirm-1'))).onPressed, isNull);
+    expect(tester.widget<WebButton>(find.byKey(const Key('draft-save-1'))).onPressed, isNull, reason: 'без сути не сохранить');
 
     await tester.enterText(find.byKey(const Key('draft-summary')), 'Акты сверки теряются');
     await tester.scrollUntilVisible(find.byKey(const Key('draft-author-true')), -100, scrollable: list);
@@ -191,6 +194,8 @@ void main() {
     });
     final session = await signedIn(server);
     await tester.pumpWidget(screen(session, const MeetingScreen(meetingId: 5)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('draft-more-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('draft-discard-1')));
     await tester.pumpAndSettle();

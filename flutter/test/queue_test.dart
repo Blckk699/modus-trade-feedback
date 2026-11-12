@@ -134,7 +134,7 @@ void main() {
     final session = await signedIn(server, meJson(id: 3, role: 'head', permissions: headPermissions));
     await tester.pumpWidget(screen(session, const QueueScreen()));
     await tester.pumpAndSettle();
-    expect(find.text('Обращений нет.'), findsOneWidget);
+    expect(find.text('Обращений нет'), findsOneWidget);
     await tapVisible(tester, find.byKey(const Key('queue-filters')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('filter-department-false')), findsNothing);

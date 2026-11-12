@@ -3,6 +3,7 @@ import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../../theme/modus_theme.dart';
 import '../../format.dart';
 import '../appeals/duplicates_bitrix.dart' show plural;
 import 'discussion_screen.dart';
@@ -21,11 +22,23 @@ class FeedScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Лента'),
           actions: const [RoleSwitchAction()],
-          bottom: const TabBar(tabs: [
-            Tab(key: Key('tab-open'), text: 'Обсуждения'),
-            Tab(key: Key('tab-implemented'), text: 'Реализовано'),
-            Tab(key: Key('tab-closed'), text: 'Завершённые'),
-          ]),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(52),
+            child: Container(
+              height: 42,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: ModusColors.of(context).extra.surface3, borderRadius: BorderRadius.circular(99)),
+              child: const TabBar(
+                labelPadding: EdgeInsets.zero,
+                tabs: [
+                  Tab(key: Key('tab-open'), text: 'Обсуждения'),
+                  Tab(key: Key('tab-implemented'), text: 'Реализовано'),
+                  Tab(key: Key('tab-closed'), text: 'Завершённые'),
+                ],
+              ),
+            ),
+          ),
         ),
         body: const TabBarView(children: [
           DiscussionList(status: DiscussionStatus.open),
