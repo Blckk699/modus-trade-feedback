@@ -143,6 +143,8 @@ void main() {
     await tester.tap(find.byKey(const Key('open-register')));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('register-submit')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('register-submit')));
     await tester.pumpAndSettle();
     expect(find.text('Укажите имя и фамилию.'), findsOneWidget);
@@ -156,6 +158,8 @@ void main() {
     await tester.tap(find.text('Продажи').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('register-comment')), 'Менеджер по продажам');
+    await tester.ensureVisible(find.byKey(const Key('register-submit')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('register-submit')));
     await tester.pumpAndSettle();
 
