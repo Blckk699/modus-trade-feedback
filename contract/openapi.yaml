@@ -386,6 +386,7 @@ paths:
                         email: s.kim@modus.example
                         has_password: true
                         telegram_linked: false
+                        switch_targets: []
                         full_name: Сергей Ким
                         position: null
                         role: employee
@@ -498,6 +499,57 @@ paths:
                   code: too_many_requests
                   message: Слишком много неудачных попыток. Попробуйте через 5 минут.
                   details: {retry_after_seconds: 300}
+  /api/v1/auth/switch:
+    post:
+      tags: [auth]
+      summary: Переключиться на связанный аккаунт (демо-переключатель ролей)
+      description: |
+        Выдаёт новую сессию от имени выбранного пользователя — с теми же правами, что при обычном входе под ним.
+        Доступные пользователи — `Me.switch_targets`. Группа связанных аккаунтов задаётся настройкой вне
+        репозитория; без неё список пуст, а маршрут отвечает `403`. Переключение пишется в журнал.
+        Текущая сессия остаётся действующей: клиент заменяет токен на новый.
+        Пользователь не из группы — `403 forbidden`; у выбранного отключён доступ — `403 user_disabled`.
+        Только для сессии клиента: бот с сервисным ключом получает `403`.
+      operationId: switchAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: integer
+                  description: '`id` из `Me.switch_targets`'
+            example:
+              user_id: 3
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Пользователь не из группы связанных аккаунтов (`forbidden`) или у него отключён доступ (`user_disabled`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden:
+                  value:
+                    error:
+                      code: forbidden
+                      message: Переключиться на этого пользователя нельзя.
+                      details: null
+                disabled:
+                  value:
+                    error:
+                      code: user_disabled
+                      message: Доступ отключён. Обратитесь к администратору.
+                      details: null
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   # ---------------------------------------------------------------- access (заявки и приглашения)
   /api/v1/access-requests/departments:
@@ -736,7 +788,7 @@ paths:
                   summary: Пользователь создан, веб получил сессию
                   value:
                     created: true
-                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
                     session:
                       access_token: eyJhbGciOiJIUzI1NiJ9.mock.session
                       token_type: bearer
@@ -745,7 +797,7 @@ paths:
                   summary: Пользователь создан, бот — без сессии
                   value:
                     created: true
-                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
                     session: null
         '401':
           $ref: '#/components/responses/InvalidTelegramAuth'
@@ -3996,7 +4048,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/User'
         - type: object
-          required: [email, has_password, telegram_linked, responsible_for, deputy_for, assigned_open_count, permissions]
+          required: [email, has_password, telegram_linked, switch_targets, responsible_for, deputy_for, assigned_open_count, permissions]
           properties:
             email:
               type: string
@@ -4008,6 +4060,13 @@ components:
             telegram_linked:
               type: boolean
               description: Привязан ли Telegram (вход в один клик и уведомления бота)
+            switch_targets:
+              type: array
+              description: |
+                Связанные аккаунты, на которые можно переключиться (`POST /auth/switch`): демо-переключатель ролей
+                в шапке. Пусто — переключатель не показывать.
+              items:
+                $ref: '#/components/schemas/UserBrief'
             responsible_for:
               type: array
               description: Категории, где пользователь — ответственный
@@ -5606,6 +5665,7 @@ components:
         email: null
         has_password: false
         telegram_linked: true
+        switch_targets: []
         full_name: Айгерим Нурланова
         position: Сотрудник закупок
         role: employee
@@ -5634,6 +5694,7 @@ components:
         email: null
         has_password: false
         telegram_linked: true
+        switch_targets: []
         full_name: Ержан Касымов
         position: Собственник
         role: owner
@@ -5665,6 +5726,7 @@ components:
           email: null
           has_password: false
           telegram_linked: true
+          switch_targets: []
           full_name: Айгерим Нурланова
           position: Сотрудник закупок
           role: employee
