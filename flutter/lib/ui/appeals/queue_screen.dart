@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../appeals/queue_scopes.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import '../../theme/modus_theme.dart';
 import '../home/role_switch.dart';
 
 /// Значение фильтра статуса: все открытые, любой или конкретный статус.
@@ -304,7 +305,7 @@ class QueueRow extends StatelessWidget {
     final waitingAnswer = due != null && item.dueState != DueState.answered && item.dueState != DueState.noDeadline;
     final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     return Material(
-      color: overdue ? scheme.errorContainer.withValues(alpha: 0.35) : Colors.transparent,
+      color: overdue ? ModusColors.of(context).dangerBg.withValues(alpha: 0.35) : Colors.transparent,
       child: InkWell(
         key: Key('queue-${item.id}'),
         onTap: onTap,
