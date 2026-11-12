@@ -130,7 +130,8 @@ function loginWays(u: User): string {
  * чтобы администратор не искал кнопку, которой быть не может.
  */
 function PasswordSection({ user }: { user: User }) {
-  if (user.email) return <ResetPassword userId={user.id} name={user.full_name} />;
+  // has_password приходит от сервера; почта без пароля бывает у вошедших через Битрикс24.
+  if (user.has_password ?? Boolean(user.email)) return <ResetPassword userId={user.id} name={user.full_name} />;
   const via = [user.telegram_id ? 'Telegram' : null, user.bitrix_user_id ? 'Битрикс24' : null].filter(Boolean).join(' или ');
   return (
     <div className="notice">
