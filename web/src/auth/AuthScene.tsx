@@ -16,12 +16,12 @@ export function AuthScene() {
     let dispose: (() => void) | undefined;
     let cancelled = false;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    import('./scene/eye')
-      .then(({ mountEye }) => {
+    import('./scene/gyroscope')
+      .then(({ mountGyroscope }) => {
         if (cancelled) return;
         // Текст панели прижат к низу: всё, что выше него, свободно для фигуры.
         const pitch = el.parentElement?.querySelector<HTMLElement>('.auth__pitch');
-        dispose = mountEye(el, still, () => pitch?.offsetTop ?? el.clientHeight);
+        dispose = mountGyroscope(el, still, () => pitch?.offsetTop ?? el.clientHeight);
         el.dataset.ready = 'true';
       })
       .catch(() => {
