@@ -106,9 +106,7 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
     add(AppealAction.PUBLISH_DISCUSSION, process and status != AppealStatus.CLOSED and not appeal.has_discussion)
     add(
         AppealAction.CREATE_BITRIX_TASK,
-        process
-        and status in (AppealStatus.IN_REVIEW, AppealStatus.AWAITING_INFO, AppealStatus.IN_PROGRESS)
-        and not appeal.has_bitrix_task,
+        process and status in NOT_FINAL and not praise and not appeal.has_bitrix_task,
     )
     add(AppealAction.SEND_MESSAGE, (is_author or process) and status in NOT_FINAL)
     add(AppealAction.UPLOAD_ATTACHMENT, (is_author or process) and status in NOT_FINAL)

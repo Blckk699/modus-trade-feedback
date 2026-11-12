@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
@@ -38,6 +39,8 @@ from app.domain.enums import Role
 from app.errors import ExternalServiceError, InvalidBitrixAuth, NotFound, UserDisabled
 from app.models import AccessRequest, User
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["auth"])
 
 STATE_COOKIE = "bitrix_state"
@@ -59,8 +62,10 @@ class BitrixExchangeIn(BaseModel):
 class _Refused(Exception):
     """Вход не состоялся: код ошибки уходит странице веба в `?error=`."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, reason: str | None = None) -> None:
         self.code = code
+        # Для журнала: один код ошибки скрывает разные причины. Без персональных данных.
+        self.reason = reason or code
         super().__init__(code)
 
 
@@ -128,8 +133,10 @@ async def bitrix_start(session: SessionDep, clock: ClockDep, settings: SettingsD
 
 async def _consume_state(session: AsyncSession, state: str | None, cookie: str | None, now: datetime) -> None:
     """`state` из адреса совпадает с cookie этого браузера, выдан нами, не истёк и ещё не использован."""
-    if not state or not cookie or not hmac.compare_digest(state.encode(), cookie.encode()):
-        raise _Refused(InvalidBitrixAuth.code)
+    if not state or not cookie:
+        raise _Refused(InvalidBitrixAuth.code, "state_missing" if not state else "state_cookie_missing")
+    if not hmac.compare_digest(state.encode(), cookie.encode()):
+        raise _Refused(InvalidBitrixAuth.code, "state_mismatch")
     ticket = await session.scalar(
         select(LoginTicket)
         .where(
@@ -141,7 +148,7 @@ async def _consume_state(session: AsyncSession, state: str | None, cookie: str |
         .with_for_update()
     )
     if ticket is None:
-        raise _Refused(InvalidBitrixAuth.code)
+        raise _Refused(InvalidBitrixAuth.code, "state_expired_or_used")
     ticket.used_at = now
 
 
@@ -189,7 +196,7 @@ async def _match_user(session: AsyncSession, profile: BitrixProfile, now: dateti
         email = _portal_email(profile.email)
         by_email = await service.user_by_email(session, email) if email else None
         if by_email is not None and by_email.role not in EMAIL_MATCH_ROLES:
-            raise _Refused(InvalidBitrixAuth.code)
+            raise _Refused(InvalidBitrixAuth.code, "role_not_email_matchable")
         if by_email is not None and by_email.bitrix_user_id is None:
             by_email.bitrix_user_id = profile.id
             user = by_email
@@ -221,15 +228,17 @@ async def bitrix_callback(
     cookie = request.cookies.get(STATE_COOKIE)
     try:
         if not settings.bitrix24_login_configured:
-            raise _Refused(InvalidBitrixAuth.code)
+            raise _Refused(InvalidBitrixAuth.code, "not_configured")
         await _consume_state(session, state, cookie, now)
-        if (domain or "").strip().lower() != settings.bitrix24_portal_host or not code:
-            raise _Refused(InvalidBitrixAuth.code)
+        if (domain or "").strip().lower() != settings.bitrix24_portal_host:
+            raise _Refused(InvalidBitrixAuth.code, "foreign_portal")
+        if not code:
+            raise _Refused(InvalidBitrixAuth.code, "code_missing")
         try:
             profile = await services.bitrix_oauth.current_user(code)
         except (InvalidBitrixAuth, ExternalServiceError) as exc:
             code_ = exc.code if isinstance(exc, InvalidBitrixAuth) else "bitrix_unavailable"
-            raise _Refused(code_) from None
+            raise _Refused(code_, "portal_rejected_code" if isinstance(exc, InvalidBitrixAuth) else None) from None
         user = await _match_user(session, profile, now)
         exchange = secrets.token_urlsafe(32)
         session.add(
@@ -245,6 +254,7 @@ async def bitrix_callback(
         await session.flush()
     except _Refused as refused:
         # Ответ — переход, а не ошибка: использованный `state` и созданная заявка сохраняются.
+        logger.info("Вход через Битрикс24 не состоялся: %s (%s)", refused.code, refused.reason)
         response = _done(settings, error=refused.code)
         _drop_cookie(response, settings)
         return response

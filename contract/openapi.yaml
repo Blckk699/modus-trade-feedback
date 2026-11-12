@@ -1137,7 +1137,7 @@ paths:
                   - {code: merge, label: Присоединить к основному, from: [new, in_review], to: closed}
                   - {code: reassign, label: Переназначить, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: publish_discussion, label: Вынести на обсуждение, from: [new, in_review, awaiting_info, in_progress, implemented, rejected], to: null}
-                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [in_review, awaiting_info, in_progress], to: null}
+                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: send_message, label: Написать в переписку, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: upload_attachment, label: Приложить файл, from: [new, in_review, awaiting_info, in_progress], to: null}
                 due_filters:

@@ -39,8 +39,6 @@ async def test_who_can_create_task(client, login_as, who, status) -> None:
 
 
 async def test_wrong_status_is_rejected(client, login_as, fake_bitrix) -> None:
-    head = await login_as("head_procurement")
-    assert (await create(client, head, 1)).status_code == 409  # «Новое» — сначала взять
     assert (await create(client, await login_as("head_admin_office"), 17)).status_code == 409
     assert fake_bitrix.tasks == []
 
@@ -54,3 +52,15 @@ async def test_portal_error_leaves_appeal_unchanged(client, login_as, fake_bitri
     assert card["bitrix_task"] is None and "create_bitrix_task" in card["allowed_actions"]
     fake_bitrix.fail = False
     assert (await create(client, head)).status_code == 201
+
+
+async def test_task_can_be_created_from_a_new_appeal(client, login_as, fake_bitrix) -> None:
+    """A-001 в статусе «Новое»: задачу заводят сразу, брать обращение для этого не нужно."""
+    head = await login_as("head_procurement")
+    card = (await client.get("/api/v1/appeals/1", headers=head)).json()
+    assert card["status"] == "new" and "create_bitrix_task" in card["allowed_actions"]
+    assert (await create(client, head, 1)).status_code == 201
+    card = (await client.get("/api/v1/appeals/1", headers=head)).json()
+    assert card["status"] == "new", "создание задачи статус не меняет"
+    assert card["bitrix_task"] is not None and "create_bitrix_task" not in card["allowed_actions"]
+    assert len(fake_bitrix.tasks) == 1
