@@ -5158,6 +5158,25 @@ button.vote__option:not(.vote__option--mine):hover {
   font-weight: 600;
 }
 
+/* «Ещё нет доступа? Зарегистрироваться» — вторичная кнопка на всю ширину под входом через сервисы */
+.auth__register {
+  width: 100%;
+  min-height: 44px;
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+  white-space: normal;
+  text-align: center;
+}
+
+.auth__register:hover {
+  background: var(--surface-3);
+}
+
+.auth__register-ask {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 /* Поле пароля с кнопкой «показать» */
 .pwd {
   position: relative;
@@ -5188,8 +5207,14 @@ button.vote__option:not(.vote__option--mine):hover {
   color: var(--heading);
 }
 
+/* Прежний виджет Telegram (сборка без id бота): обёртка на всю ширину, виджет по центру */
 .telegram-login {
-  min-height: 40px;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
 }
 
 .dev-login {
@@ -6043,14 +6068,20 @@ button.vote__option:not(.vote__option--mine):hover {
 }
 
 /* Вход через Битрикс24 (W-15): кнопка рядом с виджетом Telegram */
-.bitrix-login {
+/* Кнопки входа через сервисы (Битрикс24, Telegram): одного вида, на всю ширину, значок слева от текста */
+.sso-btn {
   gap: 10px;
   width: 100%;
   min-height: 44px;
 }
 
-.bitrix-login__mark {
+.sso-btn__mark {
   width: 22px;
   height: 22px;
   flex: none;
+}
+
+.sso-btn__wrap {
+  display: grid;
+  gap: 6px;
 }

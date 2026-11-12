@@ -7,8 +7,7 @@ import { useDictionaries } from '../app/dictionaries';
 import { useAuth, type TelegramIdentity } from '../auth';
 import { AuthFrame } from '../auth/AuthFrame';
 import { RegisterFields } from '../auth/RegisterScreen';
-import { TelegramWidget, unregisteredFromWidget } from '../auth/methods/telegramWidget';
-import { config } from '../config';
+import { TelegramWidget, telegramLoginConfigured, unregisteredFromWidget } from '../auth/methods/telegramWidget';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { getWebApp } from '../telegram/webApp';
@@ -80,7 +79,7 @@ export function InvitePage() {
                 Подать заявку
               </button>
             ) : (
-              config.telegramBotUsername && (
+              telegramLoginConfigured() && (
                 <TelegramWidget
                   onUser={(user) => {
                     // Незнакомому — сразу заявка; уже заведённый просто войдёт.
@@ -140,7 +139,7 @@ export function InvitePage() {
             ) : (
               <>
                 {/* В браузере приглашение принимают по почте или через Telegram (SPEC, «Приглашение по почте»). */}
-                {config.telegramBotUsername && (
+                {telegramLoginConfigured() && (
                   <div className="segmented" role="radiogroup" aria-label="Как принять приглашение">
                     <label className="segmented__item">
                       <input type="radio" name="invite-way" checked={way === 'email'} onChange={() => setWay('email')} />
@@ -152,7 +151,7 @@ export function InvitePage() {
                     </label>
                   </div>
                 )}
-                {way === 'email' || !config.telegramBotUsername ? (
+                {way === 'email' || !telegramLoginConfigured() ? (
                   <RegisterFields
                     inviteToken={token}
                     suggestedName={p.data.full_name ?? ''}

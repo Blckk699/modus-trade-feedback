@@ -71,9 +71,9 @@ export function LoginScreen() {
         </>
       )}
 
-      <p className="auth__switch">
-        Ещё нет доступа? <Link to="/register">Зарегистрироваться</Link>
-      </p>
+      <Link to="/register" className="btn btn--text auth__register">
+        <span className="auth__register-ask">Ещё нет доступа?</span> Зарегистрироваться
+      </Link>
     </AuthFrame>
   );
 }
