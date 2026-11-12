@@ -247,7 +247,13 @@ class WebButton extends StatefulWidget {
     this.icon,
     this.busy = false,
     this.expand = true,
+    this.tint,
+    this.foreground,
   });
+
+  /// Свой фон и цвет текста поверх вида кнопки (например, «ждут ответа» на жёлтом).
+  final Color? tint;
+  final Color? foreground;
 
   final String label;
   final VoidCallback? onPressed;
@@ -267,12 +273,14 @@ class _WebButtonState extends State<WebButton> {
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (widget.kind) {
+    final base = switch (widget.kind) {
       WebButtonKind.primary => (scheme.primary, scheme.onPrimary),
       WebButtonKind.accent => (c.accent, c.onAccent),
       WebButtonKind.soft => (c.extra.surface3, c.heading),
       WebButtonKind.ghostDanger => (Colors.transparent, c.danger),
     };
+    final bg = widget.tint ?? base.$1;
+    final fg = widget.foreground ?? base.$2;
     final enabled = widget.onPressed != null && !widget.busy;
     final child = Row(
       mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
@@ -761,6 +769,129 @@ class WebMoreLink extends StatelessWidget {
   }
 }
 
+/// Пункт листа действий «Ещё».
+class SheetAction {
+  const SheetAction({required this.key, required this.label, required this.icon, this.danger = false});
+
+  final Key key;
+  final String label;
+  final IconData icon;
+  final bool danger;
+}
+
+/// Лист «Ещё»: обычные действия группой, опасные — отдельной красной группой. Возвращает индекс.
+Future<int?> showActionSheet(BuildContext context, List<SheetAction> actions) => showModalBottomSheet<int>(
+      context: context,
+      builder: (sheet) {
+        final c = ModusColors.of(sheet);
+        Widget group(List<int> idx) => ClipRRect(
+              borderRadius: BorderRadius.circular(Web.rTile),
+              child: ColoredBox(
+                color: c.surface2,
+                child: Column(children: [
+                  for (var j = 0; j < idx.length; j++) ...[
+                    if (j > 0) Divider(height: 1, indent: 52, color: c.palette.border),
+                    InkWell(
+                      key: actions[idx[j]].key,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        Navigator.of(sheet).pop(idx[j]);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                        child: Row(children: [
+                          Icon(actions[idx[j]].icon, size: 20, color: actions[idx[j]].danger ? c.danger : c.muted),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              actions[idx[j]].label,
+                              style: TextStyle(
+                                color: actions[idx[j]].danger ? c.danger : c.heading,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ],
+                ]),
+              ),
+            );
+        final normal = [for (var i = 0; i < actions.length; i++) if (!actions[i].danger) i];
+        final danger = [for (var i = 0; i < actions.length; i++) if (actions[i].danger) i];
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (normal.isNotEmpty) group(normal),
+              if (normal.isNotEmpty && danger.isNotEmpty) const SizedBox(height: 12),
+              if (danger.isNotEmpty) group(danger),
+            ]),
+          ),
+        );
+      },
+    );
+
+/// Круглая кнопка «⋯» на подложке — открывает лист «Ещё».
+class MoreButton extends StatelessWidget {
+  const MoreButton({super.key, required this.onTap, this.tooltip = 'Ещё'});
+
+  final VoidCallback? onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: c.extra.surface3,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onTap!();
+                },
+          child: SizedBox.square(dimension: Web.ctlH, child: Icon(LucideIcons.ellipsis, size: 20, color: c.heading)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ссылка в шапке карточки («Все ›»): акцентный текст без подложки, чтобы не плодить кнопки.
+class WebHeadLink extends StatelessWidget {
+  const WebHeadLink({super.key, this.label = 'Все', required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(color: c.muted, fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 2),
+          Icon(LucideIcons.chevronRight, size: 16, color: c.muted),
+        ]),
+      ),
+    );
+  }
+}
+
 /// `.fab` на телефоне: красный круг 56 с тенью `--shadow-fab`.
 class WebFab extends StatelessWidget {
   const WebFab({super.key, required this.onTap, this.tooltip = 'Подать обращение'});
@@ -799,6 +930,160 @@ class WebFab extends StatelessWidget {
             child: SizedBox.square(dimension: 56, child: Icon(LucideIcons.plus, size: 28, color: c.onAccent)),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Экран с «большим заголовком», как в современных iOS-приложениях и в шапке веба:
+/// сверху закреплённая панель со знаком (или «Назад») и кнопками; когда содержимое уходит под неё,
+/// панель становится матовым стеклом (blur) и в ней проявляется короткий заголовок.
+class WebScrollPage extends StatefulWidget {
+  const WebScrollPage({
+    super.key,
+    required this.title,
+    required this.children,
+    this.over,
+    this.leading,
+    this.tools = const [],
+    this.onRefresh,
+    this.titleKey,
+    this.bottomPadding = 140,
+  });
+
+  final String title;
+  final String? over;
+  final Widget? leading;
+  final List<Widget> tools;
+  final List<Widget> children;
+  final Future<void> Function()? onRefresh;
+  final Key? titleKey;
+  final double bottomPadding;
+
+  @override
+  State<WebScrollPage> createState() => _WebScrollPageState();
+}
+
+class _WebScrollPageState extends State<WebScrollPage> {
+  /// Содержимое ушло под панель — панель становится стеклом.
+  final _scrolled = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _scrolled.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    final top = MediaQuery.paddingOf(context).top;
+    final title = widget.title;
+    final over = widget.over;
+    final scroll = CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _GlassBar(top: top, title: title, leading: widget.leading, tools: widget.tools, scrolled: _scrolled),
+        ),
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(12, 0, 12, widget.bottomPadding),
+          sliver: SliverList.list(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 6, 4, 16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (over != null)
+                  Text(over, style: TextStyle(color: c.muted, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.3)),
+                Text(
+                  title,
+                  key: widget.titleKey,
+                  style: TextStyle(color: c.heading, fontSize: 27, fontWeight: FontWeight.w500, height: 1.12, letterSpacing: -0.95),
+                ),
+              ]),
+            ),
+            ...widget.children,
+          ]),
+        ),
+      ],
+    );
+    final listened = NotificationListener<ScrollUpdateNotification>(
+      onNotification: (n) {
+        if (n.depth == 0) _scrolled.value = n.metrics.pixels > 8;
+        return false;
+      },
+      child: scroll,
+    );
+    return widget.onRefresh == null
+        ? listened
+        : RefreshIndicator.adaptive(onRefresh: widget.onRefresh!, edgeOffset: top + 60, child: listened);
+  }
+}
+
+class _GlassBar extends SliverPersistentHeaderDelegate {
+  _GlassBar({required this.top, required this.title, required this.leading, required this.tools, required this.scrolled});
+
+  final ValueNotifier<bool> scrolled;
+
+  final double top;
+  final String title;
+  final Widget? leading;
+  final List<Widget> tools;
+
+  @override
+  double get minExtent => top + 60;
+
+  @override
+  double get maxExtent => top + 60;
+
+  @override
+  bool shouldRebuild(covariant _GlassBar old) => old.title != title || old.top != top || old.tools != tools || old.leading != leading;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool _) =>
+      ValueListenableBuilder<bool>(valueListenable: scrolled, builder: (context, overlapsContent, _) => _bar(context, overlapsContent));
+
+  Widget _bar(BuildContext context, bool overlapsContent) {
+    final c = ModusColors.of(context);
+    final bar = Container(
+      padding: EdgeInsets.fromLTRB(12, top + 10, 12, 10),
+      decoration: BoxDecoration(
+        color: overlapsContent ? c.bg.withValues(alpha: 0.72) : c.bg.withValues(alpha: 0),
+        border: Border(bottom: BorderSide(color: overlapsContent ? c.palette.border : Colors.transparent)),
+      ),
+      child: Row(children: [
+        leading ??
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(13), boxShadow: c.extra.shadowRaised),
+              child: const BrandMark(size: 27),
+            ),
+        Expanded(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 180),
+            opacity: overlapsContent ? 1 : 0,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: c.heading, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: -0.2),
+              ),
+            ),
+          ),
+        ),
+        for (var i = 0; i < tools.length; i++) ...[if (i > 0) const SizedBox(width: 6), tools[i]],
+      ]),
+    );
+    return ClipRect(
+      child: BackdropFilter(
+        enabled: overlapsContent,
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: bar,
       ),
     );
   }

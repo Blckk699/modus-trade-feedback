@@ -231,3 +231,57 @@ async def test_repeats_from_the_same_author_are_counted(client, login_as) -> Non
     # Фильтр по статусу прячет закрытые повторы из выборки, но не из счётчика.
     filtered = (await summary(client, owner, status="new"))["repeated_topics"]
     assert [(t["appeal"]["id"], t["participants_count"]) for t in filtered] == [(1, 3)]
+
+
+async def test_departments_table_is_by_executor_not_author(client, login_as) -> None:
+    """B-25 п.3: обращение сотрудника продаж в категорию закупок считается за закупками."""
+    owner = await login_as("owner")
+    before = {(d["department"] or {}).get("name"): d for d in (await summary(client, owner))["by_department"]}
+    created = await client.post(
+        "/api/v1/appeals",
+        headers=await login_as("employee_sales"),
+        json={"type": "problem", "category_id": 1, "priority": "medium", "text": "Нет назначения оборудования."},
+    )
+    assert created.status_code == 201
+    body = await summary(client, owner)
+    after = {(d["department"] or {}).get("name"): d for d in body["by_department"]}
+    assert after["Закупки"]["total"] == before["Закупки"]["total"] + 1
+    assert after["Закупки"]["open_count"] == before["Закупки"]["open_count"] + 1
+    assert after.get("Продажи", {}).get("total") == before.get("Продажи", {}).get("total")
+    assert sum(d["total"] for d in body["by_department"]) == body["total"]
+    assert sum(d["overdue_count"] for d in body["by_department"]) == len(body["overdue"])
+    overdue = [d["overdue_count"] for d in body["by_department"]]
+    assert overdue == sorted(overdue, reverse=True), "сначала подразделения с просрочкой"
+
+    # Руководитель видит только своё подразделение.
+    mine = (await summary(client, await login_as(HEAD)))["by_department"]
+    assert [d["department"]["name"] for d in mine] == ["Закупки"]
+
+
+async def test_last_week_is_compared_with_previous(client, login_as, time_machine) -> None:
+    """B-25 п.4: те же цифры за прошлые семь дней."""
+    owner = await login_as("owner")
+    author = await login_as("employee_sales")
+    form = {"type": "problem", "category_id": 1, "priority": "medium", "text": "Нет назначения оборудования."}
+    start = (await summary(client, owner))["last_week"]
+
+    old = (await client.post("/api/v1/appeals", headers=author, json=form)).json()
+    assert (await client.post(f"/api/v1/appeals/{old['id']}/take", headers=owner, json={})).status_code == 200
+    await client.post(f"/api/v1/appeals/{old['id']}/reject", headers=owner, json={"reason": "Вне плана"})
+    await time_machine.advance(days=8)
+    fresh = (await client.post("/api/v1/appeals", headers=author, json=form)).json()
+    assert fresh["status"] == "new"
+
+    body = await summary(client, owner)
+    last, previous = body["last_week"], body["previous_week"]
+    assert last["to"] == body["generated_at"] and last["from"] == previous["to"]
+    assert (datetime.fromisoformat(last["to"]) - datetime.fromisoformat(last["from"])) == timedelta(days=7)
+    assert last["created_count"] == 1, "за последнюю неделю подано только свежее"
+    # Обращение, поданное, взятое и отклонённое восемь дней назад, целиком ушло в прошлую неделю.
+    assert previous["created_count"] >= 1 and previous["closed_count"] >= 1
+    assert previous["avg_first_response_hours"] is not None
+    assert last["closed_count"] == 0 and last["avg_first_response_hours"] is None
+    assert start["created_count"] >= 1, "до сдвига времени свежие обращения сида были в текущей неделе"
+    assert set(last) == {
+        "from", "to", "created_count", "closed_count", "implemented_count", "overdue_count", "avg_first_response_hours"
+    }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:modus_api/api.dart';
 
 import '../web/web_ui.dart';
@@ -7,6 +9,7 @@ import 'card_parts.dart' show needsAssignee;
 import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../../session/session_controller.dart';
 import '../discussions/publish_discussion_form.dart';
 import '../../theme/modus_theme.dart';
 import '../sheet_header.dart';
@@ -22,15 +25,25 @@ const processingActions = [
   AppealAction.acceptFeedback,
   AppealAction.reassign,
   AppealAction.publishDiscussion,
+  AppealAction.createBitrixTask,
 ];
 
+Key actionKey(AppealAction a) => a == AppealAction.createBitrixTask ? const Key('bitrix-create') : Key('action-${a.toJson()}');
+
+String actionTitle(SessionController session, AppealAction a) =>
+    a == AppealAction.createBitrixTask ? 'Задача в Битрикс24' : session.actionLabel(a);
+
 class ActionsPanel extends StatelessWidget {
-  const ActionsPanel({super.key, required this.appeal, required this.onUpdated});
+  const ActionsPanel({super.key, required this.appeal, required this.onUpdated, this.chat});
 
   final Appeal appeal;
+
+  /// Вход в переписку — встаёт в ряд со второстепенным действием.
+  final Widget? chat;
   final ValueChanged<Appeal> onUpdated;
 
   Future<void> _open(BuildContext context, AppealAction action) async {
+    if (action == AppealAction.createBitrixTask) return _createBitrix(context);
     final updated = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
@@ -92,6 +105,28 @@ class ActionsPanel extends StatelessWidget {
     };
   }
 
+  /// Задача в Битрикс24 — без формы: создаём и подставляем ссылку в обращение.
+  Future<void> _createBitrix(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final task = await SessionScope.read(context).api.bitrix.createBitrixTask(appeal.id);
+      if (task == null) throw const AppError(code: 'internal_error', message: 'Пустой ответ сервера.');
+      onUpdated(appeal..bitrixTask = task.toJson());
+      messenger.showSnackBar(SnackBar(content: Text('Создана задача №${task.taskId} в Битрикс24')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(AppError.from(e).message)));
+    }
+  }
+
+  Future<void> _more(BuildContext context, List<AppealAction> actions) async {
+    final picked = await showModalBottomSheet<AppealAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => _MoreSheet(actions: actions),
+    );
+    if (picked != null && context.mounted) await _open(context, picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
@@ -101,10 +136,10 @@ class ActionsPanel extends StatelessWidget {
         .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
         // Без ответственного назначают блоком в карточке, переназначать пока некого.
         .where((a) => !(a == AppealAction.reassign && needsAssignee(appeal)))
+        .where((a) => !(a == AppealAction.createBitrixTask && appeal.bitrixTask != null))
         .toList();
-    if (actions.isEmpty) return const SizedBox.shrink();
-    // Как `.sheet__foot` в вебе: главное действие — тёмная кнопка, остальные — мягкие,
-    // «Отклонить» — красный текст без заливки.
+    // Главное действие — одна тёмная кнопка во всю ширину. Под ней ряд из двух равных кнопок:
+    // «Переписка» и второстепенное действие (если оно одно) или «Ещё» со списком в листе.
     const primaryOrder = [
       AppealAction.take,
       AppealAction.startWork,
@@ -113,32 +148,115 @@ class ActionsPanel extends StatelessWidget {
       AppealAction.requestInfo,
     ];
     final primary = primaryOrder.where(actions.contains).firstOrNull;
-    final rest = actions.where((a) => a != AppealAction.reject && a != primary).toList();
-    final buttons = <Widget>[
-      for (final a in rest)
-        WebButton(
-          key: Key('action-${a.toJson()}'),
-          kind: WebButtonKind.soft,
-          label: session.actionLabel(a),
-          onPressed: () => _open(context, a),
+    // «Отклонить» — последним, чтобы в листе он стоял внизу отдельно.
+    final secondary = [
+      ...actions.where((a) => a != AppealAction.reject && a != primary),
+      if (actions.contains(AppealAction.reject)) AppealAction.reject,
+    ];
+    final Widget? second = switch (secondary.length) {
+      0 => null,
+      1 => WebButton(
+          key: actionKey(secondary.single),
+          kind: secondary.single == AppealAction.reject ? WebButtonKind.ghostDanger : WebButtonKind.soft,
+          label: actionTitle(session, secondary.single),
+          onPressed: () => _open(context, secondary.single),
         ),
+      _ => WebButton(
+          key: const Key('actions-more'),
+          kind: WebButtonKind.soft,
+          icon: const Icon(LucideIcons.ellipsis),
+          label: 'Ещё',
+          onPressed: () => _more(context, secondary),
+        ),
+    };
+    final row = [?chat, ?second];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (primary != null)
         WebButton(
           key: Key('action-${primary.toJson()}'),
           label: session.actionLabel(primary),
           onPressed: () => _open(context, primary),
         ),
-      if (actions.contains(AppealAction.reject))
-        WebButton(
-          key: const Key('action-reject'),
-          kind: WebButtonKind.ghostDanger,
-          label: session.actionLabel(AppealAction.reject),
-          onPressed: () => _open(context, AppealAction.reject),
-        ),
-    ];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      for (var i = 0; i < buttons.length; i++) ...[if (i > 0) const SizedBox(height: 8), buttons[i]],
+      if (primary != null && row.isNotEmpty) const SizedBox(height: 8),
+      if (row.isNotEmpty)
+        Row(children: [
+          for (var i = 0; i < row.length; i++) ...[if (i > 0) const SizedBox(width: 8), Expanded(child: row[i])],
+        ]),
     ]);
+  }
+}
+
+IconData actionIcon(AppealAction a) => switch (a) {
+      AppealAction.take => LucideIcons.hand,
+      AppealAction.requestInfo => LucideIcons.messageCircleQuestion,
+      AppealAction.startWork => LucideIcons.play,
+      AppealAction.implement => LucideIcons.circleCheck,
+      AppealAction.acceptFeedback => LucideIcons.check,
+      AppealAction.reassign => LucideIcons.userPen,
+      AppealAction.publishDiscussion => LucideIcons.messagesSquare,
+      AppealAction.reject => LucideIcons.ban,
+      AppealAction.createBitrixTask => LucideIcons.listPlus,
+      _ => LucideIcons.chevronRight,
+    };
+
+/// Лист «Ещё»: второстепенные действия группой строк, «Отклонить» — отдельной красной строкой.
+class _MoreSheet extends StatelessWidget {
+  const _MoreSheet({required this.actions});
+
+  final List<AppealAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = SessionScope.of(context);
+    final c = ModusColors.of(context);
+    final normal = actions.where((a) => a != AppealAction.reject).toList();
+    Widget group(List<AppealAction> items, {bool danger = false}) => ClipRRect(
+          borderRadius: BorderRadius.circular(Web.rTile),
+          child: ColoredBox(
+            color: c.surface2,
+            child: Column(children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) Divider(height: 1, indent: 52, color: c.palette.border),
+                InkWell(
+                  key: actionKey(items[i]),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(context).pop(items[i]);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                    child: Row(children: [
+                      Icon(actionIcon(items[i]), size: 20, color: danger ? c.danger : c.muted),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          actionTitle(session, items[i]),
+                          style: TextStyle(
+                            color: danger ? c.danger : c.heading,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              ],
+            ]),
+          ),
+        );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (normal.isNotEmpty) group(normal),
+          if (actions.contains(AppealAction.reject)) ...[
+            if (normal.isNotEmpty) const SizedBox(height: 12),
+            group(const [AppealAction.reject], danger: true),
+          ],
+        ]),
+      ),
+    );
   }
 }
 

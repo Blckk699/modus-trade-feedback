@@ -5459,6 +5459,54 @@ components:
           description: |
             Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы. Повторы одного и того же
             автора тоже считаются. Темы идут по убыванию этого числа.
+    DepartmentStats:
+      type: object
+      required: [department, total, open_count, overdue_count, avg_first_response_hours]
+      properties:
+        department:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DepartmentRef'
+        total:
+          type: integer
+        open_count:
+          type: integer
+          description: Незавершённые
+        overdue_count:
+          type: integer
+          description: С просроченным сроком первого ответа сейчас
+        avg_first_response_hours:
+          type: number
+          nullable: true
+          description: Среднее время первого ответа в часах; null — ответов ещё не было
+    PeriodStats:
+      type: object
+      description: Ключевые цифры выборки за семь дней; момент `to` входит в период, момент `from` — нет
+      required: [from, to, created_count, closed_count, implemented_count, overdue_count, avg_first_response_hours]
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        created_count:
+          type: integer
+          description: Подано за период
+        closed_count:
+          type: integer
+          description: Завершено за период (отклонено, реализовано, закрыто)
+        implemented_count:
+          type: integer
+          description: Из них реализовано
+        overdue_count:
+          type: integer
+          description: Срок первого ответа истёк в этом периоде, а ответа к сроку не было
+        avg_first_response_hours:
+          type: number
+          nullable: true
+          description: Среднее время первого ответа по ответам, данным в этом периоде; null — ответов не было
     AnalyticsSummary:
       type: object
       required:
@@ -5479,7 +5527,27 @@ components:
         - overdue
         - assignee_load
         - unassigned_count
+        - by_department
+        - last_week
+        - previous_week
       properties:
+        by_department:
+          type: array
+          description: |
+            Выборка по подразделениям исполнителя: подразделение категории обращения, а у обращения без категории —
+            подразделение ответственного (`department: null` — нет ни того, ни другого). Не подразделение автора.
+            Сначала подразделения с наибольшим числом просроченных. Фильтр `department_id` работает так же —
+            по подразделению категории.
+          items:
+            $ref: '#/components/schemas/DepartmentStats'
+        last_week:
+          allOf:
+            - $ref: '#/components/schemas/PeriodStats'
+          description: Последние семь дней до `generated_at`
+        previous_week:
+          allOf:
+            - $ref: '#/components/schemas/PeriodStats'
+          description: Семь дней перед ними — для сравнения
         scope:
           type: string
           enum: [company, department]
@@ -7028,6 +7096,12 @@ components:
       value:
         scope: company
         unassigned_count: 0
+        by_department:
+          - {department: {id: 6, name: IT}, total: 3, open_count: 3, overdue_count: 1, avg_first_response_hours: 20.0}
+          - {department: {id: 1, name: Закупки}, total: 5, open_count: 4, overdue_count: 1, avg_first_response_hours: 16.5}
+          - {department: null, total: 1, open_count: 1, overdue_count: 0, avg_first_response_hours: null}
+        last_week: {from: '2026-11-03T09:00:00+05:00', to: '2026-11-10T09:00:00+05:00', created_count: 9, closed_count: 3, implemented_count: 1, overdue_count: 2, avg_first_response_hours: 14.0}
+        previous_week: {from: '2026-10-27T09:00:00+05:00', to: '2026-11-03T09:00:00+05:00', created_count: 7, closed_count: 1, implemented_count: 1, overdue_count: 3, avg_first_response_hours: 22.5}
         department: null
         generated_at: '2026-11-10T09:00:00+05:00'
         total: 20
