@@ -5440,6 +5440,10 @@ components:
           $ref: '#/components/schemas/AppealRef'
         participants_count:
           type: integer
+          minimum: 2
+          description: |
+            Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы. Повторы одного и того же
+            автора тоже считаются. Темы идут по убыванию этого числа.
     AnalyticsSummary:
       type: object
       required:
@@ -5514,6 +5518,7 @@ components:
             $ref: '#/components/schemas/AppealRef'
         repeated_topics:
           type: array
+          description: Обращения, к которым присоединены повторы, по убыванию числа сообщивших
           items:
             $ref: '#/components/schemas/RepeatedTopic'
         overdue:
