@@ -2158,23 +2158,6 @@ textarea.input {
   gap: 12px;
 }
 
-.brief__mark {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--heading);
-  box-shadow: var(--shadow-raised);
-}
-
-.brief__mark svg {
-  width: 28px;
-  height: 28px;
-}
-
 .brief__who {
   flex: 1;
   min-width: 0;
