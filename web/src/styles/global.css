@@ -3022,48 +3022,57 @@ button.chat-entry--ask[aria-expanded='true'] {
   font-weight: 700;
 }
 
-/* Якорь нулевой высоты между содержимым карточки и нижней панелью: окно чата стоит над панелью */
-.chat-anchor {
-  position: relative;
-  flex: none;
-  height: 0;
-}
-
-.solo .chat-anchor {
-  position: sticky;
-  bottom: 0;
-}
-
-.solo .chat-anchor:has(+ .sheet__foot) {
-  bottom: 73px;
-}
-
+/* Чат — отдельная панель рядом с карточкой, на всю её высоту */
 .chat {
-  position: absolute;
-  right: 16px;
-  bottom: 12px;
-  z-index: 3;
-  width: min(400px, calc(100% - 32px));
-  /* Окно растёт вместе с перепиской и останавливается у верхней границы */
-  min-height: 320px;
-  max-height: min(560px, calc(100dvh - 190px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 24px;
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
-  animation: chat-in 0.22s var(--ease);
+  border-radius: 28px;
+  background: var(--card);
+  animation: chat-in 0.24s var(--ease);
 }
 
 .chat:focus-visible {
   outline: none;
 }
 
+/* Карточка открыта панелью справа: чат встаёт слева от неё, внутри того же окна */
+.chat--side {
+  position: absolute;
+  top: 0;
+  right: calc(100% + 12px);
+  bottom: 0;
+  width: min(420px, calc(100vw - 680px - 36px));
+  box-shadow: var(--shadow-sheet);
+}
+
+/* Обращение открыто отдельной страницей: чат стоит у правого края экрана, под шапкой */
+.chat--page {
+  position: fixed;
+  top: 96px;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  width: min(400px, calc(100vw - 48px));
+  box-shadow: var(--shadow-pop);
+}
+
+/* Рядом с карточкой места нет — чат занимает место карточки */
+@media (max-width: 1099px) {
+  .chat--side {
+    right: 0;
+    left: 0;
+    /* выше крестика карточки, который лежит под чатом */
+    z-index: 6;
+    width: auto;
+    box-shadow: none;
+  }
+}
+
 @keyframes chat-in {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.98);
+    transform: translateX(24px);
   }
 }
 
@@ -3071,7 +3080,7 @@ button.chat-entry--ask[aria-expanded='true'] {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 12px 12px 16px;
+  padding: 16px 16px 14px 20px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -3082,7 +3091,7 @@ button.chat-entry--ask[aria-expanded='true'] {
   place-items: center;
   flex: none;
   border-radius: 50%;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--heading);
 }
 
@@ -3108,8 +3117,6 @@ button.chat-entry--ask[aria-expanded='true'] {
 .chat__hide {
   width: 38px;
   height: 38px;
-  background: var(--surface-2);
-  box-shadow: none;
 }
 
 .chat__scroll {
@@ -3117,7 +3124,7 @@ button.chat-entry--ask[aria-expanded='true'] {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 6px 14px 12px;
+  padding: 6px 16px 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -3236,15 +3243,9 @@ button.chat-entry--ask[aria-expanded='true'] {
   text-align: center;
 }
 
-.chat .chat__composer {
+.chat__composer {
   flex: none;
-  margin: 0 12px 12px;
-  background: var(--bg);
-  box-shadow: none;
-}
-
-.chat .chat__composer:focus-within {
-  background: var(--surface-3);
+  margin: 0 14px 14px;
 }
 
 .chat__readonly {
@@ -4886,14 +4887,14 @@ button.vote__option:not(.vote__option--mine):hover {
   }
 
   /* Окно переписки на телефоне занимает весь экран */
-  .chat {
+  .chat--side,
+  .chat--page {
     position: fixed;
     inset: 0;
     z-index: 70;
     width: auto;
-    min-height: 0;
-    max-height: none;
     border-radius: 0;
+    box-shadow: none;
     animation-name: sheet-up;
   }
 

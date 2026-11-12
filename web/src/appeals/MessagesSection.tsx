@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, ChevronDown, MessageCircle } from 'lucide-react';
+import { ArrowUp, MessageCircle, X } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
@@ -17,17 +17,22 @@ type Appeal = Schemas['Appeal'];
 interface Props {
   appeal: Appeal;
   onAppealChanged: () => void;
-  /** Куда карточка просит поставить окно чата: якорь над нижней панелью действий. */
-  host: HTMLElement | null;
+}
+
+/** Где стоит чат: рядом с карточкой-панелью (внутри её окна) или сбоку страницы, когда обращение открыто по прямой ссылке. */
+interface Place {
+  host: HTMLElement;
+  side: boolean;
 }
 
 /**
  * Закрытая переписка автора и тех, кто ведёт обращение. В карточке она занимает одну строку
- * с последним сообщением; по нажатию открывается окно чата поверх карточки и так же скрывается.
+ * с последним сообщением; строка работает как выключатель: по нажатию чат встаёт отдельной панелью
+ * слева от карточки на всю её высоту и так же скрывается. На узком экране чат занимает место карточки.
  * Автору, которому задали уточняющий вопрос, окно открыто сразу: ответ — то, зачем он пришёл.
  * Писать можно, если в allowed_actions есть send_message или reply_clarification.
  */
-export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
+export function MessagesSection({ appeal, onAppealChanged }: Props) {
   const me = useMe();
   const list = useAsync(
     () => unwrap(api.GET('/api/v1/appeals/{appeal_id}/messages', { params: { path: { appeal_id: appeal.id } } })),
@@ -41,26 +46,36 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const panelId = useId();
+  const section = useRef<HTMLElement>(null);
+  const [place, setPlace] = useState<Place | null>(null);
   const entry = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   /** Открыли кнопкой — ставим курсор в поле; открытое само (вопрос автору) фокус не забирает. */
   const byUser = useRef(false);
+  /** Отправка идёт. Ref, а не только state: Ctrl+Enter зовёт requestSubmit() в обход выключенной кнопки, и второе нажатие приходит раньше перерисовки. */
+  const sending = useRef(false);
 
   const messages = list.state.status === 'ready' ? list.state.data : [];
   const count = messages.length;
 
-  // Новое сообщение и открытие окна прокручивают переписку к последнему сообщению.
+  // Карточка-панель живёт в <dialog>: чат кладём в то же окно, иначе он окажется под подложкой и вне фокуса.
+  useEffect(() => {
+    const dialog = section.current?.closest('dialog');
+    setPlace({ host: dialog ?? document.body, side: Boolean(dialog) });
+  }, []);
+
+  // Новое сообщение и открытие чата прокручивают переписку к последнему сообщению.
   useEffect(() => {
     if (open && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
-  }, [open, count, host]);
+  }, [open, count, place]);
 
   useEffect(() => {
-    if (!open || !byUser.current) return;
+    if (!open || !place || !byUser.current) return;
     byUser.current = false;
     (input.current ?? panel.current)?.focus();
-  }, [open, host]);
+  }, [open, place]);
 
   // Кому переписка не положена, раздел не рисуют вовсе (cardSections.canReadMessages).
   // Это запасной случай: права изменились, пока карточка была открыта.
@@ -89,7 +104,8 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || sending.current) return;
+    sending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -107,6 +123,7 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
     } catch (err) {
       setError(errorMessage(err));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
@@ -145,7 +162,7 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
   );
 
   return (
-    <section className="section" aria-label="Переписка">
+    <section ref={section} className="section" aria-label="Переписка">
       {idle ? (
         <div className="chat-entry chat-entry--static">{rowBody}</div>
       ) : (
@@ -165,12 +182,12 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
       )}
 
       {open &&
-        host &&
+        place &&
         createPortal(
           <div
             ref={panel}
             id={panelId}
-            className="chat"
+            className={place.side ? 'chat chat--side' : 'chat chat--page'}
             role="dialog"
             aria-label={`Переписка по обращению ${appeal.number}`}
             tabIndex={-1}
@@ -185,7 +202,7 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
                 <p className="chat__sub">{appeal.number} · в общую ленту не попадает</p>
               </div>
               <button type="button" className="tool-btn chat__hide" aria-label="Скрыть переписку" onClick={hide}>
-                <ChevronDown size={18} aria-hidden="true" />
+                <X size={18} aria-hidden="true" />
               </button>
             </header>
 
@@ -269,7 +286,7 @@ export function MessagesSection({ appeal, onAppealChanged, host }: Props) {
               count > 0 && <p className="chat__readonly">Вы можете только читать эту переписку.</p>
             )}
           </div>,
-          host,
+          place.host,
         )}
     </section>
   );
