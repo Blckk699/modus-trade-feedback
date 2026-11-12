@@ -89,6 +89,56 @@ class SessionController extends ChangeNotifier {
   Future<void> loginWithCode(String code) =>
       _login(() => api.auth.loginWithCode(CodeLoginRequest(code: code)));
 
+  /// Вход по почте и паролю. С [newPassword] — вход с временным паролем и его заменой.
+  /// Бросает [AppError]: `invalid_credentials`, `access_request_pending`, `password_change_required` и т. д.
+  Future<void> loginWithEmail(String email, String password, {String? newPassword}) => _login(
+        () => api.auth.loginByEmail(EmailLogin(email: email.trim(), password: password, newPassword: newPassword)),
+      );
+
+  /// Регистрация по почте. true — заявка на рассмотрении; false — вход по приглашению уже выполнен.
+  Future<bool> register({
+    required String fullName,
+    required String email,
+    required String password,
+    int? departmentId,
+    String? comment,
+    String? inviteToken,
+  }) async {
+    final RegisterResult? result;
+    try {
+      result = await api.auth.registerByEmail(EmailRegister(
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password: password,
+        departmentId: departmentId,
+        comment: comment == null || comment.trim().isEmpty ? null : comment.trim(),
+        inviteToken: inviteToken,
+      ));
+    } catch (e) {
+      throw AppError.from(e);
+    }
+    if (result == null) throw const AppError(code: 'internal_error', message: 'Пустой ответ сервера.');
+    final session = result.session;
+    if (result.status == RegisterResultStatusEnum.registered && session != null) {
+      await _login(() async => session);
+      return false;
+    }
+    return true;
+  }
+
+  /// Подразделения для формы регистрации (публичный список).
+  Future<List<DepartmentRef>> accessDepartments() async {
+    try {
+      return await api.access.listAccessDepartments() ?? const [];
+    } catch (e) {
+      throw AppError.from(e);
+    }
+  }
+
+  /// Демо-переключатель ролей: новая сессия под связанным пользователем из `me.switchTargets`.
+  Future<void> switchTo(int userId) =>
+      _login(() => api.auth.switchAccount(SwitchAccountRequest(userId: userId)));
+
   /// Dev-вход под выбранным пользователем (только локально и на моке).
   Future<void> devLogin(int userId) =>
       _login(() => api.auth.devLogin(DevLoginRequest(userId: userId)));
@@ -146,6 +196,14 @@ class SessionController extends ChangeNotifier {
     }
     return code;
   }
+
+  /// Значение поля из истории: коды статуса, типа и приоритета — подписями из справочника.
+  String historyCodeLabel(String? field, String code) => switch (field) {
+        'status' => statusCodeLabel(code),
+        'type' => _label(_dictionaries?.appealTypes, code),
+        'priority' => _label(_dictionaries?.priorities, code),
+        _ => code,
+      };
 
   String _label(List<LabeledCode>? items, String code) {
     for (final item in items ?? const <LabeledCode>[]) {

@@ -8,7 +8,7 @@ import 'package:modus_api/api.dart';
 /// Ошибка API в формате контракта: `{"error": {"code", "message", "details"}}`.
 /// `message` показываем пользователю как есть, ветвимся только по `code`.
 class AppError implements Exception {
-  const AppError({required this.code, required this.message, this.status, this.fields = const {}});
+  const AppError({required this.code, required this.message, this.status, this.fields = const {}, this.details = const {}});
 
   /// Код из `ErrorCode` контракта или `network`, если сервер недоступен.
   final String code;
@@ -17,6 +17,9 @@ class AppError implements Exception {
 
   /// Ошибки полей из `422 validation_error`: `details.fields[{field, message}]`, ключ без `body.`.
   final Map<String, String> fields;
+
+  /// `details` ошибки как есть: например, `reason` у отклонённой заявки, `retry_after_seconds` у блокировки.
+  final Map<String, dynamic> details;
 
   static const network = 'network';
 
@@ -36,7 +39,7 @@ class AppError implements Exception {
       if (error.innerException != null) return networkError;
       final parsed = _parseBody(error.message);
       if (parsed != null) {
-        return AppError(code: parsed.$1, message: parsed.$2, status: error.code, fields: parsed.$3);
+        return AppError(code: parsed.$1, message: parsed.$2, status: error.code, fields: parsed.$3, details: parsed.$4);
       }
       return AppError(
         code: 'internal_error',
@@ -50,7 +53,7 @@ class AppError implements Exception {
     );
   }
 
-  static (String, String, Map<String, String>)? _parseBody(String? body) {
+  static (String, String, Map<String, String>, Map<String, dynamic>)? _parseBody(String? body) {
     if (body == null || body.isEmpty) return null;
     try {
       final json = jsonDecode(body);
@@ -66,7 +69,12 @@ class AppError implements Exception {
             }
           }
         }
-        return (error['code'] as String, error['message'] as String, fields);
+        return (
+          error['code'] as String,
+          error['message'] as String,
+          fields,
+          details is Map ? details.cast<String, dynamic>() : const <String, dynamic>{},
+        );
       }
     } on FormatException {
       return null;

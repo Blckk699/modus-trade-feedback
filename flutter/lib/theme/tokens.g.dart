@@ -29,6 +29,8 @@ class ModusPalette {
   final Color successBg;
   final Color info;
   final Color infoBg;
+  final Color people;
+  final Color peopleBg;
   final Map<String, StatusColor> status;
 
   const ModusPalette({
@@ -56,8 +58,69 @@ class ModusPalette {
     required this.successBg,
     required this.info,
     required this.infoBg,
+    required this.people,
+    required this.peopleBg,
     required this.status,
   });
+
+  ModusPalette copyWith({
+    Color? bg,
+    Color? surface,
+    Color? surface2,
+    Color? text,
+    Color? heading,
+    Color? muted,
+    Color? border,
+    Color? borderInput,
+    Color? primary,
+    Color? primaryHover,
+    Color? onPrimary,
+    Color? accent,
+    Color? accentHover,
+    Color? onAccent,
+    Color? link,
+    Color? focus,
+    Color? danger,
+    Color? dangerBg,
+    Color? warn,
+    Color? warnBg,
+    Color? success,
+    Color? successBg,
+    Color? info,
+    Color? infoBg,
+    Color? people,
+    Color? peopleBg,
+    Map<String, StatusColor>? status,
+  }) =>
+      ModusPalette(
+        bg: bg ?? this.bg,
+        surface: surface ?? this.surface,
+        surface2: surface2 ?? this.surface2,
+        text: text ?? this.text,
+        heading: heading ?? this.heading,
+        muted: muted ?? this.muted,
+        border: border ?? this.border,
+        borderInput: borderInput ?? this.borderInput,
+        primary: primary ?? this.primary,
+        primaryHover: primaryHover ?? this.primaryHover,
+        onPrimary: onPrimary ?? this.onPrimary,
+        accent: accent ?? this.accent,
+        accentHover: accentHover ?? this.accentHover,
+        onAccent: onAccent ?? this.onAccent,
+        link: link ?? this.link,
+        focus: focus ?? this.focus,
+        danger: danger ?? this.danger,
+        dangerBg: dangerBg ?? this.dangerBg,
+        warn: warn ?? this.warn,
+        warnBg: warnBg ?? this.warnBg,
+        success: success ?? this.success,
+        successBg: successBg ?? this.successBg,
+        info: info ?? this.info,
+        infoBg: infoBg ?? this.infoBg,
+        people: people ?? this.people,
+        peopleBg: peopleBg ?? this.peopleBg,
+        status: status ?? this.status,
+      );
 }
 
 /// Цвета бейджа статуса: текст и подложка.
@@ -92,6 +155,8 @@ const lightPalette = ModusPalette(
   successBg: Color(0xFFE5F4EA),
   info: Color(0xFF1A66C9),
   infoBg: Color(0xFFE6F0FC),
+  people: Color(0xFF7A5300),
+  peopleBg: Color(0xFFFFF1C2),
   status: {
     'new': StatusColor(Color(0xFF1A62C4), Color(0xFFE6F0FC)),
     'in_review': StatusColor(Color(0xFF082742), Color(0xFFE3EAF2)),
@@ -128,6 +193,8 @@ const darkPalette = ModusPalette(
   successBg: Color(0xFF143222),
   info: Color(0xFF8DBBF5),
   infoBg: Color(0xFF12304F),
+  people: Color(0xFFF5D06B),
+  peopleBg: Color(0xFF3A3010),
   status: {
     'new': StatusColor(Color(0xFF8DBBF5), Color(0xFF12304F)),
     'in_review': StatusColor(Color(0xFFC9D6E6), Color(0xFF1C3047)),

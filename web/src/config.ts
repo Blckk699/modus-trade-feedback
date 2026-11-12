@@ -16,4 +16,6 @@ export const config = {
   bitrixAuthMock: env.VITE_BITRIX_AUTH_MOCK === 'true',
   /** Только для локальной проверки: переключатель ролей на dev-пользователях вместо API. На сервере не задаётся. */
   roleSwitchMock: env.VITE_ROLE_SWITCH_MOCK === 'true',
+  /** Только для локальной проверки: события живых обновлений приходят из соседних вкладок, а не из сокета. */
+  liveMock: env.VITE_LIVE_MOCK === 'true',
 };

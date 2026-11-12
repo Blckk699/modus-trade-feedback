@@ -174,11 +174,14 @@ void main() {
     final session = await signedIn(server);
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
+    // Стартовый экран — «Сегодня»; переходим в «Мои».
+    await tester.tap(find.byKey(const Key('nav-myAppeals')));
+    await tester.pumpAndSettle();
 
     final query = server.last('GET', '/api/v1/appeals').url.queryParameters;
     expect(query['scope'], 'mine');
     expect(query['sort'], 'created_desc');
-    expect(find.text('A-021'), findsOneWidget);
+    expect(find.textContaining('A-021'), findsOneWidget);
     expect(find.text('Новое'), findsOneWidget);
     expect(find.text('В срок · до 13 ноября 2026, 10:15'), findsOneWidget);
     expect(find.text('Отклонено'), findsOneWidget);
@@ -216,6 +219,28 @@ void main() {
               'comment': null,
               'created_at': '2026-11-10T11:02:00+05:00',
             },
+            {
+              'id': 104,
+              'appeal_id': 21,
+              'kind': 'field_changed',
+              'actor': assignee,
+              'field': 'priority',
+              'old_value': 'medium',
+              'new_value': 'high',
+              'comment': null,
+              'created_at': '2026-11-10T11:03:00+05:00',
+            },
+            {
+              'id': 102,
+              'appeal_id': 21,
+              'kind': 'deadline_set',
+              'actor': null,
+              'field': 'first_response_due_at',
+              'old_value': null,
+              'new_value': '2026-11-18T09:55:15.058981+05:00',
+              'comment': null,
+              'created_at': '2026-11-10T11:01:00+05:00',
+            },
           ]),
       'GET /api/v1/appeals/21/messages': (_) => json([messageJson(501, 'Здравствуйте, посмотрю сегодня.')]),
       'GET /api/v1/notifications/unread-count': (_) => json({'count': 1}),
@@ -235,8 +260,17 @@ void main() {
     await tester.scrollUntilVisible(find.text('пример_заявки.pdf'), 200, scrollable: list);
     expect(find.text('180 КБ · Айгерим Нурланова'), findsOneWidget);
     expect(find.byKey(const Key('upload-attachment')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('history-toggle')), 200, scrollable: list);
+    expect(find.text('Статус изменён'), findsNothing, reason: 'история свёрнута по умолчанию');
+    await tester.ensureVisible(find.byKey(const Key('history-toggle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history-toggle')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Статус изменён'), 200, scrollable: list);
     expect(find.text('Новое → На рассмотрении'), findsOneWidget);
+    expect(find.text('18 ноября 2026, 09:55'), findsWidgets, reason: 'срок в истории — датой, а не строкой ISO');
+    expect(find.textContaining('2026-11-18T'), findsNothing);
+    expect(find.text('Средний → Высокий'), findsOneWidget, reason: 'приоритет в истории — подписью');
 
     await tester.pumpWidget(const SizedBox());
   });
@@ -285,7 +319,7 @@ void main() {
 
     expect(find.text('Ожидает уточнения'), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('clarification-question')), 200, scrollable: list);
-    expect(find.text('Вопрос от Марат Сейткали'), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('clarification-question')), matching: find.text('Уточняющий вопрос')), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('message-text')), 200, scrollable: list);
     expect(find.text('Ответ на вопрос'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('message-text')), 'Акты сверки');

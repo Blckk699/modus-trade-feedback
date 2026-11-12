@@ -133,6 +133,7 @@ def _user_out(user: User, directory: Directory) -> UserOut:
         id=user.id,
         telegram_id=user.telegram_id,
         email=user.email,
+        bitrix_user_id=user.bitrix_user_id,
         full_name=user.full_name,
         position=user.position,
         role=user.role,

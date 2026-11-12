@@ -29,8 +29,9 @@ def make_engine(url: str, **kwargs) -> AsyncEngine:
     return create_async_engine(url, pool_pre_ping=True, **kwargs)
 
 
-def make_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(engine, expire_on_commit=False)
+def make_sessionmaker(engine: AsyncEngine, *, info: dict | None = None) -> async_sessionmaker[AsyncSession]:
+    """`info` попадает в `session.info` каждой сессии (например, шина живых обновлений)."""
+    return async_sessionmaker(engine, expire_on_commit=False, info=info or {})
 
 
 async def session_scope(maker: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncSession]:

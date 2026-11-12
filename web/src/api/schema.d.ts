@@ -795,11 +795,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Переназначить ответственного с причиной
+         * Назначить или переназначить ответственного
          * @description Руководитель (в своём подразделении), администратор, собственник. Если первого ответа ещё не было,
-         *     срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется. Причина пишется
-         *     в историю. Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
+         *     срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется.
+         *     Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
          *     назначает ответственного из очереди нераспределённых.
+         *
+         *     Причина (`reason`):
+         *     - у обращения уже есть ответственный (смена) — обязательна: без неё, с `null` или из одних пробелов —
+         *       `422` с полем `reason`. В историю пишется событие `reassigned`, причина — в `comment`;
+         *     - ответственного нет (первое назначение) — необязательна: поле можно не передавать или передать `null`.
+         *       В историю пишется событие `assigned`; `comment` — причина, если её передали, иначе `null`
+         *       (стандартный текст сервер не подставляет).
          *     Ответственному, сотруднику — `403`.
          *
          */
@@ -1415,6 +1422,72 @@ export interface paths {
          *
          */
         post: operations["markNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Живые обновления (WebSocket)
+         * @description Соединение WebSocket: `wss://<сервер>/api/v1/ws`. Сервер сам сообщает клиенту, что изменилось;
+         *     клиент перезапрашивает данные обычными маршрутами. Все сообщения — текстовые кадры с JSON-объектом,
+         *     у каждого есть поле `type`.
+         *
+         *     **Вход.** Токен в адресе не передаётся. Первым сообщением клиент отправляет
+         *     `{"type": "auth", "token": "<access_token сессии>"}` (`WsAuth`). Сервер отвечает `ready` (`WsReady`)
+         *     и после этого начинает слать события. Только сессия клиента: сервисный ключ бота не принимается.
+         *     До `ready` событий нет; любое другое первое сообщение закрывает соединение с кодом `4401`.
+         *
+         *     **События** (`WsEvent`) — только о том, что пользователь видит по текущим правам:
+         *
+         *     | `type` | Когда | Кому |
+         *     |---|---|---|
+         *     | `appeal.created` | подано обращение | всем, кто его видит: автор, ответственный, руководитель подразделения, собственник, администратор |
+         *     | `appeal.updated` | в историю обращения записано событие: статус, ответственный, срок, эскалация, вложение, склейка и т. д. | всем, кто видит обращение, включая участника склеенного повтора |
+         *     | `message.created` | новое сообщение в приватной переписке | тем, кто читает переписку: автор, ответственный, руководитель, собственник. Администратору — нет |
+         *     | `notification.created` | пользователю создано уведомление | только получателю, с актуальным счётчиком непрочитанного |
+         *     | `discussion.updated` | обсуждение опубликовано, в нём голос, комментарий, решение об имени или итог | всем подключённым |
+         *
+         *     В событии только идентификаторы и признак того, что поменялось. Текстов обращений, сообщений,
+         *     комментариев и уведомлений в событиях нет. Права проверяются в момент отправки: потерял доступ —
+         *     событий по обращению больше нет. Свои собственные действия пользователь тоже получает событием
+         *     (так обновляются другие его вкладки и устройства).
+         *
+         *     **Гарантии.** Событие отправляется после того, как изменение сохранено, обычно в пределах секунды.
+         *     Пропущенные события не досылаются и не хранятся: после подключения и после каждого переподключения
+         *     клиент сам перезапрашивает то, что показывает. Одно действие может дать несколько событий
+         *     (например, `appeal.updated` и `notification.created`); порядок между ними не гарантируется.
+         *     Неизвестный `type` и неизвестные поля клиент пропускает — список событий будет расширяться.
+         *
+         *     **Пинг.** Клиент может в любой момент отправить `{"type": "ping"}` и получит `{"type": "pong"}`;
+         *     рекомендуется раз в 30 секунд. Сервер, кроме того, шлёт служебные ping-кадры протокола WebSocket —
+         *     браузер отвечает на них сам. Переподключение — на клиенте, с нарастающей паузой.
+         *
+         *     **Коды закрытия:**
+         *
+         *     | Код | Причина | Что делать клиенту |
+         *     |---|---|---|
+         *     | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта, доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
+         *     | `4408` | за 10 секунд после открытия не пришёл `auth` | переподключиться и сразу отправить `auth` |
+         *     | `4400` | сообщение не JSON-объект, без `type` или длиннее 4 КБ | исправить клиент |
+         *     | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое | не переподключать закрытое |
+         *     | `1001`, `1012` | сервер перезапускается | переподключиться |
+         *
+         *     Маршрут описан как `GET`, потому что соединение открывается HTTP-запросом с `Upgrade: websocket`.
+         *     Мок-сервер Prism его не поддерживает.
+         *
+         */
+        get: operations["openLiveUpdates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2255,17 +2328,168 @@ export interface components {
             page: number;
             page_size: number;
         };
+        /**
+         * @description Вид события в истории обращения
+         * @enum {string}
+         */
+        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+        /** @example {
+         *       "type": "auth",
+         *       "token": "3fa1c0d2e4b54f6c8a7e9d0b1c2f3a4e"
+         *     } */
+        WsAuth: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "auth";
+            /** @description `access_token` сессии из `/auth/*` */
+            token: string;
+        };
+        /** @example {
+         *       "type": "ping"
+         *     } */
+        WsPing: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ping";
+        };
+        /** @description Сообщение клиента серверу */
+        WsClientMessage: components["schemas"]["WsAuth"] | components["schemas"]["WsPing"];
+        /**
+         * @description Вход принят, дальше идут события
+         * @example {
+         *       "type": "ready",
+         *       "user_id": 4,
+         *       "unread_count": 2,
+         *       "session_expires_at": "2026-12-12T09:00:00+05:00"
+         *     }
+         */
+        WsReady: {
+            /** @enum {string} */
+            type: "ready";
+            user_id: number;
+            /** @description Непрочитанные уведомления на момент подключения (то же, что `GET /notifications/unread-count`) */
+            unread_count: number;
+            /**
+             * Format: date-time
+             * @description Когда сессия истечёт и сервер закроет соединение с кодом `4401`
+             */
+            session_expires_at: string;
+        };
+        /** @example {
+         *       "type": "pong"
+         *     } */
+        WsPong: {
+            /** @enum {string} */
+            type: "pong";
+        };
+        /** @example {
+         *       "type": "appeal.created",
+         *       "appeal_id": 42,
+         *       "number": "MT-000042",
+         *       "status": "new"
+         *     } */
+        WsAppealCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "appeal.created";
+            appeal_id: number;
+            number: string;
+            status: components["schemas"]["AppealStatus"];
+        };
+        /** @example {
+         *       "type": "appeal.updated",
+         *       "appeal_id": 42,
+         *       "number": "MT-000042",
+         *       "status": "in_review",
+         *       "changed": [
+         *         "status_changed"
+         *       ]
+         *     } */
+        WsAppealUpdated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "appeal.updated";
+            appeal_id: number;
+            number: string;
+            /** @description Статус после изменения */
+            status: components["schemas"]["AppealStatus"];
+            /** @description Что записано в историю этим действием — те же значения, что `HistoryEvent.kind`:
+             *     `status_changed` — статус, `assigned` / `reassigned` — ответственный, `deadline_set` — срок,
+             *     `escalated` — эскалация, `attachment_added` — вложение и т. д. Подсказка, что перезапросить.
+             *      */
+            changed: components["schemas"]["HistoryKind"][];
+        };
+        /** @example {
+         *       "type": "message.created",
+         *       "appeal_id": 42,
+         *       "message_id": 318
+         *     } */
+        WsMessageCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "message.created";
+            appeal_id: number;
+            message_id: number;
+        };
+        /** @example {
+         *       "type": "notification.created",
+         *       "notification_id": 905,
+         *       "unread_count": 3
+         *     } */
+        WsNotificationCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "notification.created";
+            notification_id: number;
+            /** @description Счётчик непрочитанного вместе с этим уведомлением */
+            unread_count: number;
+        };
+        /** @example {
+         *       "type": "discussion.updated",
+         *       "discussion_id": 6,
+         *       "changed": "vote"
+         *     } */
+        WsDiscussionUpdated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "discussion.updated";
+            discussion_id: number;
+            /**
+             * @description `published` — обсуждение появилось в ленте, `vote` — изменились итоги голосования,
+             *     `comment` — новый комментарий, `name_consent` — автор показал или скрыл имя, `closed` — зафиксирован итог
+             *
+             * @enum {string}
+             */
+            changed: "published" | "vote" | "comment" | "name_consent" | "closed";
+        };
+        /** @description Событие об изменении */
+        WsEvent: components["schemas"]["WsAppealCreated"] | components["schemas"]["WsAppealUpdated"] | components["schemas"]["WsMessageCreated"] | components["schemas"]["WsNotificationCreated"] | components["schemas"]["WsDiscussionUpdated"];
+        /** @description Сообщение сервера клиенту */
+        WsServerMessage: components["schemas"]["WsReady"] | components["schemas"]["WsPong"] | components["schemas"]["WsEvent"];
         HistoryEvent: {
             id: number;
             appeal_id: number;
-            /** @enum {string} */
-            kind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+            kind: components["schemas"]["HistoryKind"];
             /** @description null — система */
             actor: components["schemas"]["UserBrief"] | null;
             field: string | null;
             old_value: string | null;
             new_value: string | null;
-            /** @description Причина переназначения, текст решения и т. п. */
+            /** @description Причина переназначения, текст решения и т. п. У первого назначения без причины — null */
             comment: string | null;
             /** Format: date-time */
             created_at: string;
@@ -4011,13 +4235,10 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /** @example {
-                 *       "assignee_id": 13,
-                 *       "reason": "Вопрос про синхронизацию систем — в зоне IT."
-                 *     } */
                 "application/json": {
                     assignee_id: number;
-                    reason: string;
+                    /** @description Обязательна, если у обращения уже есть ответственный */
+                    reason?: string | null;
                 };
             };
         };
@@ -4978,6 +5199,25 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    openLiveUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Соединение переведено на WebSocket. От клиента — `WsClientMessage`, от сервера — `WsServerMessage`.
+             *      */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listPendingNotifications: {

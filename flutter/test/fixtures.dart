@@ -14,6 +14,10 @@ Map<String, dynamic> meJson({
     {
       'id': id,
       'telegram_id': 100000000 + id,
+      'email': 'user$id@modus-trade.kz',
+      'has_password': true,
+      'telegram_linked': true,
+      'switch_targets': <dynamic>[],
       'full_name': fullName,
       'position': 'Сотрудник закупок',
       'role': role,
@@ -37,6 +41,7 @@ const employeePermissions = {
   'can_upload_meetings': false,
   'can_manage_settings': false,
   'can_view_unassigned': false,
+  'can_manage_access': false,
 };
 
 final plainEmployeePermissions = <String, Object>{
@@ -53,6 +58,7 @@ const ownerPermissions = {
   'can_upload_meetings': true,
   'can_manage_settings': false,
   'can_view_unassigned': true,
+  'can_manage_access': true,
 };
 
 const adminPermissions = {
@@ -64,6 +70,7 @@ const adminPermissions = {
   'can_upload_meetings': true,
   'can_manage_settings': true,
   'can_view_unassigned': true,
+  'can_manage_access': true,
 };
 
 Map<String, dynamic> sessionJson([Map<String, dynamic>? me]) => {
@@ -165,6 +172,7 @@ Map<String, dynamic> appealJson({
   Map<String, dynamic>? bitrixTask,
   Map<String, dynamic>? discussion,
   String access = 'full',
+  List<String> viewerRelations = const ['author'],
 }) =>
     {
       'id': id,
@@ -200,7 +208,7 @@ Map<String, dynamic> appealJson({
       'bitrix_task': bitrixTask,
       'discussion': discussion,
       'attachments': attachments,
-      'viewer_relations': ['author'],
+      'viewer_relations': viewerRelations,
       'allowed_actions': allowedActions,
     };
 
@@ -241,6 +249,7 @@ const headPermissions = {
   'can_upload_meetings': false,
   'can_manage_settings': false,
   'can_view_unassigned': false,
+  'can_manage_access': false,
 };
 
 const usersJson = [

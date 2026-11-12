@@ -101,7 +101,8 @@ async def get_appeal(appeal_id: int, user: CurrentUserDep, session: SessionDep, 
 
 class ReassignIn(BaseModel):
     assignee_id: int
-    reason: str = Field(min_length=1, max_length=2000, pattern=r"\S")
+    # Обязательна при смене ответственного; при первом назначении её можно не передавать.
+    reason: str | None = Field(default=None, max_length=2000)
 
 
 @router.post("/appeals/{appeal_id}/reassign", response_model=AppealOut, summary="Переназначить ответственного")

@@ -84,12 +84,12 @@ void main() {
     expect(query['status'], ['new', 'in_review', 'awaiting_info', 'in_progress']);
     expect(find.byKey(const Key('time-left-1')), findsOneWidget);
     // Выделение — по due_state от бэкенда: у просроченной строки цветной фон.
-    final overdueRow = tester.widget<Material>(
-        find.ancestor(of: find.byKey(const Key('queue-1')), matching: find.byType(Material)).first);
-    final normalRow = tester.widget<Material>(
-        find.ancestor(of: find.byKey(const Key('queue-2')), matching: find.byType(Material)).first);
-    expect(overdueRow.color, isNot(Colors.transparent));
-    expect(normalRow.color, Colors.transparent);
+    Color? rowColor(String key) => tester
+        .widgetList<Container>(find.descendant(of: find.byKey(Key(key)), matching: find.byType(Container)))
+        .first
+        .color;
+    expect(rowColor('queue-1'), isNotNull);
+    expect(rowColor('queue-2'), isNull);
     expect(find.byKey(const Key('time-left-2')), findsNothing, reason: 'первый ответ уже дан');
 
     await tester.tap(find.byKey(const Key('scope-unassigned')));

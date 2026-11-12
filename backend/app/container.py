@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 
 from app.adapters.bitrix import Bitrix24Gateway, Bitrix24Webhook
+from app.adapters.bitrix_oauth import Bitrix24OAuth, Bitrix24OAuthClient
 from app.adapters.claude import AnthropicClaude, ClaudeClient
 from app.adapters.speech import ElevenLabsScribe, SpeechToText
 from app.adapters.telegram import TelegramBotApi, TelegramGateway
@@ -25,6 +26,7 @@ class Services:
     speech: SpeechToText
     telegram: TelegramGateway
     bitrix: Bitrix24Gateway
+    bitrix_oauth: Bitrix24OAuth
 
     async def aclose(self) -> None:
         for f in fields(self):
@@ -44,4 +46,10 @@ def build_services(settings: Settings) -> Services:
         ),
         telegram=TelegramBotApi(settings.telegram_bot_token),
         bitrix=Bitrix24Webhook(settings.bitrix24_webhook_url, responsible_id=settings.bitrix24_responsible_id),
+        bitrix_oauth=Bitrix24OAuthClient(
+            client_id=settings.bitrix24_client_id.strip(),
+            client_secret=settings.bitrix24_client_secret.strip(),
+            portal=settings.bitrix24_portal_host,
+            token_url=settings.bitrix24_token_url,
+        ),
     )

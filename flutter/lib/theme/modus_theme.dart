@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 
 import 'tokens.g.dart';
+import 'web_palette.dart';
 
 export 'tokens.g.dart' show ModusRadius, ModusSpacing, StatusColor;
+export 'web_palette.dart' show WebLook, WebExtra;
 
 /// Фирменные цвета, которых нет в [ColorScheme]: статусы, акцент, ссылки, предупреждения.
 /// Берутся из `design/tokens.json` через [ModusPalette].
 @immutable
 class ModusColors extends ThemeExtension<ModusColors> {
-  const ModusColors(this.palette);
+  const ModusColors(this.palette, this.extra);
 
   final ModusPalette palette;
+
+  /// Цвета и тени веба, которых нет в токенах.
+  final WebExtra extra;
 
   /// Цвета текущей темы. Без расширения (например, в тестах на голом MaterialApp) — палитра по яркости.
   static ModusColors of(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<ModusColors>() ?? ModusColors(theme.brightness == Brightness.dark ? darkPalette : lightPalette);
+    return theme.extension<ModusColors>() ??
+        (theme.brightness == Brightness.dark
+            ? ModusColors(webDarkPalette, webDarkExtra)
+            : ModusColors(webLightPalette, webLightExtra));
   }
 
   /// Цвета бейджа статуса по коду (`new`, `in_review`, …).
@@ -34,6 +42,12 @@ class ModusColors extends ThemeExtension<ModusColors> {
   Color get infoBg => palette.infoBg;
   Color get danger => palette.danger;
   Color get dangerBg => palette.dangerBg;
+  Color get card => extra.card;
+  Color get faint => extra.faint;
+  Color get people => extra.people;
+  Color get peopleBg => extra.peopleBg;
+  Color get surface => palette.surface;
+  Color get bg => palette.bg;
 
   @override
   ModusColors copyWith() => this;
@@ -45,7 +59,9 @@ class ModusColors extends ThemeExtension<ModusColors> {
 /// Тема приложения по токенам: `primary` — тёмно-синий, фирменный красный (`accent`)
 /// только у главного действия экрана (FAB и [accentButtonStyle]). См. design/README.md.
 ThemeData modusTheme(Brightness brightness) {
-  final p = brightness == Brightness.light ? lightPalette : darkPalette;
+  final light = brightness == Brightness.light;
+  final p = light ? webLightPalette : webDarkPalette;
+  final x = light ? webLightExtra : webDarkExtra;
   final scheme = ColorScheme.fromSeed(
     seedColor: p.primary,
     brightness: brightness,
@@ -53,8 +69,9 @@ ThemeData modusTheme(Brightness brightness) {
     onPrimary: p.onPrimary,
     primaryContainer: p.surface2,
     onPrimaryContainer: p.heading,
-    secondary: p.accent,
-    onSecondary: p.onAccent,
+    // Красный не отдаём в secondary: на нём стандартные виджеты (переключатели, индикаторы).
+    secondary: p.primary,
+    onSecondary: p.onPrimary,
     secondaryContainer: p.surface2,
     onSecondaryContainer: p.heading,
     tertiary: p.link,
@@ -78,10 +95,13 @@ ThemeData modusTheme(Brightness brightness) {
   );
 
   final text = _textTheme(p);
-  const small = BorderRadius.all(Radius.circular(ModusRadius.sm));
-  const card = BorderRadius.all(Radius.circular(ModusRadius.lg));
-  const sheet = BorderRadius.vertical(top: Radius.circular(ModusRadius.xl));
-  const minSize = Size(64, ModusSize.controlHeight);
+  const pill = StadiumBorder();
+  const small = BorderRadius.all(Radius.circular(WebLook.controlRadius));
+  const card = BorderRadius.all(Radius.circular(WebLook.cardRadius));
+  const sheet = BorderRadius.vertical(top: Radius.circular(WebLook.cardRadius));
+  const minSize = Size(64, WebLook.controlHeight);
+  // Underline, а не Outline: у заполненного поля без рамки подпись остаётся внутри, а не над полем.
+  const none = UnderlineInputBorder(borderRadius: small, borderSide: BorderSide.none);
   final buttonText = text.labelLarge;
 
   return ThemeData(
@@ -92,67 +112,96 @@ ThemeData modusTheme(Brightness brightness) {
     textTheme: text,
     scaffoldBackgroundColor: p.bg,
     canvasColor: p.bg,
-    extensions: [ModusColors(p)],
+    extensions: [ModusColors(p, x)],
+    // Заголовок экрана как `.head__title` в вебе: слева, крупно, 500, плотный трекинг.
     appBarTheme: AppBarTheme(
       backgroundColor: p.bg,
       surfaceTintColor: Colors.transparent,
       foregroundColor: p.heading,
-      titleTextStyle: text.titleLarge,
+      centerTitle: false,
+      toolbarHeight: 64,
+      titleSpacing: 16,
+      titleTextStyle: TextStyle(
+        fontFamily: ModusFont.body,
+        fontSize: 26,
+        fontWeight: FontWeight.w500,
+        height: 1.12,
+        letterSpacing: -0.9,
+        color: p.heading,
+      ),
     ),
     cardTheme: CardThemeData(
-      color: p.surface,
+      color: x.card,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: card,
-        side: BorderSide(color: p.border),
-      ),
+      margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(borderRadius: card),
     ),
     dividerTheme: DividerThemeData(color: p.border),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: minSize,
-        shape: const RoundedRectangleBorder(borderRadius: small),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        shape: pill,
         textStyle: buttonText,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
+      // Второстепенная кнопка как `.btn--soft`: серая подложка, без рамки.
       style: OutlinedButton.styleFrom(
         minimumSize: minSize,
-        shape: const RoundedRectangleBorder(borderRadius: small),
-        side: BorderSide(color: p.borderInput),
-        foregroundColor: p.primary,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        shape: pill,
+        side: BorderSide.none,
+        backgroundColor: x.surface3,
+        foregroundColor: p.heading,
         textStyle: buttonText,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: p.link, textStyle: buttonText),
+      style: TextButton.styleFrom(foregroundColor: p.link, textStyle: buttonText, shape: pill),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: p.accent,
       foregroundColor: p.onAccent,
-      shape: const RoundedRectangleBorder(borderRadius: small),
+      shape: const CircleBorder(),
       extendedTextStyle: buttonText,
     ),
     badgeTheme: BadgeThemeData(backgroundColor: p.accent, textColor: p.onAccent),
+    // Поля как в вебе (#154, #193): без рамок, заливка поверхностью; ошибка — заливкой danger-bg.
     inputDecorationTheme: InputDecorationTheme(
-      border: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.borderInput),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.borderInput),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.focus, width: 2),
-      ),
+      filled: true,
+      // Заливка отличается и от фона экрана, и от листов и карточек, иначе поле в нижнем листе не видно.
+      fillColor: light ? p.surface2 : x.surface3,
+      border: none,
+      enabledBorder: none,
+      focusedBorder: none,
+      disabledBorder: none,
+      errorBorder: none,
+      focusedErrorBorder: none,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
     chipTheme: ChipThemeData(
-      shape: const RoundedRectangleBorder(borderRadius: small),
-      side: BorderSide(color: p.border),
+      shape: pill,
+      side: BorderSide.none,
+      backgroundColor: p.surface2,
     ),
-    navigationBarTheme: NavigationBarThemeData(backgroundColor: p.surface, indicatorColor: p.surface2, height: ModusSize.bottombar + 12),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: x.card,
+      indicatorColor: x.surface3,
+      height: 64,
+      labelTextStyle: WidgetStatePropertyAll(TextStyle(fontFamily: ModusFont.body, fontSize: 11.5, fontWeight: FontWeight.w600, color: p.text)),
+    ),
+    // Переключатель как `.segmented`: пилюля на surface-3, выбранный — поверхностью.
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        shape: const WidgetStatePropertyAll(pill),
+        side: const WidgetStatePropertyAll(BorderSide.none),
+        backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? p.surface : x.surface3),
+        foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? p.heading : p.muted),
+        textStyle: const WidgetStatePropertyAll(TextStyle(fontFamily: ModusFont.body, fontSize: 13.5, fontWeight: FontWeight.w600)),
+      ),
+    ),
+
     tabBarTheme: TabBarThemeData(labelColor: p.primary, unselectedLabelColor: p.muted, indicatorColor: p.primary),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
@@ -160,7 +209,7 @@ ThemeData modusTheme(Brightness brightness) {
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: p.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(ModusRadius.xl))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(WebLook.cardRadius))),
     ),
     popupMenuTheme: const PopupMenuThemeData(elevation: 3),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
@@ -178,36 +227,31 @@ ButtonStyle dangerButtonStyle(BuildContext context) {
   final c = ModusColors.of(context);
   return OutlinedButton.styleFrom(
     foregroundColor: c.danger,
-    side: BorderSide(color: c.danger),
+    backgroundColor: Colors.transparent,
+    side: BorderSide.none,
   );
 }
 
-TextStyle _style(TypeToken t, Color color) => TextStyle(
-  fontFamily: t.family,
-  fontWeight: FontWeight.values[(t.weight ~/ 100) - 1],
-  fontSize: t.size,
-  height: t.height,
-  letterSpacing: t.letterSpacing,
-  color: color,
-);
-
+/// Шрифт веба (#152): Manrope везде, заголовки 500–600 с плотным трекингом, без Montserrat.
 TextTheme _textTheme(ModusPalette p) {
-  final heading = _style(ModusType.display, p.heading);
+  TextStyle m(double size, FontWeight w, Color c, {double height = 1.35, double ls = 0}) =>
+      TextStyle(fontFamily: ModusFont.body, fontSize: size, fontWeight: w, height: height, letterSpacing: ls, color: c);
+  final h = p.heading;
   return TextTheme(
-    displayLarge: heading.copyWith(fontSize: 40),
-    displayMedium: heading.copyWith(fontSize: 34),
-    displaySmall: heading,
-    headlineLarge: heading.copyWith(fontSize: 28),
-    headlineMedium: heading.copyWith(fontSize: 26),
-    headlineSmall: heading.copyWith(fontSize: 24),
-    titleLarge: _style(ModusType.title, p.heading),
-    titleMedium: _style(ModusType.subtitle, p.heading),
-    titleSmall: _style(ModusType.bodySm, p.text).copyWith(fontWeight: FontWeight.w600),
-    bodyLarge: _style(ModusType.body, p.text),
-    bodyMedium: _style(ModusType.bodySm, p.text),
-    bodySmall: _style(ModusType.caption, p.muted).copyWith(fontWeight: FontWeight.w500),
-    labelLarge: _style(ModusType.button, p.text),
-    labelMedium: _style(ModusType.caption, p.text),
-    labelSmall: _style(ModusType.caption, p.muted),
+    displayLarge: m(40, FontWeight.w500, h, height: 1.1, ls: -1.4),
+    displayMedium: m(34, FontWeight.w500, h, height: 1.1, ls: -1.2),
+    displaySmall: m(28, FontWeight.w500, h, height: 1.15, ls: -0.9),
+    headlineLarge: m(28, FontWeight.w500, h, height: 1.15, ls: -0.9),
+    headlineMedium: m(26, FontWeight.w500, h, height: 1.12, ls: -0.9),
+    headlineSmall: m(24, FontWeight.w600, h, height: 1.2, ls: -0.5),
+    titleLarge: m(22, FontWeight.w600, h, height: 1.25, ls: -0.3),
+    titleMedium: m(17, FontWeight.w600, h, ls: -0.2),
+    titleSmall: m(15, FontWeight.w600, h),
+    bodyLarge: m(16, FontWeight.w500, p.text, height: 1.5),
+    bodyMedium: m(15, FontWeight.w500, p.text, height: 1.5),
+    bodySmall: m(13, FontWeight.w500, p.muted, height: 1.4),
+    labelLarge: m(14, FontWeight.w600, p.text, height: 1.2),
+    labelMedium: m(12, FontWeight.w600, p.text, height: 1.5),
+    labelSmall: m(12, FontWeight.w600, p.muted, height: 1.4),
   );
 }

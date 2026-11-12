@@ -33,11 +33,11 @@ async def user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User |
 
 
 async def open_session(
-    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings
+    session: AsyncSession, user: User, method: str, now: datetime, settings: Settings, *, ttl: timedelta | None = None
 ) -> tuple[str, datetime]:
     """Выдаёт новую сессию. Возвращает токен (показывается клиенту один раз) и срок действия."""
     token = secrets.token_urlsafe(32)
-    expires_at = now + timedelta(days=settings.session_ttl_days)
+    expires_at = now + (ttl or timedelta(days=settings.session_ttl_days))
     session.add(
         AuthSession(token_hash=_sha256(token), user_id=user.id, method=method, created_at=now, expires_at=expires_at)
     )
@@ -45,7 +45,8 @@ async def open_session(
     return token, expires_at
 
 
-async def user_by_token(session: AsyncSession, token: str, now: datetime) -> User:
+async def session_by_token(session: AsyncSession, token: str, now: datetime) -> tuple[AuthSession, User]:
+    """Действующая сессия и её пользователь. Нет, истекла, закрыта или доступ отключён — ошибка."""
     row = (
         await session.execute(
             select(AuthSession, User)
@@ -58,7 +59,11 @@ async def user_by_token(session: AsyncSession, token: str, now: datetime) -> Use
     auth, user = row
     if auth.revoked_at is not None or auth.expires_at <= now:
         raise Unauthorized("Сессия истекла, войдите снова")
-    return ensure_can_login(user)
+    return auth, ensure_can_login(user)
+
+
+async def user_by_token(session: AsyncSession, token: str, now: datetime) -> User:
+    return (await session_by_token(session, token, now))[1]
 
 
 async def revoke_token(session: AsyncSession, token: str, now: datetime) -> None:

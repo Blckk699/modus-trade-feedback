@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck } from 'lucide-react';
@@ -45,6 +46,8 @@ export function NotificationsBell() {
     [pop.open],
   );
   const { refresh } = unread;
+  // Список открыт и пришло новое уведомление — дочитываем его сразу.
+  useLiveReload(pop.open ? ['notifications'] : [], list.reload);
   useEffect(() => {
     if (pop.open) refresh();
   }, [pop.open, refresh]);

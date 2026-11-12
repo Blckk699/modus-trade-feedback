@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { useLiveReload } from '../live/bus';
+import { CardSkeleton } from '../app/CardSkeleton';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare, Users } from 'lucide-react';
 import { api, unwrap } from '../api/client';
@@ -18,11 +20,10 @@ import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
 import { MessagesSection } from '../appeals/MessagesSection';
-import { TypeIcon } from '../appeals/TypeIcon';
+import { TypeChip } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
-import { RoleSwitch } from '../auth/switch/RoleSwitch';
 import { useInCard } from './CardModal';
 
 type Appeal = Schemas['Appeal'];
@@ -36,6 +37,8 @@ export function AppealPage() {
   const inCard = useInCard();
   const appeal = useAsync(() => unwrap(api.GET('/api/v1/appeals/{appeal_id}', { params: { path: { appeal_id: id } } })), [id]);
   const { markAppealRead } = useUnread();
+  // Статус, ответственный или срок изменил кто-то другой — карточка перечитывается на месте.
+  useLiveReload([`appeal:${id}`], appeal.reload);
 
   useEffect(() => {
     if (appeal.state.status === 'ready') markAppealRead(id);
@@ -45,9 +48,7 @@ export function AppealPage() {
   let body;
   if (s.status === 'loading') {
     body = (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем обращение…
-      </div>
+      <CardSkeleton label="Открываем обращение…" />
     );
   } else if (s.status === 'error') {
     const notFound = s.error instanceof ApiError && (s.error.status === 404 || s.error.status === 403);
@@ -88,12 +89,14 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const background = useBackground();
   const show = cardSections(a);
   const isAuthor = a.viewer_relations.includes('author');
-  const inCard = useInCard();
+  // Кнопка переписки живёт в подвале карточки: подвал отдаёт место, раздел переписки кладёт туда кнопку.
+  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
 
   return (
     <article className="sheet">
       <header className="sheet__head">
         <div className="sheet__state" role="group" aria-label="Состояние обращения">
+          <TypeChip type={a.type} label={dict.typeLabel(a.type)} />
           <StatusBadge status={a.status} />
           {a.status !== 'closed' && <DueBadge state={a.due_state} dueAt={a.first_response_due_at} />}
           {show.participantsCounter && (
@@ -103,18 +106,14 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
             </span>
           )}
         </div>
-        {/* Карточка-панель закрывает шапку приложения, поэтому смена роли (W-14) продублирована здесь:
-            одну заявку ведут через все роли, не закрывая её. */}
-        {inCard && <RoleSwitch compact />}
       </header>
 
       <div className="sheet__scroll">
         <div className="sheet__lead">
-          <TypeIcon type={a.type} size="lg" />
           <div>
             <h1 className="sheet__title">{a.summary ?? `Обращение ${a.number}`}</h1>
             <p className="sheet__sub">
-              {a.number} · {dict.typeLabel(a.type)} · {a.category?.name ?? 'без категории'} · приоритет {dict.priorityLabel(a.priority).toLowerCase()}
+              {a.number} · {a.category?.name ?? 'без категории'} · приоритет {dict.priorityLabel(a.priority).toLowerCase()}
             </p>
           </div>
         </div>
@@ -188,12 +187,12 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
         {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
         {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
-        {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
+        {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} entryHost={chatSlot} />}
         {show.attachments && <AttachmentsSection appeal={a} />}
         {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
       </div>
 
-      <ActionsPanel appeal={a} onUpdated={onUpdated} />
+      <ActionsPanel appeal={a} onUpdated={onUpdated} chatSlot={show.messages ? setChatSlot : undefined} />
     </article>
   );
 }

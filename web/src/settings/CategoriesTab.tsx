@@ -1,8 +1,10 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Category, type Department, type User } from './shared';
+import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 
 function loadAll() {
@@ -18,9 +20,11 @@ export function CategoriesTab() {
   const data = useAsync(loadAll, []);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
+  const [saving, setSaving] = useState(false);
 
   const s = data.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
+  if (s.status === 'loading') return <RowsSkeleton />;
   if (s.status === 'error')
     return (
       <div className="notice">
@@ -36,43 +40,23 @@ export function CategoriesTab() {
     data.set([categories.some((x) => x.id === c.id) ? categories.map((x) => (x.id === c.id ? c : x)) : [...categories, c], departments, users]);
   const sorted = [...categories].sort((a, b) => Number(b.is_active) - Number(a.is_active) || byName(a, b));
 
+  const edited = editing === null ? undefined : categories.find((c) => c.id === editing);
+  const formOpen = adding || edited !== undefined;
+  const closeForm = () => {
+    setAdding(false);
+    setEditing(null);
+  };
+
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
         <p className="muted">Новое обращение получает ответственный за категорию, а когда его нет на месте, заместитель. Уже назначенные обращения остаются у прежнего ответственного.</p>
-        {!adding && (
-          <button type="button" className="btn" onClick={() => setAdding(true)}>
-            Добавить категорию
-          </button>
-        )}
+        <button type="button" className="btn" onClick={() => setAdding(true)}>
+          Добавить категорию
+        </button>
       </div>
-      {adding && (
-        <CategoryForm
-          departments={departments}
-          users={users}
-          onCancel={() => setAdding(false)}
-          onSaved={(c) => {
-            replace(c);
-            setAdding(false);
-          }}
-        />
-      )}
       <ul className="settings-list">
-        {sorted.map((c) =>
-          editing === c.id ? (
-            <li key={c.id}>
-              <CategoryForm
-                category={c}
-                departments={departments}
-                users={users}
-                onCancel={() => setEditing(null)}
-                onSaved={(saved) => {
-                  replace(saved);
-                  setEditing(null);
-                }}
-              />
-            </li>
-          ) : (
+        {sorted.map((c) => (
             <li key={c.id} className={`settings-row${c.is_active ? '' : ' settings-row--off'}`}>
               <div className="settings-row__main">
                 <strong>{c.name}</strong>
@@ -87,9 +71,26 @@ export function CategoriesTab() {
                 Изменить
               </button>
             </li>
-          ),
-        )}
+        ))}
       </ul>
+
+      {/* Добавление и правка — в окне поверх списка, как у сотрудников. key сбрасывает поля при смене записи. */}
+      <Modal open={formOpen} onClose={closeForm} labelledBy="category-form-title" locked={saving}>
+        {formOpen && (
+          <CategoryForm
+            key={edited?.id ?? 'new'}
+            category={edited}
+            departments={departments}
+            users={users}
+            onBusy={setSaving}
+            onCancel={closeForm}
+            onSaved={(saved) => {
+              replace(saved);
+              closeForm();
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -98,11 +99,13 @@ interface CategoryFormProps {
   category?: Category;
   departments: Department[];
   users: User[];
+  /** Сообщает родителю, что идёт сохранение: окно в это время не закрывается. */
+  onBusy?: (busy: boolean) => void;
   onSaved: (c: Category) => void;
   onCancel: () => void;
 }
 
-function CategoryForm({ category, departments, users, onSaved, onCancel }: CategoryFormProps) {
+function CategoryForm({ category, departments, users, onBusy, onSaved, onCancel }: CategoryFormProps) {
   const [name, setName] = useState(category?.name ?? '');
   const [departmentId, setDepartmentId] = useState(category ? String(category.department.id) : '');
   const [responsibleId, setResponsibleId] = useState(category?.responsible ? String(category.responsible.id) : '');
@@ -123,6 +126,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
     setErrors(local);
     if (Object.keys(local).length) return;
     setBusy(true);
+    onBusy?.(true);
     try {
       const fields = {
         name: name.trim(),
@@ -152,6 +156,7 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 
@@ -172,7 +177,10 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
   );
 
   return (
-    <form className="form settings-form" onSubmit={submit} noValidate>
+    <form className="dialog-form" onSubmit={submit} noValidate>
+      <h2 id="category-form-title" className="dialog-form__title">
+        {category ? 'Категория' : 'Новая категория'}
+      </h2>
       <div className="settings-grid">
         <label className="field">
           <span className="field__label">Название</span>
@@ -208,14 +216,18 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
           </label>
         </div>
       )}
-      <div className="form__actions">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="dialog-form__actions">
+        <button type="button" className="btn btn--soft" onClick={onCancel} disabled={busy}>
+          Отмена
+        </button>
         <button type="submit" className="btn" disabled={busy}>
           {busy ? 'Сохраняем…' : category ? 'Сохранить' : 'Добавить'}
         </button>
-        <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={busy}>
-          Отмена
-        </button>
-        {error && <span className="error-text">{error}</span>}
       </div>
     </form>
   );

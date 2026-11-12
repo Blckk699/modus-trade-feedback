@@ -90,6 +90,8 @@ tags:
     description: Сводка и аналитика
   - name: notifications
     description: Уведомления и счётчик непрочитанного
+  - name: live
+    description: Живые обновления по WebSocket
   - name: bot
     description: Служебные маршруты бота
   - name: admin
@@ -1610,12 +1612,19 @@ paths:
       - $ref: '#/components/parameters/AppealId'
     post:
       tags: [appeal-actions]
-      summary: Переназначить ответственного с причиной
+      summary: Назначить или переназначить ответственного
       description: |
         Руководитель (в своём подразделении), администратор, собственник. Если первого ответа ещё не было,
-        срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется. Причина пишется
-        в историю. Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
+        срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется.
+        Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
         назначает ответственного из очереди нераспределённых.
+
+        Причина (`reason`):
+        - у обращения уже есть ответственный (смена) — обязательна: без неё, с `null` или из одних пробелов —
+          `422` с полем `reason`. В историю пишется событие `reassigned`, причина — в `comment`;
+        - ответственного нет (первое назначение) — необязательна: поле можно не передавать или передать `null`.
+          В историю пишется событие `assigned`; `comment` — причина, если её передали, иначе `null`
+          (стандартный текст сервер не подставляет).
         Ответственному, сотруднику — `403`.
       operationId: reassignAppeal
       requestBody:
@@ -1624,16 +1633,25 @@ paths:
           application/json:
             schema:
               type: object
-              required: [assignee_id, reason]
+              required: [assignee_id]
               properties:
                 assignee_id:
                   type: integer
                 reason:
                   type: string
-                  minLength: 1
-            example:
-              assignee_id: 13
-              reason: Вопрос про синхронизацию систем — в зоне IT.
+                  nullable: true
+                  maxLength: 2000
+                  description: Обязательна, если у обращения уже есть ответственный
+            examples:
+              reassign:
+                summary: Смена ответственного — с причиной
+                value:
+                  assignee_id: 13
+                  reason: Вопрос про синхронизацию систем — в зоне IT.
+              first_assignment:
+                summary: Первое назначение из очереди «Без ответственного» — причина не нужна
+                value:
+                  assignee_id: 7
       responses:
         '200':
           description: Обращение после действия
@@ -1809,7 +1827,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Attachment'
               example:
-                - {"id": 7, "appeal_id": 1, "filename": "пример_заявки.pdf", "content_type": "application/pdf", "size_bytes": 184320, "download_url": "/api/v1/attachments/7", "uploaded_by": {"id": 4, "full_name": "Айгерим Нурланова", "role": "employee", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-04T10:21:00+05:00"}
+                - {"id": 7, "appeal_id": 1, "filename": "пример_заявки.pdf", "content_type": "application/pdf", "size_bytes": 184320, "download_url": "/api/v1/attachments/7", "preview_url": null, "can_delete": true, "uploaded_by": {"id": 4, "full_name": "Айгерим Нурланова", "role": "employee", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-04T10:21:00+05:00"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1859,17 +1877,54 @@ paths:
           type: integer
     get:
       tags: [attachments]
-      summary: Скачать файл
-      description: Отдаётся только тем, кто видит обращение (участнику склеенного повтора — нет).
+      summary: Скачать файл или его уменьшенную копию
+      description: |
+        Отдаётся только тем, кто видит обращение (участнику склеенного повтора — нет).
+
+        `preview=1` — уменьшенная копия картинки для списка вложений: JPEG, вписанный в 480×480 пикселей
+        с сохранением пропорций (прозрачный фон заливается белым, у анимации берётся первый кадр).
+        Есть только у картинок JPEG, PNG, WebP и GIF — у них `Attachment.preview_url` не `null`.
+        Для остальных файлов и для картинки, которую не удалось прочитать, — `404 not_found`:
+        клиент показывает значок файла.
       operationId: downloadAttachment
+      parameters:
+        - name: preview
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Отдать уменьшенную копию картинки вместо файла
       responses:
         '200':
-          description: Содержимое файла
+          description: Содержимое файла; при `preview=1` — уменьшенная копия
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [attachments]
+      summary: Удалить файл
+      description: |
+        Кто может: тот, кто загрузил файл, ответственный, руководитель подразделения обращения и собственник —
+        пока обращение не в финальном статусе (условие то же, что у загрузки). Остальным и после завершения
+        обращения — `403`. Клиенту считать права не нужно: кнопку показывать при `Attachment.can_delete`.
+        Файл удаляется безвозвратно. В историю обращения пишется событие `attachment_removed`:
+        `field` — `attachment`, `old_value` — имя файла, `comment` — «Файл удалён».
+      operationId: deleteAttachment
+      responses:
+        '204':
+          description: Файл удалён
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2755,6 +2810,65 @@ paths:
                 count: 0
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------- live (WebSocket)
+  /api/v1/ws:
+    get:
+      tags: [live]
+      summary: Живые обновления (WebSocket)
+      description: |
+        Соединение WebSocket: `wss://<сервер>/api/v1/ws`. Сервер сам сообщает клиенту, что изменилось;
+        клиент перезапрашивает данные обычными маршрутами. Все сообщения — текстовые кадры с JSON-объектом,
+        у каждого есть поле `type`.
+
+        **Вход.** Токен в адресе не передаётся. Первым сообщением клиент отправляет
+        `{"type": "auth", "token": "<access_token сессии>"}` (`WsAuth`). Сервер отвечает `ready` (`WsReady`)
+        и после этого начинает слать события. Только сессия клиента: сервисный ключ бота не принимается.
+        До `ready` событий нет; любое другое первое сообщение закрывает соединение с кодом `4401`.
+
+        **События** (`WsEvent`) — только о том, что пользователь видит по текущим правам:
+
+        | `type` | Когда | Кому |
+        |---|---|---|
+        | `appeal.created` | подано обращение | всем, кто его видит: автор, ответственный, руководитель подразделения, собственник, администратор |
+        | `appeal.updated` | в историю обращения записано событие: статус, ответственный, срок, эскалация, вложение, склейка и т. д. | всем, кто видит обращение, включая участника склеенного повтора |
+        | `message.created` | новое сообщение в приватной переписке | тем, кто читает переписку: автор, ответственный, руководитель, собственник. Администратору — нет |
+        | `notification.created` | пользователю создано уведомление | только получателю, с актуальным счётчиком непрочитанного |
+        | `discussion.updated` | обсуждение опубликовано, в нём голос, комментарий, решение об имени или итог | всем подключённым |
+
+        В событии только идентификаторы и признак того, что поменялось. Текстов обращений, сообщений,
+        комментариев и уведомлений в событиях нет. Права проверяются в момент отправки: потерял доступ —
+        событий по обращению больше нет. Свои собственные действия пользователь тоже получает событием
+        (так обновляются другие его вкладки и устройства).
+
+        **Гарантии.** Событие отправляется после того, как изменение сохранено, обычно в пределах секунды.
+        Пропущенные события не досылаются и не хранятся: после подключения и после каждого переподключения
+        клиент сам перезапрашивает то, что показывает. Одно действие может дать несколько событий
+        (например, `appeal.updated` и `notification.created`); порядок между ними не гарантируется.
+        Неизвестный `type` и неизвестные поля клиент пропускает — список событий будет расширяться.
+
+        **Пинг.** Клиент может в любой момент отправить `{"type": "ping"}` и получит `{"type": "pong"}`;
+        рекомендуется раз в 30 секунд. Сервер, кроме того, шлёт служебные ping-кадры протокола WebSocket —
+        браузер отвечает на них сам. Переподключение — на клиенте, с нарастающей паузой.
+
+        **Коды закрытия:**
+
+        | Код | Причина | Что делать клиенту |
+        |---|---|---|
+        | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта (выход, смена или сброс пароля), доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
+        | `4408` | за 10 секунд после открытия не пришёл `auth` | переподключиться и сразу отправить `auth` |
+        | `4400` | сообщение не JSON-объект, без `type` или длиннее 4 КБ | исправить клиент |
+        | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое; либо с одного адреса открыто больше 20 соединений, ещё не отправивших `auth`, — закрывается новое | не переподключать закрытое |
+        | `1001`, `1012` | сервер перезапускается | переподключиться |
+
+        Маршрут описан как `GET`, потому что соединение открывается HTTP-запросом с `Upgrade: websocket`.
+        Мок-сервер Prism его не поддерживает.
+      operationId: openLiveUpdates
+      security: []
+      responses:
+        '101':
+          description: |
+            Соединение переведено на WebSocket. От клиента — `WsClientMessage`, от сервера — `WsServerMessage`.
 
   # ---------------------------------------------------------------- bot
   /api/v1/bot/notifications/pending:
@@ -4652,6 +4766,185 @@ components:
           type: integer
         page_size:
           type: integer
+    HistoryKind:
+      type: string
+      description: Вид события в истории обращения
+      enum:
+        - created
+        - assigned
+        - reassigned
+        - status_changed
+        - deadline_set
+        - clarification_requested
+        - clarification_answered
+        - escalated
+        - merged
+        - participant_added
+        - attachment_added
+        - attachment_removed
+        - discussion_published
+        - discussion_closed
+        - bitrix_task_created
+        - field_changed
+    WsAuth:
+      type: object
+      required: [type, token]
+      properties:
+        type:
+          type: string
+          enum: [auth]
+        token:
+          type: string
+          description: '`access_token` сессии из `/auth/*`'
+      example: {type: auth, token: 3fa1c0d2e4b54f6c8a7e9d0b1c2f3a4e}
+    WsPing:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [ping]
+      example: {type: ping}
+    WsClientMessage:
+      description: Сообщение клиента серверу
+      oneOf:
+        - $ref: '#/components/schemas/WsAuth'
+        - $ref: '#/components/schemas/WsPing'
+      discriminator:
+        propertyName: type
+        mapping:
+          auth: '#/components/schemas/WsAuth'
+          ping: '#/components/schemas/WsPing'
+    WsReady:
+      type: object
+      description: Вход принят, дальше идут события
+      required: [type, user_id, unread_count, session_expires_at]
+      properties:
+        type:
+          type: string
+          enum: [ready]
+        user_id:
+          type: integer
+        unread_count:
+          type: integer
+          minimum: 0
+          description: Непрочитанные уведомления на момент подключения (то же, что `GET /notifications/unread-count`)
+        session_expires_at:
+          type: string
+          format: date-time
+          description: Когда сессия истечёт и сервер закроет соединение с кодом `4401`
+      example: {type: ready, user_id: 4, unread_count: 2, session_expires_at: '2026-12-12T09:00:00+05:00'}
+    WsPong:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [pong]
+      example: {type: pong}
+    WsAppealCreated:
+      type: object
+      required: [type, appeal_id, number, status]
+      properties:
+        type:
+          type: string
+          enum: [appeal.created]
+        appeal_id:
+          type: integer
+        number:
+          type: string
+        status:
+          $ref: '#/components/schemas/AppealStatus'
+      example: {type: appeal.created, appeal_id: 42, number: A-042, status: new}
+    WsAppealUpdated:
+      type: object
+      required: [type, appeal_id, number, status, changed]
+      properties:
+        type:
+          type: string
+          enum: [appeal.updated]
+        appeal_id:
+          type: integer
+        number:
+          type: string
+        status:
+          allOf:
+            - $ref: '#/components/schemas/AppealStatus'
+          description: Статус после изменения
+        changed:
+          type: array
+          minItems: 1
+          description: |
+            Что записано в историю этим действием — те же значения, что `HistoryEvent.kind`:
+            `status_changed` — статус, `assigned` / `reassigned` — ответственный, `deadline_set` — срок,
+            `escalated` — эскалация, `attachment_added` — вложение и т. д. Подсказка, что перезапросить.
+          items:
+            $ref: '#/components/schemas/HistoryKind'
+      example: {type: appeal.updated, appeal_id: 42, number: A-042, status: in_review, changed: [status_changed]}
+    WsMessageCreated:
+      type: object
+      required: [type, appeal_id, message_id]
+      properties:
+        type:
+          type: string
+          enum: [message.created]
+        appeal_id:
+          type: integer
+        message_id:
+          type: integer
+      example: {type: message.created, appeal_id: 42, message_id: 318}
+    WsNotificationCreated:
+      type: object
+      required: [type, notification_id, unread_count]
+      properties:
+        type:
+          type: string
+          enum: [notification.created]
+        notification_id:
+          type: integer
+        unread_count:
+          type: integer
+          minimum: 0
+          description: Счётчик непрочитанного вместе с этим уведомлением
+      example: {type: notification.created, notification_id: 905, unread_count: 3}
+    WsDiscussionUpdated:
+      type: object
+      required: [type, discussion_id, changed]
+      properties:
+        type:
+          type: string
+          enum: [discussion.updated]
+        discussion_id:
+          type: integer
+        changed:
+          type: string
+          enum: [published, vote, comment, name_consent, closed]
+          description: |
+            `published` — обсуждение появилось в ленте, `vote` — изменились итоги голосования,
+            `comment` — новый комментарий, `name_consent` — автор показал или скрыл имя, `closed` — зафиксирован итог
+      example: {type: discussion.updated, discussion_id: 6, changed: vote}
+    WsEvent:
+      description: Событие об изменении
+      oneOf:
+        - $ref: '#/components/schemas/WsAppealCreated'
+        - $ref: '#/components/schemas/WsAppealUpdated'
+        - $ref: '#/components/schemas/WsMessageCreated'
+        - $ref: '#/components/schemas/WsNotificationCreated'
+        - $ref: '#/components/schemas/WsDiscussionUpdated'
+      discriminator:
+        propertyName: type
+        mapping:
+          appeal.created: '#/components/schemas/WsAppealCreated'
+          appeal.updated: '#/components/schemas/WsAppealUpdated'
+          message.created: '#/components/schemas/WsMessageCreated'
+          notification.created: '#/components/schemas/WsNotificationCreated'
+          discussion.updated: '#/components/schemas/WsDiscussionUpdated'
+    WsServerMessage:
+      description: Сообщение сервера клиенту
+      oneOf:
+        - $ref: '#/components/schemas/WsReady'
+        - $ref: '#/components/schemas/WsPong'
+        - $ref: '#/components/schemas/WsEvent'
     HistoryEvent:
       type: object
       required: [id, appeal_id, kind, actor, field, old_value, new_value, comment, created_at]
@@ -4661,23 +4954,7 @@ components:
         appeal_id:
           type: integer
         kind:
-          type: string
-          enum:
-            - created
-            - assigned
-            - reassigned
-            - status_changed
-            - deadline_set
-            - clarification_requested
-            - clarification_answered
-            - escalated
-            - merged
-            - participant_added
-            - attachment_added
-            - discussion_published
-            - discussion_closed
-            - bitrix_task_created
-            - field_changed
+          $ref: '#/components/schemas/HistoryKind'
         actor:
           type: object
           nullable: true
@@ -4696,7 +4973,7 @@ components:
         comment:
           type: string
           nullable: true
-          description: Причина переназначения, текст решения и т. п.
+          description: Причина переназначения, текст решения и т. п. У первого назначения без причины — null
         created_at:
           type: string
           format: date-time
@@ -4719,7 +4996,7 @@ components:
           format: date-time
     Attachment:
       type: object
-      required: [id, appeal_id, filename, content_type, size_bytes, download_url, uploaded_by, created_at]
+      required: [id, appeal_id, filename, content_type, size_bytes, download_url, preview_url, can_delete, uploaded_by, created_at]
       properties:
         id:
           type: integer
@@ -4734,6 +5011,15 @@ components:
         download_url:
           type: string
           description: Путь от корня сервера (`/api/v1/attachments/{id}`), требует авторизации
+        preview_url:
+          type: string
+          nullable: true
+          description: |
+            Уменьшенная копия картинки (`/api/v1/attachments/{id}?preview=1`), требует авторизации.
+            `null` — файл не картинка, показывать значок
+        can_delete:
+          type: boolean
+          description: Может ли текущий пользователь удалить файл сейчас (`DELETE /attachments/{id}`)
         uploaded_by:
           $ref: '#/components/schemas/UserBrief'
         created_at:
@@ -6036,6 +6322,8 @@ components:
             content_type: application/pdf
             size_bytes: 184320
             download_url: /api/v1/attachments/7
+            preview_url: null
+            can_delete: false
             uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
             created_at: '2026-11-04T10:21:00+05:00'
         viewer_relations: [assignee, department_head]
@@ -6215,6 +6503,8 @@ components:
           content_type: application/pdf
           size_bytes: 184320
           download_url: /api/v1/attachments/7
+          preview_url: null
+          can_delete: false
           uploaded_by:
             id: 4
             full_name: Айгерим Нурланова
@@ -6294,6 +6584,8 @@ components:
           content_type: application/pdf
           size_bytes: 184320
           download_url: /api/v1/attachments/7
+          preview_url: null
+          can_delete: false
           uploaded_by:
             id: 4
             full_name: Айгерим Нурланова
@@ -6369,6 +6661,8 @@ components:
           content_type: application/pdf
           size_bytes: 184320
           download_url: /api/v1/attachments/7
+          preview_url: null
+          can_delete: false
           uploaded_by:
             id: 4
             full_name: Айгерим Нурланова
@@ -6577,6 +6871,8 @@ components:
         content_type: application/pdf
         size_bytes: 184320
         download_url: /api/v1/attachments/7
+        preview_url: null
+        can_delete: false
         uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
         created_at: '2026-11-04T10:21:00+05:00'
     BitrixTaskExample:

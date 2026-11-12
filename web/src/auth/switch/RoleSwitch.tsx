@@ -41,10 +41,10 @@ function Targets({ sw, onPick }: { sw: Switch; onPick?: () => void }) {
 
 /**
  * Переключатель роли в шапке рядом с уведомлениями (W-14): кто сейчас вошёл и список связанных
- * демо-пользователей. Без связанных пользователей не показывается. `compact` — аватар со стрелкой
- * для шапки карточки обращения: открытая панелью карточка закрывает шапку приложения.
+ * демо-пользователей. Без связанных пользователей не показывается. Стоит только в шапке сайта:
+ * чтобы сменить роль при открытой карточке-панели, её сначала закрывают.
  */
-export function RoleSwitch({ compact = false }: { compact?: boolean }) {
+export function RoleSwitch() {
   const sw = useRoleSwitch();
   const dict = useDictionaries();
   const menu = usePopover<HTMLDivElement>();
@@ -52,7 +52,7 @@ export function RoleSwitch({ compact = false }: { compact?: boolean }) {
   const role = dict.roleLabel(sw.me.role);
 
   return (
-    <div className={compact ? 'roleswitch roleswitch--compact' : 'roleswitch'} ref={menu.ref}>
+    <div className="roleswitch" ref={menu.ref}>
       <button
         type="button"
         className="roleswitch__btn"

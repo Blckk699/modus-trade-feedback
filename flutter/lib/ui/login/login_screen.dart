@@ -1,12 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:modus_api/api.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
+import '../../theme/modus_theme.dart';
+import 'auth_forms.dart';
+import 'register_screen.dart';
 import 'server_settings_screen.dart';
 
-/// Вход по одноразовому коду из бота; на моке и локально — ещё dev-вход.
+/// Бот компании: заявка на доступ и коды входа. Задаётся при сборке: --dart-define=BOT_USERNAME=...
+const botUsername = String.fromEnvironment('BOT_USERNAME', defaultValue: 'modus_fb_bot');
+
+enum _Method { email, code }
+
+/// Вход: почта и пароль основным способом, код из бота — вторым; на моке и локально — ещё dev-вход.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -15,9 +26,19 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  final _newPassword = TextEditingController();
+  final _repeat = TextEditingController();
   final _code = TextEditingController();
+  _Method _method = _Method.email;
   bool _busy = false;
   String? _error;
+  Map<String, String> _fieldErrors = const {};
+  LoginProblem? _problem;
+
+  /// Вход с временным паролем: показываем шаг «Новый пароль».
+  bool _needNewPassword = false;
   late Future<List<UserBrief>?> _devUsers;
   String? _loadedFor;
 
@@ -34,17 +55,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _code.dispose();
+    for (final c in [_email, _password, _newPassword, _repeat, _code]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   bool get _codeComplete => RegExp(r'^\d{6}$').hasMatch(_code.text);
+
+  void _clearErrors() => setState(() {
+        _error = null;
+        _fieldErrors = const {};
+        _problem = null;
+      });
 
   Future<void> _run(Future<void> Function() action) async {
     FocusScope.of(context).unfocus();
     setState(() {
       _busy = true;
       _error = null;
+      _problem = null;
     });
     try {
       await action();
@@ -58,6 +88,64 @@ class _LoginScreenState extends State<LoginScreen> {
   void _submitCode() {
     if (!_codeComplete || _busy) return;
     _run(() => SessionScope.read(context).loginWithCode(_code.text));
+  }
+
+  Future<void> _submitEmail() async {
+    if (_busy) return;
+    final errors = loginFormErrors(_email.text, _password.text);
+    if (errors.isNotEmpty) {
+      setState(() => _fieldErrors = errors);
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _problem = null;
+      _fieldErrors = const {};
+    });
+    try {
+      await SessionScope.read(context).loginWithEmail(_email.text, _password.text);
+    } on AppError catch (e) {
+      final p = loginProblem(e);
+      if (mounted) {
+        setState(() {
+          if (p.kind == LoginProblemKind.newPassword) {
+            _needNewPassword = true;
+          } else {
+            _problem = p;
+          }
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _submitNewPassword() async {
+    if (_busy) return;
+    final errors = newPasswordErrors(_newPassword.text, _repeat.text, _password.text);
+    if (errors.isNotEmpty) {
+      setState(() => _fieldErrors = errors);
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _error = null;
+      _fieldErrors = const {};
+    });
+    try {
+      await SessionScope.read(context).loginWithEmail(_email.text, _password.text, newPassword: _newPassword.text);
+    } on AppError catch (e) {
+      final p = loginProblem(e);
+      if (mounted) {
+        setState(() => _error = p.kind == LoginProblemKind.other
+            ? p.message
+            : 'Временный пароль больше не действует. Вернитесь ко входу и попробуйте снова.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -75,45 +163,28 @@ class _LoginScreenState extends State<LoginScreen> {
               'Обращения и предложения сотрудников',
               style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 32),
-            Text('Вход по коду из бота', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            const _Step(n: 1, text: 'Откройте бот компании в Telegram.'),
-            const _Step(n: 2, text: 'Нажмите в меню бота «Код входа» или отправьте команду /code.'),
-            const _Step(n: 3, text: 'Введите шесть цифр из сообщения. Код действует несколько минут и подходит один раз.'),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('login-code'),
-              controller: _code,
-              enabled: !_busy,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-              style: theme.textTheme.headlineSmall?.copyWith(letterSpacing: 8),
-              decoration: InputDecoration(
-                labelText: 'Код',
-                hintText: '000000',
-                border: const OutlineInputBorder(),
-                errorText: _error,
-                errorMaxLines: 3,
+            const SizedBox(height: 28),
+            if (_needNewPassword)
+              ..._newPasswordStep(theme)
+            else ...[
+              SegmentedButton<_Method>(
+                key: const Key('login-method'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: _Method.email, label: Text('Почта и пароль'), icon: Icon(Icons.mail_outline)),
+                  ButtonSegment(value: _Method.code, label: Text('Код из Telegram'), icon: Icon(Icons.send_outlined)),
+                ],
+                selected: {_method},
+                onSelectionChanged: _busy
+                    ? null
+                    : (v) {
+                        _clearErrors();
+                        setState(() => _method = v.first);
+                      },
               ),
-              onChanged: (_) => setState(() => _error = null),
-              onSubmitted: (_) => _submitCode(),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              key: const Key('login-submit'),
-              onPressed: _codeComplete && !_busy ? _submitCode : null,
-              child: _busy
-                  ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Войти'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Войти могут только сотрудники, которых завёл администратор.',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
+              const SizedBox(height: 20),
+              if (_method == _Method.email) ..._emailForm(theme) else ..._codeForm(theme),
+            ],
             FutureBuilder<List<UserBrief>?>(
               future: _devUsers,
               builder: (context, snapshot) {
@@ -151,7 +222,148 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  List<Widget> _emailForm(ThemeData theme) => [
+        if (_problem != null && _problem!.kind != LoginProblemKind.invalid) ...[
+          ProblemNotice(problem: _problem!),
+          const SizedBox(height: 16),
+        ],
+        TextField(
+          key: const Key('login-email'),
+          controller: _email,
+          enabled: !_busy,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autofillHints: const [AutofillHints.username, AutofillHints.email],
+          autocorrect: false,
+          decoration: InputDecoration(labelText: 'Рабочая почта', errorText: _fieldErrors['email']),
+          onChanged: (_) => _clearErrors(),
+        ),
+        const SizedBox(height: 12),
+        PasswordField(
+          key: const Key('login-password'),
+          controller: _password,
+          label: 'Пароль',
+          enabled: !_busy,
+          autofillHints: const [AutofillHints.password],
+          error: _fieldErrors['password'] ??
+              (_problem?.kind == LoginProblemKind.invalid ? 'Неверная почта или пароль.' : null),
+          onChanged: (_) => _clearErrors(),
+          onSubmitted: (_) => _submitEmail(),
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('login-email-submit'),
+          onPressed: _busy ? null : _submitEmail,
+          child: _busy
+              ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Войти'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const Key('open-register'),
+          onPressed: _busy
+              ? null
+              : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const RegisterScreen())),
+          child: const Text('Нет доступа? Зарегистрироваться'),
+        ),
+        Text(
+          'Забыли пароль — его сбросит администратор.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ];
+
+  List<Widget> _codeForm(ThemeData theme) => [
+        const _Step(n: 1, text: 'Откройте бот компании в Telegram.'),
+        const _Step(n: 2, text: 'Нажмите в меню бота «Код входа» или отправьте команду /code.'),
+        const _Step(n: 3, text: 'Введите шесть цифр из сообщения. Код действует несколько минут и подходит один раз.'),
+        const SizedBox(height: 16),
+        TextField(
+          key: const Key('login-code'),
+          controller: _code,
+          enabled: !_busy,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+          style: theme.textTheme.headlineSmall?.copyWith(letterSpacing: 8),
+          decoration: InputDecoration(labelText: 'Код', hintText: '000000', errorText: _error, errorMaxLines: 3),
+          onChanged: (_) => setState(() => _error = null),
+          onSubmitted: (_) => _submitCode(),
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('login-submit'),
+          onPressed: _codeComplete && !_busy ? _submitCode : null,
+          child: _busy
+              ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Войти'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Войти кодом могут сотрудники, которых завёл администратор или чья заявка одобрена.',
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        TextButton.icon(
+          key: const Key('open-bot'),
+          onPressed: () => launchUrl(Uri.parse('https://t.me/$botUsername'), mode: LaunchMode.externalApplication),
+          icon: const Icon(Icons.send_outlined, size: 18),
+          label: const Text('Нет доступа? Подайте заявку в боте'),
+        ),
+      ];
+
+  List<Widget> _newPasswordStep(ThemeData theme) => [
+        Text('Новый пароль', style: theme.textTheme.titleLarge),
+        const SizedBox(height: 8),
+        Text('Вы вошли с временным паролем. Задайте свой для ${_email.text.trim()}.'),
+        const SizedBox(height: 16),
+        PasswordField(
+          key: const Key('new-password'),
+          controller: _newPassword,
+          label: 'Новый пароль',
+          hint: 'Не короче $minPassword символов.',
+          enabled: !_busy,
+          autofillHints: const [AutofillHints.newPassword],
+          error: _fieldErrors['next'],
+          onChanged: (_) => _clearErrors(),
+        ),
+        const SizedBox(height: 12),
+        PasswordField(
+          key: const Key('new-password-repeat'),
+          controller: _repeat,
+          label: 'Ещё раз',
+          enabled: !_busy,
+          autofillHints: const [AutofillHints.newPassword],
+          error: _fieldErrors['repeat'],
+          onChanged: (_) => _clearErrors(),
+          onSubmitted: (_) => _submitNewPassword(),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, key: const Key('new-password-error'), style: TextStyle(color: ModusColors.of(context).danger)),
+        ],
+        const SizedBox(height: 16),
+        FilledButton(
+          key: const Key('new-password-submit'),
+          onPressed: _busy ? null : _submitNewPassword,
+          child: Text(_busy ? 'Сохраняем…' : 'Сохранить и войти'),
+        ),
+        TextButton(
+          onPressed: _busy
+              ? null
+              : () => setState(() {
+                    _needNewPassword = false;
+                    _newPassword.clear();
+                    _repeat.clear();
+                    _password.clear();
+                    _error = null;
+                  }),
+          child: const Text('Вернуться ко входу'),
+        ),
+      ];
 }
+
 
 class _Step extends StatelessWidget {
   const _Step({required this.n, required this.text});

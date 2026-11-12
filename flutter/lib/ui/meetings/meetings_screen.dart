@@ -9,6 +9,7 @@ import '../../appeals/attachment_files.dart' show PickedFile;
 import '../../format.dart';
 import 'meeting_screen.dart';
 import '../../theme/modus_theme.dart';
+import '../home/role_switch.dart';
 
 /// Форматы и лимит из контракта: до 200 МБ.
 const meetingExtensions = ['mp3', 'm4a', 'wav', 'ogg', 'webm'];
@@ -122,7 +123,7 @@ class _MeetingsScreenState extends State<MeetingsScreen> {
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final items = _items;
     return Scaffold(
-      appBar: AppBar(title: const Text('Совещания')),
+      appBar: AppBar(title: const Text('Совещания'), actions: const [RoleSwitchAction()]),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(

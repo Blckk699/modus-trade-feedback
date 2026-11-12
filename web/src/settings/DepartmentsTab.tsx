@@ -1,8 +1,10 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Department, type User } from './shared';
+import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 
 function loadAll() {
@@ -14,9 +16,11 @@ export function DepartmentsTab() {
   const data = useAsync(loadAll, []);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
+  const [saving, setSaving] = useState(false);
 
   const s = data.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
+  if (s.status === 'loading') return <RowsSkeleton />;
   if (s.status === 'error')
     return (
       <div className="notice">
@@ -31,41 +35,23 @@ export function DepartmentsTab() {
   const replace = (d: Department) =>
     data.set([departments.some((x) => x.id === d.id) ? departments.map((x) => (x.id === d.id ? d : x)) : [...departments, d], users]);
 
+  const edited = editing === null ? undefined : departments.find((d) => d.id === editing);
+  const formOpen = adding || edited !== undefined;
+  const closeForm = () => {
+    setAdding(false);
+    setEditing(null);
+  };
+
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
         <p className="muted">Руководитель получает эскалацию, если ответственный не ответил в срок, и утреннюю сводку по подразделению.</p>
-        {!adding && (
-          <button type="button" className="btn" onClick={() => setAdding(true)}>
-            Добавить подразделение
-          </button>
-        )}
+        <button type="button" className="btn" onClick={() => setAdding(true)}>
+          Добавить подразделение
+        </button>
       </div>
-      {adding && (
-        <DepartmentForm
-          users={users}
-          onCancel={() => setAdding(false)}
-          onSaved={(d) => {
-            replace(d);
-            setAdding(false);
-          }}
-        />
-      )}
       <ul className="settings-list">
-        {[...departments].sort(byName).map((d) =>
-          editing === d.id ? (
-            <li key={d.id}>
-              <DepartmentForm
-                department={d}
-                users={users}
-                onCancel={() => setEditing(null)}
-                onSaved={(saved) => {
-                  replace(saved);
-                  setEditing(null);
-                }}
-              />
-            </li>
-          ) : (
+        {[...departments].sort(byName).map((d) => (
             <li key={d.id} className="settings-row">
               <div className="settings-row__main">
                 <strong>{d.name}</strong>
@@ -75,9 +61,25 @@ export function DepartmentsTab() {
                 Изменить
               </button>
             </li>
-          ),
-        )}
+        ))}
       </ul>
+
+      {/* Добавление и правка — в окне поверх списка, как у сотрудников. key сбрасывает поля при смене записи. */}
+      <Modal open={formOpen} onClose={closeForm} labelledBy="department-form-title" locked={saving}>
+        {formOpen && (
+          <DepartmentForm
+            key={edited?.id ?? 'new'}
+            department={edited}
+            users={users}
+            onBusy={setSaving}
+            onCancel={closeForm}
+            onSaved={(saved) => {
+              replace(saved);
+              closeForm();
+            }}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
@@ -85,11 +87,13 @@ export function DepartmentsTab() {
 interface DepartmentFormProps {
   department?: Department;
   users: User[];
+  /** Сообщает родителю, что идёт сохранение: окно в это время не закрывается. */
+  onBusy?: (busy: boolean) => void;
   onSaved: (d: Department) => void;
   onCancel: () => void;
 }
 
-function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentFormProps) {
+function DepartmentForm({ department, users, onBusy, onSaved, onCancel }: DepartmentFormProps) {
   const [name, setName] = useState(department?.name ?? '');
   const [headId, setHeadId] = useState(department?.head ? String(department.head.id) : '');
   const [busy, setBusy] = useState(false);
@@ -104,6 +108,7 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
     setErrors({});
     if (!name.trim()) return setErrors({ name: 'Укажите название.' });
     setBusy(true);
+    onBusy?.(true);
     try {
       const fields = { name: name.trim(), head_id: idOrNull(headId) };
       let saved: Department;
@@ -123,11 +128,15 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
 
   return (
-    <form className="form settings-form" onSubmit={submit} noValidate>
+    <form className="dialog-form" onSubmit={submit} noValidate>
+      <h2 id="department-form-title" className="dialog-form__title">
+        {department ? 'Подразделение' : 'Новое подразделение'}
+      </h2>
       <div className="settings-grid">
         <label className="field">
           <span className="field__label">Название</span>
@@ -148,14 +157,18 @@ function DepartmentForm({ department, users, onSaved, onCancel }: DepartmentForm
           {errors.head_id && <span className="field__hint error-text">{errors.head_id}</span>}
         </label>
       </div>
-      <div className="form__actions">
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="dialog-form__actions">
+        <button type="button" className="btn btn--soft" onClick={onCancel} disabled={busy}>
+          Отмена
+        </button>
         <button type="submit" className="btn" disabled={busy}>
           {busy ? 'Сохраняем…' : department ? 'Сохранить' : 'Добавить'}
         </button>
-        <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={busy}>
-          Отмена
-        </button>
-        {error && <span className="error-text">{error}</span>}
       </div>
     </form>
   );

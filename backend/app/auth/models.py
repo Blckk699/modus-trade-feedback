@@ -19,7 +19,7 @@ class AuthSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    method: Mapped[str] = mapped_column(String(20))  # mini_app | widget | code | dev | password | invite_*
+    method: Mapped[str] = mapped_column(String(20))  # mini_app | widget | code | dev | password | bitrix | invite_*
     created_at: Mapped[datetime]
     expires_at: Mapped[datetime]
     revoked_at: Mapped[datetime | None]
@@ -59,3 +59,33 @@ class PasswordAttempt(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     key: Mapped[str] = mapped_column(String(300))
     created_at: Mapped[datetime]
+
+
+class AccountSwitch(Base):
+    """Журнал демо-переключателя ролей: кто, на кого и когда переключился."""
+
+    __tablename__ = "account_switches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    from_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime]
+
+
+class LoginTicket(Base):
+    """Одноразовый билет входа через Битрикс24. В базе только SHA-256 значения.
+
+    `state` — защита начала входа (10 минут, значение лежит в cookie браузера);
+    `exchange` — код обмена на сессию (60 секунд, привязан к пользователю и к тому же cookie).
+    """
+
+    __tablename__ = "login_tickets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20))  # state | exchange
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    cookie_hash: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime]
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]

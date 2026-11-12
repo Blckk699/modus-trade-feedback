@@ -11,7 +11,10 @@ from app.db import Base
 
 
 class AccessRequest(Base):
-    """Заявка из Telegram или регистрацией по почте. На аккаунт или почту не больше одной заявки `pending`."""
+    """Заявка из Telegram, регистрацией по почте или при входе через Битрикс24.
+
+    На аккаунт, почту или сотрудника портала не больше одной заявки `pending`.
+    """
 
     __tablename__ = "access_requests"
     __table_args__ = (
@@ -29,6 +32,13 @@ class AccessRequest(Base):
             unique=True,
             postgresql_where=text("status = 'pending'"),
         ),
+        Index("ix_access_requests_bitrix_user_id", "bitrix_user_id"),
+        Index(
+            "uq_access_requests_pending_bitrix_user_id",
+            "bitrix_user_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -36,6 +46,8 @@ class AccessRequest(Base):
     # Регистрация по почте: почта в нижнем регистре и хеш пароля, с которым войдёт после одобрения.
     email: Mapped[str | None] = mapped_column(String(254))
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Заявка незнакомого сотрудника, вошедшего через Битрикс24: его ID на портале (пароля нет).
+    bitrix_user_id: Mapped[int | None] = mapped_column(BigInteger)
     telegram_username: Mapped[str | None] = mapped_column(String(64))
     full_name: Mapped[str] = mapped_column(String(200))
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"))

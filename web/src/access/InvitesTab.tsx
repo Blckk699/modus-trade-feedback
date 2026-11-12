@@ -1,3 +1,4 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
@@ -49,6 +50,21 @@ export function InvitesTab() {
         </button>
       </div>
 
+      {s.status === 'loading' && <RowsSkeleton />}
+      {s.status === 'error' && <p className="error-text">{s.message}</p>}
+      {s.status === 'ready' && s.data.length === 0 && (
+        <EmptyState icon="inbox" title="Приглашений пока нет">
+          Создайте первое и отправьте ссылку человеку.
+        </EmptyState>
+      )}
+      {s.status === 'ready' && s.data.length > 0 && (
+        <ul className="settings-list">
+          {s.data.map((inv) => (
+            <InviteRow key={inv.id} invite={inv} onChanged={upsert} />
+          ))}
+        </ul>
+      )}
+
       {/* Форма и готовые ссылки — в окне. Ссылки показываются один раз, поэтому окно не закрывается
           случайным кликом мимо, а во время создания не закрывается вовсе. */}
       <Modal open={open} onClose={close} labelledBy="invite-title" locked={busy || created !== null} closeOnBackdrop={false}>
@@ -67,21 +83,6 @@ export function InvitesTab() {
             />
           ))}
       </Modal>
-
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {s.status === 'error' && <p className="error-text">{s.message}</p>}
-      {s.status === 'ready' && s.data.length === 0 && (
-        <EmptyState icon="inbox" title="Приглашений пока нет">
-          Создайте первое и отправьте ссылку человеку.
-        </EmptyState>
-      )}
-      {s.status === 'ready' && s.data.length > 0 && (
-        <ul className="settings-list">
-          {s.data.map((inv) => (
-            <InviteRow key={inv.id} invite={inv} onChanged={upsert} />
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

@@ -130,9 +130,9 @@ class AdminApi {
     return null;
   }
 
-  /// Добавить сотрудника по Telegram ID
+  /// Добавить сотрудника по Telegram ID или почте
   ///
-  /// Только администратор, остальным — `403`.
+  /// Нужен хотя бы один способ входа: `telegram_id` или `email`. Пароль сотруднику с почтой выдаётся сбросом (`POST /admin/users/{id}/reset-password`). Только администратор, остальным — `403`. 
   ///
   /// Note: This method returns the HTTP [Response].
   ///
@@ -165,9 +165,9 @@ class AdminApi {
     );
   }
 
-  /// Добавить сотрудника по Telegram ID
+  /// Добавить сотрудника по Telegram ID или почте
   ///
-  /// Только администратор, остальным — `403`.
+  /// Нужен хотя бы один способ входа: `telegram_id` или `email`. Пароль сотруднику с почтой выдаётся сбросом (`POST /admin/users/{id}/reset-password`). Только администратор, остальным — `403`. 
   ///
   /// Parameters:
   ///
@@ -283,6 +283,64 @@ class AdminApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'SystemSettings',) as SystemSettings;
+    
+    }
+    return null;
+  }
+
+  /// Сбросить пароль сотруднику
+  ///
+  /// Возвращает временный пароль один раз, в базе — только хеш. При входе с ним сотрудник задаёт новый (`403 password_change_required`). Блокировка после неудачных попыток снимается. У сотрудника без почты — `409 conflict`. Только администратор, остальным — `403`. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [int] userId (required):
+  Future<Response> adminResetPasswordWithHttpInfo(int userId, { Future<void>? abortTrigger, }) async {
+    // ignore: prefer_const_declarations
+    final path = r'/api/v1/admin/users/{user_id}/reset-password'
+      .replaceAll('{user_id}', userId.toString());
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+      abortTrigger: abortTrigger,
+    );
+  }
+
+  /// Сбросить пароль сотруднику
+  ///
+  /// Возвращает временный пароль один раз, в базе — только хеш. При входе с ним сотрудник задаёт новый (`403 password_change_required`). Блокировка после неудачных попыток снимается. У сотрудника без почты — `409 conflict`. Только администратор, остальным — `403`. 
+  ///
+  /// Parameters:
+  ///
+  /// * [int] userId (required):
+  Future<TemporaryPassword?> adminResetPassword(int userId, { Future<void>? abortTrigger, }) async {
+    final response = await adminResetPasswordWithHttpInfo(userId, abortTrigger: abortTrigger,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'TemporaryPassword',) as TemporaryPassword;
     
     }
     return null;

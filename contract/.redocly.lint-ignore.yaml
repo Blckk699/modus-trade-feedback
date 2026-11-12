@@ -4,3 +4,4 @@ openapi.yaml:
   operation-2xx-response:
     - '#/paths/~1api~1v1~1auth~1bitrix~1start/get/responses'
     - '#/paths/~1api~1v1~1auth~1bitrix~1callback/get/responses'
+    - '#/paths/~1api~1v1~1ws/get/responses'

@@ -65,6 +65,8 @@
   --shadow-card: 0 1px 0 rgba(8, 39, 66, 0.03);
   --shadow-raised: 0 1px 2px rgba(8, 39, 66, 0.06), 0 2px 8px rgba(8, 39, 66, 0.05);
   --shadow-pop: 0 2px 6px rgba(8, 39, 66, 0.07), 0 18px 48px rgba(8, 39, 66, 0.16);
+  /* поле в фокусе: заливка та же, поле приподнято — мягкий ореол и тень поглубже */
+  --shadow-focus: 0 0 0 2px rgba(8, 39, 66, 0.07), 0 2px 4px rgba(8, 39, 66, 0.08), 0 8px 22px rgba(8, 39, 66, 0.12);
   --shadow-fab: 0 2px 4px rgba(8, 39, 66, 0.12), 0 8px 18px rgba(8, 39, 66, 0.16);
   --shadow-sheet: -24px 0 64px rgba(8, 39, 66, 0.18);
   --scrim: rgba(8, 23, 38, 0.36);
@@ -135,6 +137,7 @@
     --shadow-card: none;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+    --shadow-focus: 0 0 0 2px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
     --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.62);
@@ -193,6 +196,7 @@
   --shadow-card: none;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 2px rgba(255, 255, 255, 0.08), 0 8px 22px rgba(0, 0, 0, 0.5);
   --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
   --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
   --scrim: rgba(0, 0, 0, 0.62);
@@ -632,6 +636,9 @@ svg {
 .content {
   width: 100%;
   flex: 1;
+  /* колонка: экран с пустым списком может занять всю высоту до низа окна */
+  display: flex;
+  flex-direction: column;
 }
 
 .content:focus {
@@ -735,26 +742,6 @@ svg {
   border-bottom: 1px solid var(--line);
 }
 
-/* В шапке карточки обращения — только аватар и стрелка, справа от статусов */
-.roleswitch--compact {
-  margin-left: auto;
-}
-
-.roleswitch--compact .roleswitch__who--btn {
-  display: none;
-}
-
-.roleswitch--compact .roleswitch__btn {
-  padding: 0 8px 0 7px;
-  background: var(--surface-2);
-  box-shadow: none;
-}
-
-.roleswitch--compact .roleswitch__btn:hover,
-.roleswitch--compact .roleswitch__btn[aria-expanded='true'] {
-  background: var(--surface-3);
-}
-
 /* Между телефоном и широким экраном в шапке тесно: остаются аватар и стрелка */
 @media (max-width: 1180px) {
   .roleswitch__who--btn {
@@ -812,8 +799,7 @@ svg {
 }
 
 .cmd__field:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .cmd__glass {
@@ -1111,6 +1097,20 @@ svg {
   pointer-events: none;
 }
 
+.toast__action {
+  /* контейнер сообщений клики пропускает; кнопка в сообщении — нет */
+  pointer-events: auto;
+  margin-left: 6px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .toast {
   display: flex;
   align-items: center;
@@ -1202,6 +1202,29 @@ svg {
   align-content: start;
 }
 
+/* Пустой список тянется до низа окна, а не висит куском посреди экрана.
+   Экран становится колонкой, пустая карточка забирает оставшуюся высоту. */
+.page:has(.empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(.empty) > .empty,
+.page:has(.empty) > :has(> .empty) {
+  flex: 1;
+}
+
+.page > :has(> .empty) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page > :has(> .empty) > .empty {
+  flex: 1;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1280,6 +1303,57 @@ svg {
 .skeleton.bento__tile,
 .skeleton.bento__wide {
   min-height: 220px;
+}
+
+/* Каркас карточки: полоски на местах статусов, заголовка, текста и блоков */
+.bone {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.bone--pill {
+  height: 26px;
+  border-radius: var(--r-pill);
+}
+
+.bone--round {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.bone--title {
+  height: 24px;
+  border-radius: 10px;
+}
+
+.bone--block {
+  border-radius: var(--r-tile);
+}
+
+.card-skeleton .sheet__head {
+  gap: 6px;
+}
+
+.card-skeleton__lead {
+  display: flex;
+  gap: 14px;
+}
+
+.card-skeleton__title {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  align-content: start;
+}
+
+.card-skeleton__text {
+  display: grid;
+  gap: 10px;
 }
 
 .skeleton--row {
@@ -1574,6 +1648,20 @@ svg {
   height: 46px;
 }
 
+/* Тип обращения чипом — теми же цветами, что значок типа в списках */
+.badge--type-problem {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.badge--type-suggestion {
+  background: var(--status-in_progress-bg);
+  color: var(--status-in_progress);
+}
+.badge--type-praise {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
 .type-icon--problem {
   background: var(--warn-bg);
   color: var(--warn);
@@ -1760,10 +1848,10 @@ svg {
 .input:focus,
 .input:focus-visible,
 .select__button[aria-expanded='true'] {
-  /* Фокус поля — заливка плотнее, без кольца: так же отмечен выбранный тип обращения */
+  /* Фокус поля — цвет не меняется: поле приподнимается мягким ореолом и тенью, без кольца */
   outline: none;
-  background: var(--surface-3);
-  box-shadow: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-focus);
 }
 
 .input[aria-invalid='true'] {
@@ -1835,8 +1923,8 @@ textarea.input {
 
 .select--pill .select__button:focus-visible,
 .select--pill .select__button[aria-expanded='true'] {
-  background: var(--surface-3);
-  box-shadow: none;
+  background: var(--surface);
+  box-shadow: var(--shadow-focus);
 }
 
 .select--pill[data-set='true'] .select__button {
@@ -2006,6 +2094,286 @@ textarea.input {
   font-size: 12.5px;
 }
 
+/* ───────── файлы обращения: галерея и просмотр ───────── */
+
+.files {
+  position: relative;
+}
+
+.files__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.files__tile {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 6px 10px;
+  border: 0;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+  color: inherit;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+
+button.files__tile {
+  cursor: pointer;
+}
+
+button.files__tile:hover {
+  background: var(--surface-3);
+}
+
+.files__thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.thumb__img,
+.thumb__ph {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumb__img {
+  object-fit: cover;
+}
+
+.thumb__ph {
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.thumb__ph--video {
+  background: var(--status-in_progress-bg);
+  color: var(--status-in_progress);
+}
+
+.thumb__ph--pdf {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.thumb__ph--audio {
+  background: var(--status-implemented-bg);
+  color: var(--status-implemented);
+}
+
+.files__play {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.files__name,
+.files__meta {
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files__name {
+  color: var(--heading);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.files__meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.files__hint {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* Файлы тащат на раздел: он подсвечивается целиком */
+.files__drop {
+  position: absolute;
+  inset: 8px -8px -8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--r-tile);
+  background: color-mix(in srgb, var(--status-new-bg) 92%, transparent);
+  color: var(--status-new);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Просмотр файлов: окно почти на весь экран */
+.modal.modal--viewer {
+  width: min(1120px, calc(100vw - 24px));
+  height: min(820px, calc(100dvh - 24px));
+}
+
+.modal.modal--viewer > .modal__body {
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewer__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 74px 12px 24px;
+}
+
+.viewer__name {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.viewer__name strong,
+.viewer__name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer__name strong {
+  color: var(--heading);
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.viewer__count {
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.viewer__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  margin: 0 12px;
+  overflow: hidden;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+.viewer__media {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.viewer__audio {
+  width: min(480px, calc(100% - 120px));
+}
+
+.viewer__file {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 34ch;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.viewer__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.viewer__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+.viewer__nav--prev {
+  left: 12px;
+}
+
+.viewer__nav--next {
+  right: 12px;
+}
+
+.viewer__strip {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px 16px;
+  overflow-x: auto;
+}
+
+.viewer__thumb {
+  flex: none;
+  width: 72px;
+  height: 54px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.viewer__thumb:hover,
+.viewer__thumb[aria-selected='true'] {
+  opacity: 1;
+}
+
+.viewer__thumb .thumb__ph {
+  font-size: 11px;
+}
+
 .switch {
   appearance: none;
   position: relative;
@@ -2084,7 +2452,9 @@ textarea.input {
   justify-items: start;
 }
 
-/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки. */
+/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки.
+   На экране-списке карточка тянется до низа окна (см. .page:has(.empty)); min-height — нижняя граница,
+   когда над ней стоит высокий блок (загрузка записи в «Совещаниях»). */
 .empty {
   display: grid;
   place-content: center;
@@ -2785,6 +3155,22 @@ a.tile:hover .tile__go {
   padding: 16px 74px 12px 28px;
 }
 
+/* Меню «…» в шапке карточки, слева от крестика: редкие действия */
+.sheet__menu {
+  position: relative;
+  flex: none;
+  margin-left: auto;
+}
+
+.sheet__menu-btn {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.sheet__menu .pop {
+  width: min(300px, calc(100vw - 48px));
+}
+
 .sheet__state {
   display: flex;
   flex-wrap: wrap;
@@ -2987,6 +3373,19 @@ a.tile:hover .tile__go {
   border-top: 1px solid var(--line);
 }
 
+/* Раздел отдельным блоком: голосование и комментарии в обсуждении стоят каждый в своей плашке */
+.section--well {
+  padding: 16px;
+  border-top: 0;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+/* Поле комментария в подвале карточки — на всю ширину */
+.sheet__foot.sheet__foot--composer {
+  display: block;
+}
+
 .section--inline {
   display: flex;
   flex-wrap: wrap;
@@ -3038,6 +3437,54 @@ a.tile:hover .tile__go {
 .sheet__reject {
   margin-right: auto;
 }
+
+/* Кнопка переписки — слева в подвале; действия остаются справа */
+.sheet__chat-slot {
+  display: flex;
+  margin-right: auto;
+}
+
+.sheet__chat-slot:empty {
+  display: none;
+}
+
+/* Ни действий, ни переписки — подвала нет */
+.sheet__foot:has(> .sheet__chat-slot:empty:only-child) {
+  display: none;
+}
+
+.sheet__chat-slot + .sheet__reject {
+  margin-right: 0;
+}
+
+.sheet__chat[aria-expanded='true'] {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+/* Новые сообщения, пока чат закрыт */
+.sheet__chat-new {
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sheet__chat-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--heading);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 
 .sheet__more {
   position: relative;
@@ -3384,8 +3831,7 @@ button.chat-entry--ask[aria-expanded='true'] {
 }
 
 .composer:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .composer--with-avatar {
@@ -3411,8 +3857,7 @@ button.chat-entry--ask[aria-expanded='true'] {
 }
 
 .composer__box:focus-within {
-  background: var(--surface-3);
-  box-shadow: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .composer__input {
@@ -3478,8 +3923,86 @@ button.chat-entry--ask[aria-expanded='true'] {
   font-size: 13.5px;
 }
 
-.timeline {
+/* История — раскрывающийся блок: заголовок-кнопка, в свёрнутом виде справа последнее событие */
+.history__heading {
+  margin: 0;
+  font-size: inherit;
+}
+
+.history__toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  color: var(--heading);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.history__last {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history__chevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.2s var(--ease);
+}
+
+.history__last + .history__chevron {
+  margin-left: 0;
+}
+
+.history__toggle[aria-expanded='true'] .history__chevron {
+  transform: rotate(180deg);
+}
+
+.timeline,
+.timeline__events {
   display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline {
+  gap: 14px;
+}
+
+.timeline__date {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timeline__events {
   margin-left: 5px;
   border-left: 2px solid var(--line);
 }
@@ -3488,7 +4011,7 @@ button.chat-entry--ask[aria-expanded='true'] {
   position: relative;
   display: grid;
   gap: 1px;
-  padding: 0 0 16px 18px;
+  padding: 0 0 12px 18px;
   font-size: 14px;
 }
 
@@ -3508,7 +4031,8 @@ button.chat-entry--ask[aria-expanded='true'] {
   box-shadow: inset 0 0 0 2px var(--line-strong);
 }
 
-.timeline__item:last-child::before {
+/* последнее событие всей истории — закрашенная точка */
+.timeline__day:last-child .timeline__item:last-child::before {
   box-shadow: inset 0 0 0 3px var(--primary);
 }
 
@@ -3608,6 +4132,12 @@ button.chat-entry--ask[aria-expanded='true'] {
 .compose {
   display: grid;
   gap: 18px;
+}
+
+/* Описание в отзыве выше ровно на поле «Как это можно решить» (подпись 20 + отступ 6 + поле 84)
+   и отступ формы 18: при смене типа кнопки внизу остаются на месте. 5lh + 20px — высота пяти строк. */
+textarea.compose__text--tall {
+  min-height: calc(5lh + 20px + 128.25px);
 }
 
 .compose__head {
@@ -4740,6 +5270,8 @@ button.vote__option:not(.vote__option--mine):hover {
   }
 
   .stage {
+    /* на всю высоту окна: пустой список тянется до панели разделов */
+    min-height: 100dvh;
     padding: 0 12px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));
   }
 
@@ -4793,7 +5325,7 @@ button.vote__option:not(.vote__option--mine):hover {
     height: 40px;
   }
 
-  /* В шапке приложения на телефоне переключателя нет: он в меню профиля и в шапке карточки */
+  /* В шапке приложения на телефоне переключателя нет: он в меню профиля */
   .head__tools .roleswitch {
     display: none;
   }
@@ -5128,6 +5660,31 @@ button.vote__option:not(.vote__option--mine):hover {
     border-radius: 0;
   }
 
+  .modal.modal--viewer {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .modal.modal--viewer > .modal__body {
+    padding: 0;
+  }
+
+  .viewer__head {
+    flex-wrap: wrap;
+    padding: 14px 64px 10px 16px;
+  }
+
+  .viewer__stage {
+    margin: 0 8px;
+  }
+
+  .viewer__strip {
+    padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+
   /* Окно переписки на телефоне занимает весь экран */
   .chat--side,
   .chat--page {
@@ -5315,6 +5872,139 @@ button.vote__option:not(.vote__option--mine):hover {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ── «Сегодня» по ролям: картина по охвату и порядок в настройках ── */
+.pulse {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pulse__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  min-height: 128px;
+  padding: 14px;
+  border-radius: var(--r-tile);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 0.18s var(--ease);
+}
+
+.pulse__cell:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.pulse__label {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pulse__value {
+  margin-top: auto;
+  color: var(--heading);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.pulse__cell--alert .pulse__value {
+  color: var(--status-rejected);
+}
+
+.pulse__hint {
+  min-height: 2.7em;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.pulse__topics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13.5px;
+}
+
+.chip--static {
+  cursor: default;
+}
+
+.setup {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.setup__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 14px;
+  border-radius: var(--r-tile);
+  background: var(--surface);
+  color: var(--muted);
+  text-decoration: none;
+  transition: box-shadow 0.18s var(--ease);
+}
+
+.setup__row:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.setup__count {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--status-implemented) 14%, transparent);
+  color: var(--status-implemented);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.setup__count--open {
+  background: color-mix(in srgb, var(--status-rejected) 14%, transparent);
+  color: var(--status-rejected);
+}
+
+.setup__main {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setup__label {
+  color: var(--heading);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.setup__hint {
+  font-size: 12.5px;
+}
+
+@media (max-width: 760px) {
+  .pulse {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .setup {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

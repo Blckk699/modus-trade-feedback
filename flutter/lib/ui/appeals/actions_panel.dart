@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
+import 'card_parts.dart' show needsAssignee;
+
 import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
 import '../discussions/publish_discussion_form.dart';
 import '../../theme/modus_theme.dart';
+import '../sheet_header.dart';
 
 /// Действия обработки в карточке. Набор кнопок — ровно `allowed_actions` от бэкенда
 /// (как `ActionsPanel` в вебе).
@@ -95,6 +98,8 @@ class ActionsPanel extends StatelessWidget {
     final actions = processingActions
         .where(appeal.allowedActions.contains)
         .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
+        // Без ответственного назначают блоком в карточке, переназначать пока некого.
+        .where((a) => !(a == AppealAction.reassign && needsAssignee(appeal)))
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -174,7 +179,7 @@ class _ActionFormState extends State<_ActionForm> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+          SheetHeader(widget.title, enabled: !_busy),
           const SizedBox(height: 16),
           ...widget.children,
           if (_error != null) ...[

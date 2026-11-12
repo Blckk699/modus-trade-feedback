@@ -11,6 +11,11 @@
 
 У роли нужен хотя бы один способ входа: `telegram_id` или пара `email` и `password`.
 
+Зарезервированный ключ `switch_group` — группа связанных аккаунтов для демо-переключателя ролей:
+список участников, каждый — ключ демо-пользователя, почта или Telegram ID существующего сотрудника.
+
+    "switch_group": ["owner", "admin", "head_procurement", "employee_procurement", "person@company.kz"]
+
 Telegram ID команды — секрет: файл не кладётся в репозиторий, сид их не печатает.
 """
 
@@ -22,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENV_VAR = "SEED_ACCOUNTS_FILE"
+SWITCH_GROUP_KEY = "switch_group"
 DEFAULT_PATH = Path("~/.config/modus-trade/seed-accounts.json")
 
 
@@ -52,6 +58,7 @@ def load_accounts(path: Path | None, known_keys: set[str]) -> dict[str, Account]
     if not isinstance(raw, dict):
         raise AccountsFileError(f"{path}: ожидается объект {{ключ пользователя: Telegram ID}}")
 
+    raw = {key: value for key, value in raw.items() if key != SWITCH_GROUP_KEY}
     unknown = sorted(set(raw) - known_keys)
     if unknown:
         raise AccountsFileError(
@@ -90,3 +97,42 @@ def load_accounts(path: Path | None, known_keys: set[str]) -> dict[str, Account]
             password,
         )
     return accounts
+
+
+@dataclass(frozen=True)
+class SwitchMember:
+    """Участник группы связанных аккаунтов: по ключу сида, почте или Telegram ID."""
+
+    kind: str  # "key" | "email" | "telegram"
+    value: str | int
+
+
+def load_switch_group(path: Path | None, known_keys: set[str]) -> list[SwitchMember]:
+    """Группа связанных аккаунтов из файла. Нет файла или ключа — пустой список: переключатель выключен."""
+    if path is None or not path.exists():
+        return []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise AccountsFileError(f"{path}: не JSON ({exc.msg}, строка {exc.lineno})") from None
+    group = raw.get(SWITCH_GROUP_KEY) if isinstance(raw, dict) else None
+    if group is None:
+        return []
+    if not isinstance(group, list):
+        raise AccountsFileError(f"{path}: {SWITCH_GROUP_KEY} — список ключей демо-пользователей, почт и Telegram ID")
+    members: list[SwitchMember] = []
+    for position, entry in enumerate(group, start=1):
+        if isinstance(entry, int) and not isinstance(entry, bool) and entry > 0:
+            member = SwitchMember("telegram", entry)
+        elif isinstance(entry, str) and entry.strip() in known_keys:
+            member = SwitchMember("key", entry.strip())
+        elif isinstance(entry, str) and "@" in entry:
+            member = SwitchMember("email", entry.strip().lower())
+        else:
+            # Саму запись не печатаем: в ней может быть почта или Telegram ID.
+            raise AccountsFileError(
+                f"{path}: {SWITCH_GROUP_KEY}, запись {position} — нужен ключ демо-пользователя, почта или Telegram ID"
+            )
+        if member not in members:
+            members.append(member)
+    return members

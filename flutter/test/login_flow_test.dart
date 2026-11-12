@@ -24,16 +24,18 @@ void main() {
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
 
-    expect(find.text('Вход по коду из бота'), findsOneWidget);
+    expect(find.byKey(const Key('login-email')), findsOneWidget, reason: 'основной способ — почта');
     expect(find.byKey(const Key('dev-login')), findsNothing, reason: 'dev-вход выключен на сервере');
 
+    await tester.tap(find.text('Код из Telegram'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('login-code')), '482913');
     await tester.pump();
     await tester.tap(find.byKey(const Key('login-submit')));
     await tester.pumpAndSettle();
 
-    // Собственник начинает со сводки; шесть разделов — четыре на панели и «Ещё».
-    expect(find.widgetWithText(AppBar, 'Сводка по компании'), findsOneWidget);
+    // Все начинают с «Сегодня»; у собственника разделов больше пяти — четыре на панели и «Ещё».
+    expect(find.byKey(const Key('today-greeting')), findsOneWidget);
     expect(find.byKey(const Key('nav-more')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('nav-more')));
@@ -47,7 +49,7 @@ void main() {
     await tester.tap(find.byKey(const Key('logout-confirm')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Вход по коду из бота'), findsOneWidget);
+    expect(find.byKey(const Key('login-email')), findsOneWidget);
     expect(store.token, isNull);
   });
 }

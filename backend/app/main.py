@@ -24,6 +24,8 @@ from app.errors import install_error_handlers
 from app.jobs import catalog as _catalog  # noqa: F401 — регистрирует обработчики фоновых задач
 from app.jobs.registry import registry
 from app.jobs.runner import JobRunner
+from app.live import LiveHub
+from app.live.capture import HUB_KEY
 
 
 def _configure_logging() -> None:
@@ -40,7 +42,10 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     _configure_logging()
 
     engine = make_engine(settings.async_database_url)
-    sessionmaker = make_sessionmaker(engine)
+    # Шина живых обновлений едет в каждой сессии базы: и в запросах, и в фоновых задачах.
+    live = LiveHub(services.clock)
+    sessionmaker = make_sessionmaker(engine, info={HUB_KEY: live})
+    live.sessionmaker = sessionmaker
     jobs = JobRunner(registry.copy(), sessionmaker, services, settings)
 
     @contextlib.asynccontextmanager
@@ -55,6 +60,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                 worker.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await worker
+            await live.close_all()
+            await live.drain()
             await app.state.services.aclose()
             await engine.dispose()
 
@@ -70,6 +77,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.state.engine = engine
     app.state.sessionmaker = sessionmaker
     app.state.jobs = jobs
+    app.state.live = live
 
     install_error_handlers(app)
     # X-Forwarded-For / -Proto учитываются только от доверенного прокси (Caddy), иначе адрес клиента

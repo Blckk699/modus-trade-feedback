@@ -1,3 +1,4 @@
+import { useLiveReload } from '../live/bus';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Check, RefreshCw } from 'lucide-react';
@@ -20,7 +21,9 @@ import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { buildTimeline } from './dueTimeline';
+import { formatHours } from './DigestPage';
 import { buildBrief, greeting } from './homeBrief';
+import { attention, homeVariant, setupGaps, variantScope, type HomeVariant, type SetupGaps } from './homeVariant';
 
 type Item = Schemas['AppealListItem'];
 type Summary = Schemas['AnalyticsSummary'];
@@ -39,6 +42,8 @@ interface HomeData {
   summary: Summary | null;
   discussions: { items: Discussion[]; total: number };
   implemented: { items: FeedItem[]; total: number };
+  /** Пробелы в настройках — только администратору. */
+  gaps: SetupGaps | null;
   loadedAt: Date;
 }
 
@@ -61,7 +66,7 @@ async function loadHome(me: Me): Promise<HomeData> {
   const soft = <T,>(call: Promise<T>): Promise<T | null> => call.catch(() => null);
   const open = { status: OPEN_STATUSES, sort: 'due_asc' as const };
 
-  const [queue, assigned, mine, mineOpen, mineAwaiting, unassigned, requests, summary, discussions, implemented] = await Promise.all([
+  const [queue, assigned, mine, mineOpen, mineAwaiting, unassigned, requests, summary, discussions, implemented, categories, departments] = await Promise.all([
     listScope ? soft(appealsPage({ scope: listScope, ...open, page_size: 30 })) : null,
     p.can_process_appeals ? soft(appealsPage({ scope: 'assigned', ...open, page_size: 50 })) : null,
     appealsPage({ scope: 'mine', sort: 'created_desc', page_size: 5 }),
@@ -74,6 +79,8 @@ async function loadHome(me: Me): Promise<HomeData> {
     p.analytics_scope !== 'none' ? soft(unwrap(api.GET('/api/v1/analytics/summary'))) : null,
     soft(unwrap(api.GET('/api/v1/discussions', { params: { query: { status: 'open', page_size: 4 } } }))),
     soft(unwrap(api.GET('/api/v1/feed/implemented', { params: { query: { page_size: 3 } } }))),
+    p.can_manage_settings ? soft(unwrap(api.GET('/api/v1/categories', { params: { query: { include_inactive: true } } }))) : null,
+    p.can_manage_settings ? soft(unwrap(api.GET('/api/v1/departments'))) : null,
   ]);
 
   return {
@@ -86,6 +93,7 @@ async function loadHome(me: Me): Promise<HomeData> {
     summary,
     discussions: { items: discussions?.items ?? [], total: discussions?.total ?? 0 },
     implemented: { items: implemented?.items ?? [], total: implemented?.total ?? 0 },
+    gaps: categories && departments ? setupGaps(categories, departments) : null,
     loadedAt: new Date(),
   };
 }
@@ -95,13 +103,15 @@ const clock = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-dig
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
- * «Сегодня» — стартовый экран для всех ролей. Собирается из прав пользователя: что ждёт его самого,
- * как дела со сроками, что происходит вокруг. Отсюда же открываются карточки и разделы.
+ * «Сегодня» — стартовый экран. У каждой роли своя версия (homeVariant): сотрудник видит свои обращения
+ * и обсуждения, ответственный — что ответить и к какому сроку, руководитель — подразделение и нагрузку,
+ * собственник — картину по компании, администратор — что распределить и пробелы в настройках.
  */
 export function HomePage() {
   const me = useMe();
   const home = useAsync(() => loadHome(me), [me.id]);
   useReloadOnCardClose(home.reload);
+  useLiveReload(['appeals', 'discussions'], home.reload);
   const s = home.state;
 
   return (
@@ -139,6 +149,7 @@ function HomeSkeleton() {
 function HomeView({ me, data: d, reload }: { me: Me; data: HomeData; reload: () => void }) {
   const p = me.permissions;
   const analytics = d.summary;
+  const variant = homeVariant(me.role, d.assigned?.total ?? 0);
   const assignedOverdue = d.assigned?.items.filter((a) => a.due_state === 'overdue').length ?? 0;
 
   const brief = buildBrief({
@@ -159,13 +170,11 @@ function HomeView({ me, data: d, reload }: { me: Me; data: HomeData; reload: () 
     () => (mineOnly ? d.assigned!.items : d.queue).filter(isWaitingAnswer),
     [mineOnly, d.assigned, d.queue],
   );
-  const showTimeline = dueItems.length > 0;
   // Сервер отдаёт очередь по дате срока; наверх поднимаем те, где первого ответа ещё ждут.
   const list = useMemo(() => {
     const items = d.queue.length > 0 ? d.queue : d.assigned?.items ?? [];
     return [...items.filter(isWaitingAnswer), ...items.filter((a) => !isWaitingAnswer(a))];
   }, [d.queue, d.assigned]);
-  const showQueue = list.length > 0;
 
   return (
     <div className="bento">
@@ -173,7 +182,9 @@ function HomeView({ me, data: d, reload }: { me: Me; data: HomeData; reload: () 
         <header className="brief__head">
           <div className="brief__who">
             <h2 className="card__title">Главное на сейчас</h2>
-            <p className="card__sub">Данные на {clock.format(d.loadedAt)}</p>
+            <p className="card__sub">
+              {variantScope(variant, analytics?.department?.name ?? me.department?.name ?? null)} · данные на {clock.format(d.loadedAt)}
+            </p>
           </div>
           <button type="button" className="chip chip--btn" onClick={reload}>
             <RefreshCw size={14} aria-hidden="true" /> Обновить
@@ -224,46 +235,256 @@ function HomeView({ me, data: d, reload }: { me: Me; data: HomeData; reload: () 
 
       <Tiles data={d} assignedOverdue={assignedOverdue} />
 
-      {showTimeline ? (
-        <TimelineCard items={dueItems} now={d.loadedAt} mineOnly={mineOnly} />
-      ) : (
-        <DiscussionsCard className="bento__wide" data={d.discussions} />
-      )}
-
-      <article className="card bento__list">
-        {showQueue ? (
-          <>
-            <CardHead title="Входящие" sub="Сначала те, где ждут первого ответа" to="/queue" action="Все входящие" />
-            <ul className="rows">
-              {list.slice(0, 5).map((a) => (
-                <AppealRow key={a.id} item={a} view="queue" now={d.loadedAt} />
-              ))}
-            </ul>
-          </>
-        ) : (
-          <>
-            <CardHead title="Мои обращения" sub={d.mine.total > 0 ? 'Последние поданные' : undefined} to="/my" action="Все" />
-            {d.mine.items.length > 0 ? (
-              <ul className="rows">
-                {d.mine.items.map((a) => (
-                  <AppealRow key={a.id} item={a} view="mine" />
-                ))}
-              </ul>
-            ) : (
-              <Quiet title="Вы ещё ничего не подавали">Расскажите о проблеме, предложите улучшение или отметьте хорошую работу.</Quiet>
-            )}
-          </>
-        )}
-      </article>
-
-      {analytics && analytics.assignee_load.length > 1 ? (
-        <LoadCard summary={analytics} />
-      ) : showTimeline ? (
-        <DiscussionsCard className="bento__side" data={d.discussions} />
-      ) : (
-        <ImplementedCard data={d.implemented} />
-      )}
+      <RoleBlocks variant={variant} data={d} dueItems={dueItems} mineOnly={mineOnly} list={list} />
     </div>
+  );
+}
+
+interface RoleBlocksProps {
+  variant: HomeVariant;
+  data: HomeData;
+  /** Открытые обращения, у которых идёт срок первого ответа. */
+  dueItems: Item[];
+  mineOnly: boolean;
+  /** Очередь роли: сначала те, где ждут первого ответа. */
+  list: Item[];
+}
+
+/** Нижняя часть экрана — своя у каждой роли. Сетка одна: широкая карточка, список, боковая и, если есть, нижний ряд. */
+function RoleBlocks({ variant, data: d, dueItems, mineOnly, list }: RoleBlocksProps) {
+  const s = d.summary;
+  const timeline = dueItems.length > 0 ? <TimelineCard items={dueItems} now={d.loadedAt} mineOnly={mineOnly} /> : null;
+  const queue = (title: string, sub: string, to: string, action: string, items: Item[]) => (
+    <article className="card bento__list">
+      <CardHead title={title} sub={sub} to={to} action={action} />
+      <ul className="rows">
+        {items.slice(0, 5).map((a) => (
+          <AppealRow key={a.id} item={a} view="queue" now={d.loadedAt} />
+        ))}
+      </ul>
+    </article>
+  );
+  const mine = (
+    <article className="card bento__list">
+      <CardHead title="Мои обращения" sub={d.mine.total > 0 ? 'Последние поданные' : undefined} to="/my" action="Все" />
+      {d.mine.items.length > 0 ? (
+        <ul className="rows">
+          {d.mine.items.map((a) => (
+            <AppealRow key={a.id} item={a} view="mine" />
+          ))}
+        </ul>
+      ) : (
+        <Quiet title="Вы ещё ничего не подавали">Расскажите о проблеме, предложите улучшение или отметьте хорошую работу.</Quiet>
+      )}
+    </article>
+  );
+
+  if (variant === 'owner' && s) {
+    const topics = s.repeated_topics.length > 0;
+    return (
+      <>
+        <PulseCard summary={s} />
+        <AttentionCard className="bento__list" summary={s} />
+        {s.assignee_load.length > 0 ? <LoadCard summary={s} /> : <DiscussionsCard className="bento__side" data={d.discussions} />}
+        {topics && <TopicsCard summary={s} />}
+        {s.assignee_load.length > 0 && <DiscussionsCard className={topics ? 'bento__half' : 'bento__full'} data={d.discussions} />}
+      </>
+    );
+  }
+
+  if (variant === 'head' && s) {
+    const late = attention(s).length > 0;
+    // Нагрузку показываем, когда в подразделении отвечают несколько человек: один ответственный — это сам список.
+    const team = s.assignee_load.length > 1;
+    return (
+      <>
+        {timeline ?? <PulseCard summary={s} />}
+        {list.length > 0 ? queue('Входящие подразделения', 'Сначала те, где ждут первого ответа', '/queue', 'Все входящие', list) : mine}
+        {team ? (
+          <LoadCard summary={s} />
+        ) : late ? (
+          <AttentionCard className="bento__side" summary={s} />
+        ) : (
+          <DiscussionsCard className="bento__side" data={d.discussions} />
+        )}
+        {team && late && <AttentionCard className="bento__half" summary={s} />}
+        {(team || late) && <DiscussionsCard className={team && late ? 'bento__half' : 'bento__full'} data={d.discussions} />}
+      </>
+    );
+  }
+
+  if (variant === 'admin') {
+    const free = d.unassigned?.items ?? [];
+    return (
+      <>
+        {d.gaps ? <SetupCard gaps={d.gaps} requests={d.accessRequests ?? 0} /> : timeline ?? <DiscussionsCard className="bento__wide" data={d.discussions} />}
+        {free.length > 0
+          ? queue('Без ответственного', 'Назначьте ответственного в карточке', '/queue?scope=unassigned', 'Вся очередь', free)
+          : list.length > 0
+            ? queue('Входящие', 'Все открытые обращения по сроку', '/queue?scope=all', 'Все входящие', list)
+            : mine}
+        {s && s.assignee_load.length > 0 ? <LoadCard summary={s} /> : <DiscussionsCard className="bento__side" data={d.discussions} />}
+      </>
+    );
+  }
+
+  if (variant === 'assignee' || list.length > 0) {
+    const own = d.assigned?.items ?? [];
+    const rows = own.length > 0 ? [...own.filter(isWaitingAnswer), ...own.filter((a) => !isWaitingAnswer(a))] : list;
+    return (
+      <>
+        {timeline ?? <DiscussionsCard className="bento__wide" data={d.discussions} />}
+        {own.length > 0
+          ? queue('Назначено вам', 'Сначала те, где ждут первого ответа', '/queue?scope=assigned', 'Все назначенные', rows)
+          : queue('Входящие', 'Сначала те, где ждут первого ответа', '/queue', 'Все входящие', rows)}
+        {timeline ? <DiscussionsCard className="bento__side" data={d.discussions} /> : <ImplementedCard data={d.implemented} />}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DiscussionsCard className="bento__wide" data={d.discussions} />
+      {mine}
+      <ImplementedCard data={d.implemented} />
+    </>
+  );
+}
+
+/** Картина по охвату сводки: четыре числа и о чём пишут чаще всего. */
+function PulseCard({ summary: s }: { summary: Summary }) {
+  const top = [...s.by_category].sort((a, b) => b.count - a.count).slice(0, 3);
+  const company = s.scope === 'company';
+  const cells: { label: string; value: string; hint: string; alert?: boolean; to: string }[] = [
+    { label: 'Новых за сутки', value: String(s.new_last_24h.length), hint: s.new_last_24h.length > 0 ? 'подано с вчера' : 'тихо', to: '/digest' },
+    { label: 'Зависло', value: String(s.stuck.length), hint: s.stuck.length > 0 ? 'давно без ответа' : 'зависших нет', alert: s.stuck.length > 0, to: '/digest' },
+    {
+      label: 'Без ответственного',
+      value: String(s.unassigned_count),
+      hint: s.unassigned_count > 0 ? 'ждут назначения' : 'все распределены',
+      alert: s.unassigned_count > 0,
+      to: '/queue?scope=unassigned',
+    },
+    {
+      label: 'Первый ответ',
+      value: s.avg_first_response_hours === null ? '—' : formatHours(s.avg_first_response_hours),
+      hint: s.avg_first_response_hours === null ? 'ответов ещё не было' : 'в среднем от подачи',
+      to: '/digest',
+    },
+  ];
+  return (
+    <article className="card bento__wide">
+      <CardHead title={company ? 'Картина по компании' : 'Картина по подразделению'} sub={`Всего обращений: ${s.total}`} to="/digest" action="Сводка" />
+      <ul className="pulse">
+        {cells.map((c) => (
+          <li key={c.label}>
+            <Link to={c.to} className={c.alert ? 'pulse__cell pulse__cell--alert' : 'pulse__cell'}>
+              <span className="pulse__label">{c.label}</span>
+              <span className="pulse__value">{c.value}</span>
+              <span className="pulse__hint">{c.hint}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {top.length > 0 && (
+        <p className="pulse__topics">
+          <span className="muted">Чаще всего пишут о:</span>
+          {top.map((c) => (
+            <span key={c.category?.id ?? 'none'} className="chip chip--static">
+              {c.category?.name ?? 'Без категории'} <span className="count">{c.count}</span>
+            </span>
+          ))}
+        </p>
+      )}
+    </article>
+  );
+}
+
+/** Зависшие и просроченные: кто отвечает и на сколько рабочих дней опоздали. */
+function AttentionCard({ className, summary }: { className: string; summary: Summary }) {
+  const background = useBackground();
+  const items = attention(summary);
+  return (
+    <article className={`card ${className}`}>
+      <CardHead title="Требуют внимания" sub={items.length > 0 ? 'Просрочен первый ответ или обращение зависло' : undefined} count={items.length} to="/digest" action="Сводка" />
+      {items.length === 0 ? (
+        <Quiet title="Просроченных и зависших нет">Все обращения получают ответ в срок.</Quiet>
+      ) : (
+        <ul className="rows rows--tight">
+          {items.slice(0, 5).map((x) => (
+            <li key={x.appeal.id}>
+              <Link to={`/appeals/${x.appeal.id}`} state={{ background }} className="row row--plain">
+                <span className="row__main">
+                  <span className="row__title row__title--wrap">{x.appeal.summary ?? 'Без краткой сути'}</span>
+                  <span className="row__meta">
+                    {x.appeal.number} · {x.assignee ? x.assignee.full_name : 'без ответственного'}
+                    {x.escalation_level >= 3 ? ' · зависло' : ''}
+                  </span>
+                </span>
+                <span className="row__due row__due--overdue">
+                  {x.days_overdue} раб. {plural(x.days_overdue, ['день', 'дня', 'дней'])}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </article>
+  );
+}
+
+/** Темы, о которых сообщили несколько человек. */
+function TopicsCard({ summary }: { summary: Summary }) {
+  const background = useBackground();
+  return (
+    <article className="card bento__half">
+      <CardHead title="Об этом говорят несколько человек" count={summary.repeated_topics.length} to="/digest" action="Сводка" />
+      <ul className="rows rows--tight">
+        {summary.repeated_topics.slice(0, 4).map((t) => (
+          <li key={t.appeal.id}>
+            <Link to={`/appeals/${t.appeal.id}`} state={{ background }} className="row row--plain">
+              <span className="row__main">
+                <span className="row__title row__title--wrap">{t.appeal.summary ?? 'Без краткой сути'}</span>
+                <span className="row__meta">{t.appeal.number}</span>
+              </span>
+              <span className="badge badge--people">{t.participants_count} сообщили</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+/** Администратору: где в настройках пробелы, из-за которых обращения теряют адресата. */
+function SetupCard({ gaps, requests }: { gaps: SetupGaps; requests: number }) {
+  const rows: { label: string; hint: string; count: number; to: string }[] = [
+    { label: 'Заявки на доступ', hint: 'ждут решения', count: requests, to: '/settings?tab=requests' },
+    { label: 'Категории без ответственного', hint: 'обращения уходят администратору', count: gaps.noResponsible, to: '/settings?tab=categories' },
+    { label: 'Категории без заместителя', hint: 'некому подменить ответственного', count: gaps.noDeputy, to: '/settings?tab=categories' },
+    { label: 'Подразделения без руководителя', hint: 'эскалацию получать некому', count: gaps.noHead, to: '/settings?tab=departments' },
+  ];
+  const open = rows.filter((r) => r.count > 0).length;
+  return (
+    <article className="card bento__wide">
+      <CardHead title="Порядок в настройках" sub={open > 0 ? 'Что стоит закрыть, чтобы обращения не терялись' : 'Пробелов нет'} to="/settings" action="Настройки" />
+      <ul className="setup">
+        {rows.map((r) => (
+          <li key={r.label}>
+            <Link to={r.to} className="setup__row">
+              <span className={r.count > 0 ? 'setup__count setup__count--open' : 'setup__count'} aria-hidden="true">
+                {r.count > 0 ? r.count : <Check size={16} strokeWidth={2.5} />}
+              </span>
+              <span className="setup__main">
+                <span className="setup__label">{r.label}</span>
+                <span className="setup__hint">{r.count > 0 ? `${r.count} · ${r.hint}` : 'в порядке'}</span>
+              </span>
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 

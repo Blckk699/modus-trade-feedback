@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:modus_api/api.dart';
 import 'package:modus_feedback/theme/modus_theme.dart';
 import 'package:modus_feedback/theme/tokens.g.dart';
+import 'package:modus_feedback/theme/web_palette.dart';
 
 Color _hex(String v) {
   final h = v.substring(1);
@@ -45,16 +46,23 @@ void main() {
     expect(ModusRadius.lg, 10);
   });
 
+  test('tokens.g.dart целиком совпадает с выводом генератора', () {
+    final r = Process.runSync('python3', ['tool/generate_tokens.py', '--check']);
+    expect(r.exitCode, 0, reason: '${r.stdout}${r.stderr}');
+  });
+
   test('тема: primary тёмно-синий, красный только у FAB и главной кнопки; шрифты из токенов', () {
     for (final b in Brightness.values) {
       final theme = modusTheme(b);
-      final p = b == Brightness.light ? lightPalette : darkPalette;
+      final p = b == Brightness.light ? webLightPalette : webDarkPalette;
       expect(theme.brightness, b);
       expect(theme.colorScheme.primary, p.primary);
       expect(theme.colorScheme.primary, isNot(p.accent), reason: 'красный не красит выбранные элементы');
+      expect(theme.colorScheme.secondary, isNot(p.accent), reason: 'secondary тоже не красный (замечание ревью #115)');
+      expect(theme.inputDecorationTheme.filled, isTrue, reason: 'поля без рамок, заливкой — как в вебе');
       expect(theme.floatingActionButtonTheme.backgroundColor, p.accent);
       expect(theme.scaffoldBackgroundColor, p.bg);
-      expect(theme.textTheme.titleLarge!.fontFamily, 'Montserrat');
+      expect(theme.textTheme.titleLarge!.fontFamily, 'Manrope');
       expect(theme.textTheme.bodyLarge!.fontFamily, 'Manrope');
       expect(theme.textTheme.bodyLarge!.fontSize, 16);
       expect(theme.extension<ModusColors>()!.status('implemented').fg, p.status['implemented']!.fg);
@@ -75,6 +83,6 @@ void main() {
     ));
     expect(accent.backgroundColor!.resolve({}), darkPalette.accent);
     expect(danger.foregroundColor!.resolve({}), darkPalette.danger);
-    expect(danger.backgroundColor, isNull, reason: 'опасное действие не заливается');
+    expect(danger.backgroundColor?.resolve({}), anyOf(isNull, Colors.transparent), reason: 'опасное действие не заливается');
   });
 }

@@ -6,6 +6,9 @@ import '../../app.dart';
 import '../../appeals/queue_scopes.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import 'rows.dart';
+import '../../theme/modus_theme.dart';
+import '../home/role_switch.dart';
 
 /// Значение фильтра статуса: все открытые, любой или конкретный статус.
 sealed class StatusFilter {
@@ -205,8 +208,9 @@ class _QueueScreenState extends State<QueueScreen> {
     final active = _filters.activeCount;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Обработка'),
+        title: const Text('Входящие'),
         actions: [
+          const RoleSwitchAction(),
           IconButton(
             key: const Key('queue-filters'),
             tooltip: 'Фильтры',
@@ -260,12 +264,14 @@ class _QueueScreenState extends State<QueueScreen> {
       ]);
     }
     final hasMore = _items.length < _total;
-    return ListView.separated(
-      itemCount: _items.length + (hasMore ? 1 : 0),
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        if (index == _items.length) {
-          return Padding(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+      children: [
+        RowsCard(children: [
+          for (final item in _items) QueueRow(item: item, now: _now, onTap: () => _open(item)),
+        ]),
+        if (hasMore)
+          Padding(
             padding: const EdgeInsets.all(16),
             child: Column(children: [
               OutlinedButton(
@@ -274,11 +280,8 @@ class _QueueScreenState extends State<QueueScreen> {
               ),
               if (_moreError != null) Text(_moreError!, style: TextStyle(color: theme.colorScheme.error)),
             ]),
-          );
-        }
-        final item = _items[index];
-        return QueueRow(item: item, now: _now, onTap: () => _open(item));
-      },
+          ),
+      ],
     );
   }
 }
@@ -296,52 +299,45 @@ class QueueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final overdue = item.dueState == DueState.overdue;
+    final c = ModusColors.of(context);
+    final overdue = item.dueState == DueState.overdue && item.status != AppealStatus.closed;
     final due = item.firstResponseDueAt;
-    final waitingAnswer = due != null && item.dueState != DueState.answered && item.dueState != DueState.noDeadline;
-    final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
-    return Material(
-      color: overdue ? scheme.errorContainer.withValues(alpha: 0.35) : Colors.transparent,
-      child: InkWell(
-        key: Key('queue-${item.id}'),
+    final waitingAnswer = due != null &&
+        item.dueState != DueState.answered &&
+        item.dueState != DueState.noDeadline &&
+        item.status != AppealStatus.closed;
+    return KeyedSubtree(
+      key: Key('queue-${item.id}'),
+      child: WebRow(
+        type: item.type,
+        title: item.summary ?? 'Без краткой сути',
+        meta: [
+          item.number,
+          session.typeLabel(item.type),
+          if (item.category != null) item.category!.name,
+          item.assignee?.fullName ?? 'без ответственного',
+        ].join(' · '),
+        unread: item.hasUnread,
+        overdue: overdue,
         onTap: onTap,
-        child: Container(
-          decoration: overdue ? BoxDecoration(border: Border(left: BorderSide(color: scheme.error, width: 4))) : null,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Text(item.number, style: theme.textTheme.titleSmall),
-              if (item.hasUnread) ...[const SizedBox(width: 6), const Badge(smallSize: 8)],
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${session.typeLabel(item.type)} · ${session.priorityLabel(item.priority)}',
-                  style: muted,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        badges: [
+          StatusBadge(item.status),
+          if (waitingAnswer)
+            Text(
+              timeLeftLabel(due, now),
+              key: Key('time-left-${item.id}'),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: overdue ? c.danger : item.dueState == DueState.dueSoon ? c.warn : c.muted,
               ),
-              if (waitingAnswer)
-                Text(
-                  timeLeftLabel(due, now),
-                  key: Key('time-left-${item.id}'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: overdue ? scheme.error : scheme.onSurfaceVariant,
-                    fontWeight: overdue ? FontWeight.w600 : null,
-                  ),
-                ),
-            ]),
-            const SizedBox(height: 4),
-            Text(item.summary ?? 'Без краткой сути', maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              StatusBadge(item.status),
-              if (item.status != AppealStatus.closed) DueBadge(state: item.dueState, dueAt: due),
-              if (item.participantsCount > 1) Text('Сообщили: ${item.participantsCount}', style: muted),
-              if (item.assignee != null) Text(item.assignee!.fullName, style: muted),
-            ]),
-          ]),
-        ),
+            ),
+          if (item.participantsCount > 1)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(color: c.peopleBg, borderRadius: BorderRadius.circular(99)),
+              child: Text('Сообщили: ${item.participantsCount}',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.people)),
+            ),
+        ],
       ),
     );
   }

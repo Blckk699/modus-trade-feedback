@@ -10,8 +10,9 @@ type Props = {
   labelledBy?: string;
   label?: string;
   /** sheet — панель на всю высоту у правого края (карточка обращения, обсуждение, совещание);
-   * form — окно по центру для длинной формы; default — небольшое окно действия. */
-  size?: 'default' | 'form' | 'sheet';
+   * form — окно по центру для длинной формы; viewer — просмотр файлов почти на весь экран;
+   * default — небольшое окно действия. */
+  size?: 'default' | 'form' | 'sheet' | 'viewer';
   locked?: boolean;
   /** false — клик по подложке не закрывает окно (формы, где легко потерять набранное). */
   closeOnBackdrop?: boolean;
@@ -64,6 +65,9 @@ export function Modal({ open, onClose, labelledBy, label, size = 'default', lock
       aria-labelledby={labelledBy}
       aria-label={label}
       onCancel={(e) => {
+        // Esc во вложенном окне (просмотр файла, форма действия) доходит сюда через дерево React:
+        // закрываться должно только то окно, которому событие адресовано.
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         // Esc уже закрыл вложенную панель (чат, меню) — само окно остаётся.
         if (!locked && !escapeClaimed()) onClose();

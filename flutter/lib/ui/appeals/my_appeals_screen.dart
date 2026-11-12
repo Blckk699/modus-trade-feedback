@@ -6,7 +6,9 @@ import '../../app.dart';
 import '../../format.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
+import 'rows.dart';
 import 'new_appeal_screen.dart';
+import '../home/role_switch.dart';
 
 /// «Мои обращения»: `GET /appeals?scope=mine&sort=created_desc`, по 20 на страницу.
 class MyAppealsScreen extends StatefulWidget {
@@ -105,12 +107,12 @@ class _MyAppealsScreenState extends State<MyAppealsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои обращения')),
-      floatingActionButton: FloatingActionButton.extended(
+      appBar: AppBar(title: const Text('Мои обращения'), actions: const [RoleSwitchAction()]),
+      floatingActionButton: FloatingActionButton(
         key: const Key('new-appeal'),
+        tooltip: 'Подать обращение',
         onPressed: _openNew,
-        icon: const Icon(Icons.add),
-        label: const Text('Подать обращение'),
+        child: const Icon(Icons.add_rounded, size: 30),
       ),
       body: RefreshIndicator(onRefresh: _reload, child: _body(context)),
     );
@@ -137,13 +139,14 @@ class _MyAppealsScreenState extends State<MyAppealsScreen> {
       ]);
     }
     final hasMore = _items.length < _total;
-    return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 96),
-      itemCount: _items.length + (hasMore ? 1 : 0),
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        if (index == _items.length) {
-          return Padding(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+      children: [
+        RowsCard(children: [
+          for (final item in _items) AppealRow(item: item, onTap: () => _open(item)),
+        ]),
+        if (hasMore)
+          Padding(
             padding: const EdgeInsets.all(16),
             child: Column(children: [
               OutlinedButton(
@@ -152,10 +155,8 @@ class _MyAppealsScreenState extends State<MyAppealsScreen> {
               ),
               if (_moreError != null) Text(_moreError!, style: TextStyle(color: theme.colorScheme.error)),
             ]),
-          );
-        }
-        return AppealRow(item: _items[index], onTap: () => _open(_items[index]));
-      },
+          ),
+      ],
     );
   }
 }
@@ -173,7 +174,7 @@ class _Centered extends StatelessWidget {
       );
 }
 
-/// Строка списка обращений: номер, тип, дата, суть, статус и срок.
+/// Строка списка обращений как в вебе: значок типа, суть, «номер · тип · дата», статус и срок.
 class AppealRow extends StatelessWidget {
   const AppealRow({super.key, required this.item, required this.onTap});
 
@@ -183,37 +184,24 @@ class AppealRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final session = SessionScope.of(context);
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-    return InkWell(
+    return KeyedSubtree(
       key: Key('appeal-${item.id}'),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Text(item.number, style: theme.textTheme.titleSmall),
-              if (item.hasUnread) ...[
-                const SizedBox(width: 6),
-                Badge(key: Key('unread-${item.id}'), smallSize: 8),
-              ],
-              const SizedBox(width: 8),
-              Text(session.typeLabel(item.type), style: muted),
-              const Spacer(),
-              Text(formatDate(item.createdAt), style: muted),
-            ]),
-            const SizedBox(height: 4),
-            Text(item.summary ?? 'Без краткой сути', maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-              StatusBadge(item.status),
-              if (item.status != AppealStatus.closed) DueBadge(state: item.dueState, dueAt: item.firstResponseDueAt),
-              if (item.mergedInto != null) Text('Присоединено к ${item.mergedInto!.number}', style: muted),
-            ]),
-          ],
-        ),
+      child: WebRow(
+        type: item.type,
+        title: item.summary ?? 'Без краткой сути',
+        meta: [
+          item.number,
+          session.typeLabel(item.type),
+          formatDate(item.createdAt),
+          if (item.mergedInto != null) 'присоединено к ${item.mergedInto!.number}',
+        ].join(' · '),
+        unread: item.hasUnread,
+        unreadKey: Key('unread-${item.id}'),
+        onTap: onTap,
+        badges: [
+          StatusBadge(item.status),
+          if (item.status != AppealStatus.closed) DueBadge(state: item.dueState, dueAt: item.firstResponseDueAt),
+        ],
       ),
     );
   }

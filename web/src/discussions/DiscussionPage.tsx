@@ -1,5 +1,9 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUp, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { useLiveReload } from '../live/bus';
+import { CardSkeleton } from '../app/CardSkeleton';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, ArrowRight, ArrowUp, Ellipsis, Eye, EyeOff, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { useToast } from '../app/Toast';
+import { usePopover } from '../app/usePopover';
 import { Link, useParams } from 'react-router-dom';
 import { Avatar } from '../app/Avatar';
 import { useBackground } from '../app/background';
@@ -25,13 +29,13 @@ export function DiscussionPage() {
     () => unwrap(api.GET('/api/v1/discussions/{discussion_id}', { params: { path: { discussion_id: id } } })),
     [id],
   );
+  // Чужой голос или итог — обсуждение перечитывается тихо, без сброса набранного комментария.
+  useLiveReload([`discussion:${id}`], d.reload);
 
   const s = d.state;
   const body =
     s.status === 'loading' ? (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем обсуждение…
-      </div>
+      <CardSkeleton label="Открываем обсуждение…" />
     ) : s.status === 'error' ? (
       <div className="sheet sheet--state">
         <p className="error-text">{s.error instanceof ApiError && s.error.status === 404 ? 'Обсуждение не найдено.' : s.message}</p>
@@ -58,6 +62,7 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
   // Решать про имя может только автор — значит, это его обращение.
   const isAuthorView = d.can_set_name_consent;
   const open = d.status === 'open';
+  const comments = useComments(d);
 
   return (
     <article className="sheet">
@@ -68,6 +73,8 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
           </span>
           <span className="badge">{dict.typeLabel(d.appeal.type)}</span>
         </div>
+        {/* Автор уже решил про имя: смена решения — редкое действие, оно в меню «…», а не блоком в карточке. */}
+        {d.can_set_name_consent && d.author_name_consent !== 'pending' && <ConsentMenu discussion={d} onUpdated={onUpdated} />}
       </header>
 
       <div className="sheet__scroll">
@@ -84,7 +91,8 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
           )}
         </div>
 
-        {d.can_set_name_consent && <NameConsent discussion={d} onUpdated={onUpdated} />}
+        {/* Пока автор не решил, вопрос про имя стоит в карточке: на него нужно ответить. */}
+        {d.can_set_name_consent && d.author_name_consent === 'pending' && <NameConsent discussion={d} onUpdated={onUpdated} />}
 
         {!open && d.outcome && (
           <div className="notice notice--success" role="region" aria-label="Итог">
@@ -96,8 +104,10 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
 
         <Votes discussion={d} onUpdated={onUpdated} />
         {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
-        <Comments discussion={d} />
+        <CommentsList discussion={d} comments={comments} />
       </div>
+      {/* Поле комментария закреплено внизу карточки и не уезжает вместе с лентой комментариев. */}
+      {open && <CommentComposer comments={comments} />}
     </article>
   );
 }
@@ -108,12 +118,13 @@ const CONSENT_TEXT: Record<Schemas['NameConsent'], string> = {
   hidden: 'Ваше имя скрыто, в обсуждении указано только подразделение.',
 };
 
-/** Запрос автору на показ имени (история 18). Решение можно изменить. */
-function NameConsent({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated: (d: Discussion) => void }) {
+/** Ответ автора про показ имени (история 18): запрос к API и состояние, общие для вопроса и меню. */
+function useNameConsent(d: Discussion, onUpdated: (d: Discussion) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function answer(show: boolean) {
+  /** null — получилось; иначе текст ошибки сервера (например, обсуждение уже закрыто). */
+  async function answer(show: boolean): Promise<string | null> {
     setBusy(true);
     setError('');
     try {
@@ -125,30 +136,74 @@ function NameConsent({ discussion: d, onUpdated }: { discussion: Discussion; onU
           }),
         ),
       );
+      return null;
     } catch (e) {
-      setError(errorMessage(e));
+      const message = errorMessage(e);
+      setError(message);
+      return message;
     } finally {
       setBusy(false);
     }
   }
 
-  const c = d.author_name_consent;
+  return { busy, error, answer };
+}
+
+/** Вопрос автору, пока он не решил: показать имя или нет. */
+function NameConsent({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated: (d: Discussion) => void }) {
+  const { busy, error, answer } = useNameConsent(d, onUpdated);
   return (
-    <div className={`notice${c === 'pending' ? ' notice--warn' : ''}`}>
-      <p>{CONSENT_TEXT[c]}</p>
+    <div className="notice notice--warn">
+      <p>{CONSENT_TEXT.pending}</p>
       <div className="form__actions">
-        {c !== 'shown' && (
-          <button type="button" className="btn btn--sm" disabled={busy} onClick={() => answer(true)}>
-            Показать имя
-          </button>
-        )}
-        {c !== 'hidden' && (
-          <button type="button" className="btn btn--soft btn--sm" disabled={busy} onClick={() => answer(false)}>
-            {c === 'pending' ? 'Не показывать' : 'Скрыть имя'}
-          </button>
-        )}
+        <button type="button" className="btn btn--sm" disabled={busy} onClick={() => answer(true)}>
+          Показать имя
+        </button>
+        <button type="button" className="btn btn--soft btn--sm" disabled={busy} onClick={() => answer(false)}>
+          Не показывать
+        </button>
         {error && <span className="error-text">{error}</span>}
       </div>
+    </div>
+  );
+}
+
+/** Меню «…» рядом с крестиком: автор меняет решение про имя после того, как уже ответил. */
+function ConsentMenu({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated: (d: Discussion) => void }) {
+  const { busy, answer } = useNameConsent(d, onUpdated);
+  const toast = useToast();
+  const menu = usePopover<HTMLDivElement>();
+  const shown = d.author_name_consent === 'shown';
+
+  async function change() {
+    menu.setOpen(false);
+    const failed = await answer(!shown);
+    if (failed) toast(failed, 'error');
+    else toast(shown ? 'Имя скрыто: в обсуждении указано только подразделение' : 'Имя показано в обсуждении');
+  }
+
+  return (
+    <div className="sheet__menu" ref={menu.ref}>
+      <button
+        type="button"
+        className="tool-btn sheet__menu-btn"
+        aria-label="Действия с обсуждением"
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        data-popover-trigger
+        onClick={() => menu.setOpen(!menu.open)}
+      >
+        <Ellipsis size={18} aria-hidden="true" />
+      </button>
+      {menu.open && (
+        <div className="pop pop--right" role="menu">
+          <p className="pop__note">{CONSENT_TEXT[d.author_name_consent]}</p>
+          <button type="button" className="pop__item" role="menuitem" disabled={busy} onClick={change}>
+            {shown ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+            {shown ? 'Скрыть моё имя' : 'Показать моё имя'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -184,7 +239,7 @@ function Votes({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated
   ];
 
   return (
-    <section className="section vote">
+    <section className="section section--well vote">
       <div className="section__head">
         <h2 className="section__title">Голосование</h2>
         <span className="muted">
@@ -293,13 +348,14 @@ function CloseForm({ discussion: d, onUpdated }: { discussion: Discussion; onUpd
   );
 }
 
-function Comments({ discussion: d }: { discussion: Discussion }) {
+/** Комментарии обсуждения: лента стоит в прокручиваемой части карточки, поле ввода — в её подвале. */
+function useComments(d: Discussion) {
   const list = useAsync(
     () =>
       unwrap(api.GET('/api/v1/discussions/{discussion_id}/comments', { params: { path: { discussion_id: d.id } } })),
     [d.id],
   );
-  const me = useMe();
+  useLiveReload([`discussion:${d.id}`], list.reload);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -326,10 +382,25 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
     }
   }
 
+  return { list, text, setText, busy, error, send };
+}
+
+type CommentsState = ReturnType<typeof useComments>;
+
+function CommentsList({ discussion: d, comments }: { discussion: Discussion; comments: CommentsState }) {
+  const { list } = comments;
+  const end = useRef<HTMLLIElement>(null);
   const count = list.state.status === 'ready' ? list.state.data.length : null;
+  const sent = useRef(count);
+
+  // Свой новый комментарий показываем сразу: лента прокручивается к нему.
+  useEffect(() => {
+    if (count !== null && sent.current !== null && count > sent.current) end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    sent.current = count;
+  }, [count]);
 
   return (
-    <section className="section comments">
+    <section className="section section--well comments">
       <h2 className="section__title">
         Комментарии
         {count !== null && count > 0 && <span className="section__count">{count}</span>}
@@ -341,8 +412,8 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
       )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
         <ul className="comments__list">
-          {list.state.data.map((c) => (
-            <li key={c.id} className="comment">
+          {list.state.data.map((c, i, all) => (
+            <li key={c.id} className="comment" ref={i === all.length - 1 ? end : undefined}>
               <Avatar name={c.author.full_name} />
               <div className="comment__body">
                 <div className="comment__meta">
@@ -356,7 +427,15 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
           ))}
         </ul>
       )}
-      {d.status === 'open' && (
+    </section>
+  );
+}
+
+function CommentComposer({ comments }: { comments: CommentsState }) {
+  const me = useMe();
+  const { text, setText, busy, error, send } = comments;
+  return (
+    <footer className="sheet__foot sheet__foot--composer">
         <form className="composer composer--with-avatar" onSubmit={send}>
           <Avatar name={me.full_name} />
           <div className="composer__box">
@@ -381,7 +460,6 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
             </div>
           </div>
         </form>
-      )}
-    </section>
+    </footer>
   );
 }

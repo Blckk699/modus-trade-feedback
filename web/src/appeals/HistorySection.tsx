@@ -1,29 +1,65 @@
+import { useId, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
-import { formatDateTime } from '../lib/format';
+import { formatChatDay, formatDateTime, formatTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { historyDays, readHistoryOpen, writeHistoryOpen } from './history';
 import { historyValue } from './historyValue';
 import { historyKindLabel } from './labels';
 
 type HistoryEvent = Schemas['HistoryEvent'];
 
-/** История событий по возрастанию времени. version — перечитать после изменения обращения. */
+/**
+ * История событий — раскрывающийся блок. В свёрнутом виде видно, сколько событий и какое последнее;
+ * в раскрытом — лента по дням в порядке времени. Выбор «раскрыто или свёрнуто» запоминается.
+ * version — перечитать после изменения обращения.
+ */
 export function HistorySection({ appealId, version }: { appealId: number; version: string }) {
   const history = useAsync(
     () => unwrap(api.GET('/api/v1/appeals/{appeal_id}/history', { params: { path: { appeal_id: appealId } } })),
     [appealId, version],
   );
+  const [open, setOpen] = useState(() => readHistoryOpen());
+  const listId = useId();
+  const events = history.state.status === 'ready' ? history.state.data : [];
+  const last = events[events.length - 1];
+
+  const toggle = () => {
+    writeHistoryOpen(!open);
+    setOpen(!open);
+  };
 
   return (
-    <section className="section">
-      <h2 className="section__title">История</h2>
-      {history.state.status === 'loading' && <p className="muted">Загружаем…</p>}
+    <section className="section history">
+      <h2 className="history__heading">
+        <button type="button" className="history__toggle" aria-expanded={open} aria-controls={listId} onClick={toggle}>
+          <span className="history__title">
+            История
+            {events.length > 0 && <span className="section__count">{events.length}</span>}
+          </span>
+          {!open && last && (
+            <span className="history__last">
+              {historyKindLabel[last.kind] ?? last.kind} · {formatDateTime(last.created_at)}
+            </span>
+          )}
+          {history.state.status === 'loading' && <span className="history__last">Загружаем…</span>}
+          <ChevronDown size={18} className="history__chevron" aria-hidden="true" />
+        </button>
+      </h2>
       {history.state.status === 'error' && <p className="error-text">{history.state.message}</p>}
-      {history.state.status === 'ready' && (
-        <ol className="timeline" aria-label="История">
-          {history.state.data.map((ev) => (
-            <HistoryItem key={ev.id} ev={ev} />
+      {open && history.state.status === 'ready' && (
+        <ol id={listId} className="timeline" aria-label="История">
+          {historyDays(events).map((day) => (
+            <li key={day.key} className="timeline__day">
+              <span className="timeline__date">{formatChatDay(day.events[0].created_at)}</span>
+              <ol className="timeline__events">
+                {day.events.map((ev) => (
+                  <HistoryItem key={ev.id} ev={ev} />
+                ))}
+              </ol>
+            </li>
           ))}
         </ol>
       )}
@@ -43,11 +79,12 @@ function HistoryItem({ ev }: { ev: HistoryEvent }) {
     <li className="timeline__item">
       <div className="timeline__head">
         <span className="timeline__title">{historyKindLabel[ev.kind] ?? ev.kind}</span>
-        <span className="timeline__time">{formatDateTime(ev.created_at)}</span>
+        <span className="timeline__time">
+          {ev.actor ? ev.actor.full_name : 'Система'} · <time dateTime={ev.created_at}>{formatTime(ev.created_at)}</time>
+        </span>
       </div>
       {change && <div className="timeline__change">{change}</div>}
       {ev.comment && <div className="timeline__comment">{ev.comment}</div>}
-      <div className="timeline__actor">{ev.actor ? ev.actor.full_name : 'Система'}</div>
     </li>
   );
 }

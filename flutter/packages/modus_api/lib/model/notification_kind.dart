@@ -10,7 +10,7 @@
 
 part of openapi.api;
 
-/// appeal_assigned — ответственному: новое назначение (в т. ч. переназначение); appeal_created — автору: номер, ответственный, срок; status_changed — автору и участникам; clarification_requested — автору: вопрос; clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке; deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил; appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение; discussion_closed — автору: итог обсуждения; digest — утренняя сводка 
+/// appeal_assigned — ответственному: новое назначение (в т. ч. переназначение); appeal_created — автору: номер, ответственный, срок; status_changed — автору и участникам; clarification_requested — автору: вопрос; clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке; deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил; appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение; discussion_closed — автору: итог обсуждения; digest — утренняя сводка; access_request_created — администраторам и собственнику: новая заявка на доступ (`path=/settings/access-requests`); access_request_approved — заявителю: доступ открыт, бот показывает меню и вход; access_request_rejected — заявителю: отказ с причиной (у получателя нет `user_id`) 
 enum NotificationKind {
   appealAssigned._(r'appeal_assigned'),
   appealCreated._(r'appeal_created'),
@@ -24,6 +24,9 @@ enum NotificationKind {
   nameConsentRequest._(r'name_consent_request'),
   discussionClosed._(r'discussion_closed'),
   digest._(r'digest'),
+  accessRequestCreated._(r'access_request_created'),
+  accessRequestApproved._(r'access_request_approved'),
+  accessRequestRejected._(r'access_request_rejected'),
   ;
 
   /// Instantiate a new enum with the provided value.
@@ -95,6 +98,9 @@ class NotificationKindTypeTransformer {
         case r'name_consent_request': return NotificationKind.nameConsentRequest;
         case r'discussion_closed': return NotificationKind.discussionClosed;
         case r'digest': return NotificationKind.digest;
+        case r'access_request_created': return NotificationKind.accessRequestCreated;
+        case r'access_request_approved': return NotificationKind.accessRequestApproved;
+        case r'access_request_rejected': return NotificationKind.accessRequestRejected;
         default:
           if (!allowNull) {
             throw ArgumentError('Unknown enum value to decode: $data');

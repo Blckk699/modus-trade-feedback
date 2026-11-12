@@ -20,8 +20,13 @@ class User(Base):
     # Почта хранится в нижнем регистре — уникальна без учёта регистра.
     email: Mapped[str | None] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    # ID сотрудника на портале Битрикс24: запоминается при первом входе через портал.
+    bitrix_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     # Временный пароль от администратора: при входе с ним нужно задать новый.
     must_change_password: Mapped[bool] = mapped_column(default=False)
+    # Группа связанных аккаунтов (демо-переключатель ролей): участники одной группы переключаются друг на друга.
+    # Задаётся только настройкой вне репозитория (`python -m app.seed link`), через API не меняется.
+    switch_group: Mapped[str | None] = mapped_column(String(50), index=True)
     full_name: Mapped[str] = mapped_column(String(200))
     position: Mapped[str | None] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))  # app.domain.enums.Role

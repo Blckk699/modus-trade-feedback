@@ -55,6 +55,9 @@ String parameterToString(dynamic value) {
   if (value is DateTime) {
     return value.toUtc().toIso8601String();
   }
+  if (value is AccessRequestStatus) {
+    return AccessRequestStatusTypeTransformer().encode(value).toString();
+  }
   if (value is AppealAction) {
     return AppealActionTypeTransformer().encode(value).toString();
   }
@@ -70,6 +73,9 @@ String parameterToString(dynamic value) {
   if (value is AppealType) {
     return AppealTypeTypeTransformer().encode(value).toString();
   }
+  if (value is AssignableRole) {
+    return AssignableRoleTypeTransformer().encode(value).toString();
+  }
   if (value is ClosedReason) {
     return ClosedReasonTypeTransformer().encode(value).toString();
   }
@@ -84,6 +90,9 @@ String parameterToString(dynamic value) {
   }
   if (value is ErrorCode) {
     return ErrorCodeTypeTransformer().encode(value).toString();
+  }
+  if (value is InviteState) {
+    return InviteStateTypeTransformer().encode(value).toString();
   }
   if (value is MeetingDraftStatus) {
     return MeetingDraftStatusTypeTransformer().encode(value).toString();
