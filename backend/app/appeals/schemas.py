@@ -58,6 +58,8 @@ class AttachmentOut(BaseModel):
     content_type: str
     size_bytes: int
     download_url: str
+    preview_url: str | None
+    can_delete: bool
     uploaded_by: UserBrief
     created_at: LocalDatetime
 
