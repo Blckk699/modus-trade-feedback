@@ -1137,7 +1137,7 @@ paths:
                   - {code: merge, label: Присоединить к основному, from: [new, in_review], to: closed}
                   - {code: reassign, label: Переназначить, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: publish_discussion, label: Вынести на обсуждение, from: [new, in_review, awaiting_info, in_progress, implemented, rejected], to: null}
-                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [in_review, awaiting_info, in_progress], to: null}
+                  - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: send_message, label: Написать в переписку, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: upload_attachment, label: Приложить файл, from: [new, in_review, awaiting_info, in_progress], to: null}
                 due_filters:
@@ -5445,6 +5445,10 @@ components:
           $ref: '#/components/schemas/AppealRef'
         participants_count:
           type: integer
+          minimum: 2
+          description: |
+            Сколько раз об этом сообщили: основное обращение плюс присоединённые повторы. Повторы одного и того же
+            автора тоже считаются. Темы идут по убыванию этого числа.
     AnalyticsSummary:
       type: object
       required:
@@ -5519,6 +5523,7 @@ components:
             $ref: '#/components/schemas/AppealRef'
         repeated_topics:
           type: array
+          description: Обращения, к которым присоединены повторы, по убыванию числа сообщивших
           items:
             $ref: '#/components/schemas/RepeatedTopic'
         overdue:
