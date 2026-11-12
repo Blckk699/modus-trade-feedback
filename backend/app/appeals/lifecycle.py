@@ -6,16 +6,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, tzinfo
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.appeals import policy
 from app.appeals.history import record
 from app.appeals.views import Directory, Extras, facts
 from app.domain.enums import AppealAction, AppealStatus, AppealType, ClosedReason, HistoryKind
-from app.errors import Forbidden, InvalidTransition
-from app.models import Appeal, Message, User
+from app.errors import Forbidden, InvalidTransition, TooManyRequests
+from app.models import Appeal, HistoryEvent, Message, User
 from app.notifications import service as notify
 
 STATUS_LABELS = {
@@ -155,3 +156,47 @@ async def post_message(session: AsyncSession, appeal: Appeal, user: User, now: d
     appeal.updated_at = now
     await notify.message_received(session, appeal, user, text.strip(), now)
     return message
+
+
+NUDGE_INTERVAL = timedelta(hours=4)
+
+
+async def nudge(session: AsyncSession, appeal: Appeal, user: User, now: datetime, tz: tzinfo) -> None:
+    """«Напомнить ответственному»: руководитель подразделения или собственник, пока нет первого ответа.
+
+    Не чаще раза в четыре часа на обращение — кто бы ни напоминал.
+    """
+    directory = await Directory.load(session)
+    extras = await Extras.load(session, user, [appeal])
+    f = facts(appeal, directory, extras)
+    rel = policy.relations(user, f)
+    allowed = policy.allowed_actions(user, f)
+    if AppealAction.NUDGE not in allowed:
+        if not policy.can_nudge(rel):
+            raise Forbidden("Напомнить ответственному могут руководитель подразделения и собственник")
+        if appeal.assignee_id is None:
+            message = "У обращения нет ответственного — сначала назначьте его"
+        elif appeal.assignee_id == user.id:
+            message = "Вы сами ответственный по этому обращению"
+        elif appeal.first_response_at is not None:
+            message = "Первый ответ уже дан — напоминание не нужно"
+        else:
+            message = f"Из статуса «{STATUS_LABELS[AppealStatus(appeal.status)]}» это действие недоступно"
+        raise InvalidTransition(message, details={"action": AppealAction.NUDGE, "status": appeal.status, "allowed_actions": allowed})
+    last = await session.scalar(
+        select(func.max(HistoryEvent.created_at)).where(
+            HistoryEvent.appeal_id == appeal.id, HistoryEvent.kind == HistoryKind.NUDGED
+        )
+    )
+    if last is not None and now - last < NUDGE_INTERVAL:
+        next_at = (last + NUDGE_INTERVAL).astimezone(tz)
+        raise TooManyRequests(
+            f"Ответственному уже напоминали. Следующее напоминание — после {next_at:%H:%M}.",
+            details={"next_allowed_at": next_at.isoformat()},
+        )
+    assignee = directory.users.get(appeal.assignee_id)
+    record(
+        session, appeal, HistoryKind.NUDGED, now, user.id,
+        new_value=assignee.full_name if assignee else None, comment="Напоминание ответственному",
+    )
+    notify.nudge(session, appeal, user, now, tz)

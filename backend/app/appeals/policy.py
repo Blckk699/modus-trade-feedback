@@ -32,6 +32,7 @@ class AppealFacts:
     viewer_heads_department: bool = False
     has_discussion: bool = False
     has_bitrix_task: bool = False
+    has_first_response: bool = False
 
 
 def relations(user: User, appeal: AppealFacts) -> list[ViewerRelation]:
@@ -76,6 +77,11 @@ def can_delete_attachment(rel: list[ViewerRelation], status: AppealStatus, *, is
     return status in NOT_FINAL and ((is_uploader and full_access(rel)) or can_process(rel))
 
 
+def can_nudge(rel: list[ViewerRelation]) -> bool:
+    """Напомнить ответственному может тот, кто стоит над ним: руководитель подразделения обращения и собственник."""
+    return any(r in rel for r in (ViewerRelation.DEPARTMENT_HEAD, ViewerRelation.OWNER))
+
+
 def can_read_messages(rel: list[ViewerRelation]) -> bool:
     """Приватная переписка: автор, ответственный, руководитель, собственник. Не администратор, не участник."""
     return ViewerRelation.AUTHOR in rel or can_process(rel)
@@ -110,6 +116,15 @@ def allowed_actions(user: User, appeal: AppealFacts) -> list[AppealAction]:
     )
     add(AppealAction.SEND_MESSAGE, (is_author or process) and status in NOT_FINAL)
     add(AppealAction.UPLOAD_ATTACHMENT, (is_author or process) and status in NOT_FINAL)
+    add(
+        AppealAction.NUDGE,
+        can_nudge(rel)
+        and status in NOT_FINAL
+        and not praise
+        and not appeal.has_first_response
+        and appeal.assignee_id is not None
+        and appeal.assignee_id != user.id,
+    )
     return actions
 
 

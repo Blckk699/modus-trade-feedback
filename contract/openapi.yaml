@@ -1140,6 +1140,7 @@ paths:
                   - {code: create_bitrix_task, label: Создать задачу в Битрикс24, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: send_message, label: Написать в переписку, from: [new, in_review, awaiting_info, in_progress], to: null}
                   - {code: upload_attachment, label: Приложить файл, from: [new, in_review, awaiting_info, in_progress], to: null}
+                  - {code: nudge, label: Напомнить ответственному, from: [new, in_review, awaiting_info, in_progress], to: null}
                 due_filters:
                   - {code: overdue, label: Просрочено}
                   - {code: due_today, label: Срок сегодня}
@@ -1383,6 +1384,48 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/InvalidTransition'
+  /api/v1/appeals/{appeal_id}/nudge:
+    parameters:
+      - $ref: '#/components/parameters/AppealId'
+    post:
+      tags: [appeal-actions]
+      summary: Напомнить ответственному об обращении без первого ответа
+      description: |
+        Ответственный получает уведомление `nudge` в колокольчик и в бот, в историю обращения пишется событие
+        `nudged` (`new_value` — кому напомнили). Статус, срок и ответственный не меняются.
+        Кто: руководитель подразделения обращения и собственник. Ответственному, автору, администратору — `403`.
+        Когда: обращение не завершено, ответственный назначен и это не сам пользователь, первого ответа ещё нет,
+        обращение не положительный отзыв — тогда в `allowed_actions` есть `nudge`; иначе `409 invalid_transition`
+        с причиной в `message`.
+        Не чаще раза в 4 часа на обращение, кто бы ни напоминал: раньше — `429 too_many_requests`,
+        в `details.next_allowed_at` — когда можно снова, `message` готов для показа.
+      operationId: nudgeAssignee
+      responses:
+        '200':
+          description: Обращение после действия
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appeal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
+        '429':
+          description: Ответственному уже напоминали меньше 4 часов назад (`too_many_requests`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: too_many_requests
+                  message: Ответственному уже напоминали. Следующее напоминание — после 14:30.
+                  details: {next_allowed_at: '2026-11-13T14:30:00+05:00'}
   /api/v1/appeals/{appeal_id}/request-info:
     parameters:
       - $ref: '#/components/parameters/AppealId'
@@ -4091,6 +4134,7 @@ components:
         - create_bitrix_task
         - send_message
         - upload_attachment
+        - nudge
     ViewerRelation:
       type: string
       enum: [author, participant, assignee, department_head, owner, admin]
@@ -4123,6 +4167,7 @@ components:
         - message_received
         - deadline_reminder
         - escalation_head
+        - nudge
         - appeal_merged
         - name_consent_request
         - discussion_closed
@@ -4136,6 +4181,7 @@ components:
         status_changed — автору и участникам; clarification_requested — автору: вопрос;
         clarification_answered — ответственному: ответ автора; message_received — новое сообщение в переписке;
         deadline_reminder — ответственному: срок истёк; escalation_head — руководителю: ответственный не ответил;
+        nudge — ответственному: руководитель или собственник просит ответить по обращению;
         appeal_merged — автору повтора; name_consent_request — автору при выносе на обсуждение;
         discussion_closed — автору: итог обсуждения; digest — утренняя сводка;
         access_request_created — администраторам и собственнику: новая заявка на доступ (`path=/settings/access-requests`);
@@ -4822,6 +4868,7 @@ components:
         - participant_added
         - attachment_added
         - attachment_removed
+        - nudged
         - discussion_published
         - discussion_closed
         - bitrix_task_created

@@ -69,6 +69,7 @@ class HistoryKind(StrEnum):
     DISCUSSION_CLOSED = "discussion_closed"
     BITRIX_TASK_CREATED = "bitrix_task_created"
     FIELD_CHANGED = "field_changed"
+    NUDGED = "nudged"
 
 
 class AppealAction(StrEnum):
@@ -85,6 +86,7 @@ class AppealAction(StrEnum):
     CREATE_BITRIX_TASK = "create_bitrix_task"
     SEND_MESSAGE = "send_message"
     UPLOAD_ATTACHMENT = "upload_attachment"
+    NUDGE = "nudge"
 
 
 class ViewerRelation(StrEnum):
@@ -141,6 +143,7 @@ class NotificationKind(StrEnum):
     MESSAGE_RECEIVED = "message_received"
     DEADLINE_REMINDER = "deadline_reminder"
     ESCALATION_HEAD = "escalation_head"
+    NUDGE = "nudge"
     APPEAL_MERGED = "appeal_merged"
     NAME_CONSENT_REQUEST = "name_consent_request"
     DISCUSSION_CLOSED = "discussion_closed"
