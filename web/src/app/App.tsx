@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom';
 import { InvitePage } from '../access/InvitePage';
-import { AccessRequestScreen, LoginScreen, useAuth } from '../auth';
+import { AccessRequestScreen, LoginScreen, RegisterScreen, useAuth } from '../auth';
 import { DiscussionPage } from '../discussions/DiscussionPage';
 import { FeedPage } from '../discussions/FeedPage';
 import { MeetingPage } from '../meetings/MeetingPage';
@@ -13,6 +13,7 @@ import { HomePage } from '../pages/HomePage';
 import { MyAppealsPage } from '../pages/MyAppealsPage';
 import { NewAppealPage } from '../pages/NewAppealPage';
 import { QueuePage } from '../pages/QueuePage';
+import { ProfilePage } from '../profile/ProfilePage';
 import { SettingsPage } from '../settings/SettingsPage';
 import { MiniAppShell } from '../telegram/MiniAppShell';
 import { BrandMark } from './BrandLogo';
@@ -63,7 +64,14 @@ function AuthGate() {
       </Routes>
     );
   }
-  if (state.status === 'anonymous') return <LoginScreen />;
+  if (state.status === 'anonymous') {
+    return (
+      <Routes>
+        <Route path="/register" element={<RegisterScreen />} />
+        <Route path="*" element={<LoginScreen />} />
+      </Routes>
+    );
+  }
   if (state.status === 'unregistered') return <AccessRequestScreen who={state.who} />;
 
   const nav = buildNav(state.me);
@@ -79,6 +87,7 @@ function AuthGate() {
           <Route path="/appeals/:id" element={<AppealPage />} />
           <Route path="/discussions/:id" element={<DiscussionPage />} />
           {p.can_upload_meetings && <Route path="/meetings/:id" element={<MeetingPage />} />}
+          <Route path="/profile" element={<ProfilePage />} />
           {/* Ссылки из уведомлений бота (Notification.path) ведут на /analytics, у веба сводка — /digest. */}
           <Route path="/analytics" element={<Navigate to="/digest" replace />} />
           {/* Уведомление о новой заявке (access_request_created) ведёт на /settings/access-requests. */}

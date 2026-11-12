@@ -15,6 +15,7 @@ import {
   Settings,
   Sun,
   type LucideIcon,
+  UserRound,
 } from 'lucide-react';
 import { useAuth, useMe } from '../auth';
 import { Avatar } from './Avatar';
@@ -95,13 +96,13 @@ export function Shell() {
               Выйти
             </span>
           </button>
-          <span className="rail__me" tabIndex={0} role="img" aria-label={`Вы вошли как ${me.full_name}, ${who}`}>
+          <Link to="/profile" className="rail__me" aria-label={`Профиль: ${me.full_name}, ${who}`}>
             <Avatar name={me.full_name} />
             <span className="tip tip--card" aria-hidden="true">
               <strong>{me.full_name}</strong>
-              <span>{who}</span>
+              <span>{who} · профиль</span>
             </span>
-          </span>
+          </Link>
         </div>
       </aside>
 
@@ -221,6 +222,10 @@ function UserMenu(props: { name: string; who: string; themeChoice: ThemeChoice; 
             <strong>{props.name}</strong>
             <span>{props.who}</span>
           </div>
+          <Link to="/profile" className="pop__item" role="menuitem" onClick={() => menu.setOpen(false)}>
+            <UserRound size={18} aria-hidden="true" />
+            Профиль
+          </Link>
           <button type="button" className="pop__item" role="menuitem" onClick={props.onTheme}>
             <ThemeIcon size={18} aria-hidden="true" />
             {themeLabel[props.themeChoice]}

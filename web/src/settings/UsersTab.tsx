@@ -1,3 +1,4 @@
+import { ResetPassword } from './ResetPassword';
 import { Avatar } from '../app/Avatar';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
@@ -259,6 +260,7 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
           </label>
         </div>
       )}
+      {user && <ResetPassword userId={user.id} name={user.full_name} />}
       {error && (
         <p className="error-text" role="alert">
           {error}
