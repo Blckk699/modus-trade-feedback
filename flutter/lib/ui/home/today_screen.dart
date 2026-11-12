@@ -220,46 +220,38 @@ class _TodayScreenState extends State<TodayScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          SafeArea(
-            bottom: false,
-            child: RefreshIndicator(
-              onRefresh: _reload,
-              child: FutureBuilder<TodayData>(
-                future: _data,
-                builder: (context, s) {
-                  final d = s.data;
-                  final head = WebPageHead(
-                    over: day[0].toUpperCase() + day.substring(1),
-                    title: greeting(me.fullName, now),
-                    tools: [
-                      ToolButton(
-                        icon: LucideIcons.bell,
-                        tooltip: 'Уведомления',
-                        badge: unread,
-                        onTap: () => widget.onOpenSection(Section.myAppeals),
-                      ),
-                      const RoleSwitchAction(),
-                    ],
-                  );
-                  return ListView(
-                    key: const Key('today'),
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 140),
-                    children: [
-                      KeyedSubtree(key: const Key('today-greeting'), child: head),
-                      if (d == null && s.hasError)
-                        const Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text('Не удалось загрузить. Потяните вниз, чтобы повторить.', textAlign: TextAlign.center),
-                        )
-                      else if (d == null)
-                        const _Skeleton()
-                      else
-                        ..._blocks(context, d, me),
-                    ],
-                  );
-                },
-              ),
-            ),
+          FutureBuilder<TodayData>(
+            future: _data,
+            builder: (context, s) {
+              final d = s.data;
+              return WebScrollPage(
+                key: const Key('today'),
+                titleKey: const Key('today-greeting'),
+                over: day[0].toUpperCase() + day.substring(1),
+                title: greeting(me.fullName, now),
+                onRefresh: _reload,
+                tools: [
+                  ToolButton(
+                    icon: LucideIcons.bell,
+                    tooltip: 'Уведомления',
+                    badge: unread,
+                    onTap: () => widget.onOpenSection(Section.myAppeals),
+                  ),
+                  const RoleSwitchAction(),
+                ],
+                children: [
+                  if (d == null && s.hasError)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('Не удалось загрузить. Потяните вниз, чтобы повторить.', textAlign: TextAlign.center),
+                    )
+                  else if (d == null)
+                    const _Skeleton()
+                  else
+                    ..._blocks(context, d, me),
+                ],
+              );
+            },
           ),
           if (me.permissions.canCreateAppeal)
             // Над панелью разделов: `bottom: calc(var(--tabbar-h) + 16px)`, справа 16 — как `.fab` в вебе.

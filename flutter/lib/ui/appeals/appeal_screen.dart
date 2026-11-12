@@ -73,17 +73,13 @@ class _AppealScreenState extends State<AppealScreen> {
   Widget build(BuildContext context) {
     final appeal = _appeal;
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: _loading
-            ? const CardSkeleton()
-            : appeal == null
-            ? _ErrorView(error: _error!, onRetry: _load)
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
-              ),
-      ),
+      body: _loading
+          ? const SafeArea(child: CardSkeleton())
+          : appeal == null
+          ? SafeArea(
+              child: _ErrorView(error: _error!, onRetry: _load),
+            )
+          : _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
     );
   }
 }
@@ -144,16 +140,14 @@ class _AppealBody extends StatelessWidget {
       if (a.firstResponseAt != null) ('Первый ответ', formatDateTime(a.firstResponseAt!)),
       ('Подано', formatDateTime(a.createdAt)),
     ];
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+    return WebScrollPage(
+      over: 'Обращение',
+      title: a.number,
+      onRefresh: onChanged,
+      bottomPadding: 48,
+      leading: ToolButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onTap: () => Navigator.of(context).maybePop()),
+      tools: [RoleSwitchAction(appealId: a.id)],
       children: [
-        // Шапка страницы обращения: «Обращение» над номером, назад — круглой кнопкой.
-        WebPageHead(
-          over: 'Обращение',
-          title: a.number,
-          leading: ToolButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onTap: () => Navigator.of(context).maybePop()),
-          tools: [RoleSwitchAction(appealId: a.id)],
-        ),
         WebCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

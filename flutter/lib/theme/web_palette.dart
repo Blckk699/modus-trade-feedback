@@ -30,6 +30,8 @@ class WebExtra {
     required this.peopleBg,
     required this.shadowRaised,
     required this.shadowFocus,
+    required this.tipBg,
+    required this.tipText,
   });
 
   /// `--card`: фон карточек на `--bg`.
@@ -48,6 +50,10 @@ class WebExtra {
   /// Тени поля: в покое (`--shadow-raised`) и в фокусе (`--shadow-focus`).
   final List<BoxShadow> shadowRaised;
   final List<BoxShadow> shadowFocus;
+
+  /// `--tip-bg` / `--tip-text`: всплывающие сообщения.
+  final Color tipBg;
+  final Color tipText;
 }
 
 final webLightPalette = lightPalette.copyWith(
@@ -74,6 +80,8 @@ const webLightExtra = WebExtra(
     BoxShadow(color: Color(0x14082742), offset: Offset(0, 2), blurRadius: 4),
     BoxShadow(color: Color(0x1F082742), offset: Offset(0, 8), blurRadius: 22),
   ],
+  tipBg: Color(0xFF0B1F33),
+  tipText: Color(0xFFFFFFFF),
 );
 
 final webDarkPalette = darkPalette.copyWith(
@@ -106,4 +114,6 @@ const webDarkExtra = WebExtra(
     BoxShadow(color: Color(0x14FFFFFF), spreadRadius: 2),
     BoxShadow(color: Color(0x80000000), offset: Offset(0, 8), blurRadius: 22),
   ],
+  tipBg: Color(0xFFEDEDED),
+  tipText: Color(0xFF111111),
 );
