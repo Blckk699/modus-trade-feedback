@@ -135,6 +135,10 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  /// Демо-переключатель ролей: новая сессия под связанным пользователем из `me.switchTargets`.
+  Future<void> switchTo(int userId) =>
+      _login(() => api.auth.switchAccount(SwitchAccountRequest(userId: userId)));
+
   /// Dev-вход под выбранным пользователем (только локально и на моке).
   Future<void> devLogin(int userId) =>
       _login(() => api.auth.devLogin(DevLoginRequest(userId: userId)));

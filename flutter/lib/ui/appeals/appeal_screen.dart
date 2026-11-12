@@ -13,6 +13,8 @@ import 'duplicates_bitrix.dart';
 import '../discussions/discussion_screen.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 import '../../theme/modus_theme.dart';
+import '../home/role_switch.dart';
+import 'card_parts.dart';
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
 /// Действия показываются только из `allowed_actions`.
@@ -60,29 +62,27 @@ class _AppealScreenState extends State<AppealScreen> {
 
   /// Действие вернуло обращение — показываем его и перечитываем историю и переписку.
   void _replace(Appeal appeal) => setState(() {
-        _appeal = appeal;
-        _version++;
-      });
+    _appeal = appeal;
+    _version++;
+  });
 
   @override
   Widget build(BuildContext context) {
     final appeal = _appeal;
     return Scaffold(
-      appBar: AppBar(title: Text(appeal?.number ?? 'Обращение')),
+      appBar: AppBar(
+        toolbarHeight: 52,
+        title: Text(appeal?.number ?? '', style: Theme.of(context).textTheme.bodySmall),
+        actions: [RoleSwitchAction(appealId: widget.appealId)],
+      ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const CardSkeleton()
           : appeal == null
-              ? _ErrorView(error: _error!, onRetry: _load)
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: _AppealBody(
-                    appeal: appeal,
-                    version: _version,
-                    onChanged: _load,
-                    onUpdated: _replace,
-                    pickFiles: widget.pickFiles,
-                  ),
-                ),
+          ? _ErrorView(error: _error!, onRetry: _load)
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: _AppealBody(appeal: appeal, version: _version, onChanged: _load, onUpdated: _replace, pickFiles: widget.pickFiles),
+            ),
     );
   }
 }
@@ -99,16 +99,13 @@ class _ErrorView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(
-            notFound ? 'Обращение не найдено или у вас нет к нему доступа.' : error.message,
-            textAlign: TextAlign.center,
-          ),
-          if (!notFound) ...[
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Повторить')),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(notFound ? 'Обращение не найдено или у вас нет к нему доступа.' : error.message, textAlign: TextAlign.center),
+            if (!notFound) ...[const SizedBox(height: 12), OutlinedButton(onPressed: onRetry, child: const Text('Повторить'))],
           ],
-        ]),
+        ),
       ),
     );
   }
@@ -139,16 +136,35 @@ class _AppealBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        if (a.summary != null) Text(a.summary!, style: theme.textTheme.titleLarge),
-        const SizedBox(height: 8),
-        Wrap(spacing: 8, runSpacing: 4, children: [
-          StatusBadge(a.status),
-          if (a.status != AppealStatus.closed) DueBadge(state: a.dueState, dueAt: due),
-        ]),
+        // Шапка как в карточке веба: чипы типа, статуса и срока, крупная суть, строка «номер · категория · приоритет».
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            TypeBadge(a.type),
+            StatusBadge(a.status),
+            if (a.status != AppealStatus.closed) DueBadge(state: a.dueState, dueAt: due),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text(
+          a.summary ?? 'Без краткой сути',
+          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w500, letterSpacing: -0.6),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          [
+            a.number,
+            a.category?.name ?? 'без категории',
+            'приоритет ${session.priorityLabel(a.priority).toLowerCase()}',
+          ].join(' · '),
+          style: theme.textTheme.bodySmall,
+        ),
         if (participant) ...[
           const SizedBox(height: 12),
           const _Notice(
-            text: 'Вы видите это обращение, потому что ваше присоединили к нему как повтор. '
+            text:
+                'Вы видите это обращение, потому что ваше присоединили к нему как повтор. '
                 'Статусы и итог приходят вам, текст и автор основного обращения скрыты.',
           ),
         ],
@@ -156,47 +172,47 @@ class _AppealBody extends StatelessWidget {
         if (a.participantsCount > 1 && !participant)
           _Notice(
             key2: const Key('participants-count'),
-            text: 'Об этом сказали ${a.participantsCount} '
+            text:
+                'Об этом сказали ${a.participantsCount} '
                 '${plural(a.participantsCount, ('человек', 'человека', 'человек'))}',
             tone: _Tone.info,
           ),
+        if (needsAssignee(a)) AssignSection(appeal: a, onUpdated: onUpdated),
         ActionsPanel(appeal: a, onUpdated: onUpdated),
-        if (DiscussionRef.fromJson(a.discussion) case final discussion?)
-          _DiscussionLink(discussion: discussion),
+        if (DiscussionRef.fromJson(a.discussion) case final discussion?) _DiscussionLink(discussion: discussion),
         if (!participant) ...[
-          DuplicatesSection(
-            key: ValueKey('duplicates-$version'),
-            appeal: a,
-            onMerged: onChanged,
-            onOpen: (id) => _openAppeal(context, id),
-          ),
+          DuplicatesSection(key: ValueKey('duplicates-$version'), appeal: a, onMerged: onChanged, onOpen: (id) => _openAppeal(context, id)),
           BitrixSection(appeal: a, onUpdated: onUpdated),
         ],
-        const SizedBox(height: 8),
-        _Fact('Тип', session.typeLabel(a.type)),
-        _Fact('Категория', a.category?.name ?? 'Не указана'),
-        _Fact('Приоритет', session.priorityLabel(a.priority)),
-        if (a.author != null && !a.viewerRelations.contains(ViewerRelation.author))
-          _Fact('Автор', [a.author!.fullName, if (a.author!.department != null) a.author!.department!.name].join(' · ')),
-        _Fact('Ответственный', a.assignee?.fullName ?? 'Назначит администратор'),
-        _Fact('Срок первого ответа', due != null ? formatDateTime(due) : 'Без срока'),
-        if (a.firstResponseAt != null) _Fact('Первый ответ', formatDateTime(a.firstResponseAt!)),
-        _Fact('Подано', formatDateTime(a.createdAt)),
-        if (a.text != null) ...[
-          const _Title('Описание'),
-          SelectableText(a.text!),
-          if (a.forwardedFrom != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text('Переслано из: ${a.forwardedFrom}', style: theme.textTheme.bodySmall),
-            ),
-        ],
-        if (a.proposedSolution != null) ...[
-          const _Title('Предлагаемое решение'),
-          SelectableText(a.proposedSolution!),
-        ],
+        CardBlock(
+          title: 'Сведения',
+          children: [
+            _Fact('Тип', session.typeLabel(a.type)),
+            _Fact('Категория', a.category?.name ?? 'Не указана'),
+            _Fact('Приоритет', session.priorityLabel(a.priority)),
+            if (a.author != null && !a.viewerRelations.contains(ViewerRelation.author))
+              _Fact('Автор', [a.author!.fullName, if (a.author!.department != null) a.author!.department!.name].join(' · ')),
+            _Fact('Ответственный', a.assignee?.fullName ?? 'Назначит администратор'),
+            _Fact('Срок первого ответа', due != null ? formatDateTime(due) : 'Без срока'),
+            if (a.firstResponseAt != null) _Fact('Первый ответ', formatDateTime(a.firstResponseAt!)),
+            _Fact('Подано', formatDateTime(a.createdAt)),
+          ],
+        ),
+        if (a.text != null || a.proposedSolution != null)
+          CardBlock(
+            title: 'Описание',
+            children: [
+              if (a.text != null) SelectableText(a.text!),
+              if (a.forwardedFrom != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Переслано из: ${a.forwardedFrom}', style: theme.textTheme.bodySmall),
+                ),
+              if (a.proposedSolution != null) ...[const _Title('Предлагаемое решение'), SelectableText(a.proposedSolution!)],
+            ],
+          ),
         if (!participant) ...[
-          MessagesSection(key: ValueKey('messages-$version'), appeal: a, onAppealChanged: onChanged),
+          if (canReadMessages(a)) MessagesSection(key: ValueKey('messages-$version'), appeal: a, onAppealChanged: onChanged),
           AttachmentsSection(appeal: a, onChanged: onChanged, pickFiles: pickFiles),
           HistorySection(key: ValueKey('history-$version'), appealId: a.id),
         ],
@@ -224,15 +240,17 @@ class _DiscussionLink extends StatelessWidget {
         leading: const Icon(Icons.forum_outlined),
         title: Text(open ? 'Вынесено на общее обсуждение' : 'Общее обсуждение завершено'),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => DiscussionScreen(discussionId: discussion.id))),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DiscussionScreen(discussionId: discussion.id))),
       ),
     );
   }
 }
 
-void _openAppeal(BuildContext context, int id) => Navigator.of(context)
-    .push(MaterialPageRoute<void>(builder: (_) => AppealScreen(key: ValueKey('appeal-$id'), appealId: id)));
+void _openAppeal(BuildContext context, int id) => Navigator.of(context).push(
+  MaterialPageRoute<void>(
+    builder: (_) => AppealScreen(key: ValueKey('appeal-$id'), appealId: id),
+  ),
+);
 
 class _Title extends StatelessWidget {
   const _Title(this.text);
@@ -241,9 +259,9 @@ class _Title extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 24, bottom: 8),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
+    padding: const EdgeInsets.only(top: 24, bottom: 8),
+    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+  );
 }
 
 class _Fact extends StatelessWidget {
@@ -257,14 +275,17 @@ class _Fact extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 160,
-          padding: const EdgeInsets.only(right: 12),
-          child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ),
-        Expanded(child: Text(value)),
-      ]),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 160,
+            padding: const EdgeInsets.only(right: 12),
+            child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
     );
   }
 }
@@ -293,14 +314,17 @@ class _Notice extends StatelessWidget {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ModusRadius.lg)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (title != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(title!, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: fg)),
-          ),
-        Text(text, style: TextStyle(color: fg)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(title!, style: Theme.of(context).textTheme.titleSmall?.copyWith(color: fg)),
+            ),
+          Text(text, style: TextStyle(color: fg)),
+        ],
+      ),
     );
   }
 }
@@ -319,8 +343,7 @@ class _Outcome extends StatelessWidget {
   Widget build(BuildContext context) {
     final a = appeal;
     if (a.status == AppealStatus.rejected && a.rejectionReason != null) {
-      return _Notice(
-          key2: const Key('rejection-reason'), title: 'Причина отказа', text: a.rejectionReason!, tone: _Tone.danger);
+      return _Notice(key2: const Key('rejection-reason'), title: 'Причина отказа', text: a.rejectionReason!, tone: _Tone.danger);
     }
     if (a.status == AppealStatus.implemented && a.result != null) {
       return _Notice(key2: const Key('result'), title: 'Результат', text: a.result!, tone: _Tone.success);
@@ -336,29 +359,31 @@ class _Outcome extends StatelessWidget {
         width: double.infinity,
         margin: const EdgeInsets.only(top: 12),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(ModusRadius.lg),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(closedReasonLabel(a.closedReason ?? ClosedReason.merged), style: theme.textTheme.titleSmall),
-          const SizedBox(height: 4),
-          InkWell(
-            key: const Key('open-main'),
-            onTap: () => onOpen(main.id),
-            child: Text(
-              [main.number, if (main.summary != null) main.summary!].join(' · '),
-              style: TextStyle(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+        decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(ModusRadius.lg)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(closedReasonLabel(a.closedReason ?? ClosedReason.merged), style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            InkWell(
+              key: const Key('open-main'),
+              onTap: () => onOpen(main.id),
+              child: Text(
+                [main.number, if (main.summary != null) main.summary!].join(' · '),
+                style: TextStyle(color: theme.colorScheme.primary, decoration: TextDecoration.underline),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(children: [
-            Text('Статус основного: ', style: theme.textTheme.bodySmall),
-            StatusBadge(main.status),
-          ]),
-          const SizedBox(height: 4),
-          Text('Статусы основного обращения будут приходить вам.', style: theme.textTheme.bodySmall),
-        ]),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text('Статус основного: ', style: theme.textTheme.bodySmall),
+                StatusBadge(main.status),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Статусы основного обращения будут приходить вам.', style: theme.textTheme.bodySmall),
+          ],
+        ),
       );
     }
     if (a.status == AppealStatus.closed && a.closedReason != null) {
@@ -368,8 +393,7 @@ class _Outcome extends StatelessWidget {
   }
 }
 
-/// Приватная переписка. Писать можно, если в `allowed_actions` есть `send_message`
-/// или `reply_clarification` (ответ автора на уточняющий вопрос).
+/// Приватная переписка окном чата (#160): сообщения по дням, свои справа, имя над серией одного автора.
 class MessagesSection extends StatefulWidget {
   const MessagesSection({super.key, required this.appeal, required this.onAppealChanged});
 
@@ -419,10 +443,7 @@ class _MessagesSectionState extends State<MessagesSection> {
       _sendError = null;
     });
     try {
-      final message = await SessionScope.read(context)
-          .api
-          .messages
-          .postMessage(widget.appeal.id, PostMessageRequest(text: text));
+      final message = await SessionScope.read(context).api.messages.postMessage(widget.appeal.id, PostMessageRequest(text: text));
       _text.clear();
       if (message != null && mounted) setState(() => _messages = [...?_messages, message]);
       // Ответ на уточнение возвращает обращение в «На рассмотрении» — перечитываем карточку.
@@ -436,7 +457,7 @@ class _MessagesSectionState extends State<MessagesSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Нет доступа к переписке (например, администратор) — раздела нет.
+    // Нет доступа к переписке — раздела нет.
     if (_loadError?.status == 403) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final me = SessionScope.of(context).me;
@@ -444,92 +465,144 @@ class _MessagesSectionState extends State<MessagesSection> {
     final canWrite = replying || widget.appeal.allowedActions.contains(AppealAction.sendMessage);
     final messages = _messages ?? const <Message>[];
     final lastQuestion = messages.reversed.where((m) => m.isClarificationQuestion).firstOrNull;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final rows = <Widget>[];
+    for (var i = 0; i < messages.length; i++) {
+      final m = messages[i];
+      if (i == 0 || dayKey(messages[i - 1].createdAt) != dayKey(m.createdAt)) {
+        rows.add(_DaySeparator(formatDayTitle(m.createdAt)));
+      }
+      final startsRun = i == 0 || messages[i - 1].author.id != m.author.id || rows.last is _DaySeparator;
+      rows.add(_MessageBubble(
+        // Вопрос, на который ждут ответа, отмечен ключом: он в переписке один раз, без отдельной плашки.
+        key: replying && identical(m, lastQuestion) ? const Key('clarification-question') : null,
+        message: m,
+        mine: m.author.id == me.id,
+        showName: startsRun,
+      ));
+    }
+    return CardBlock(
+      title: 'Переписка',
       children: [
-        const _Title('Переписка'),
-        if (replying && lastQuestion != null)
-          _Notice(
-            key2: const Key('clarification-question'),
-            title: 'Вопрос от ${lastQuestion.author.fullName}',
-            text: lastQuestion.text,
-            tone: _Tone.warn,
-          ),
         if (_messages == null && _loadError == null) const LinearProgressIndicator(),
         if (_loadError != null) Text(_loadError!.message, style: TextStyle(color: theme.colorScheme.error)),
-        if (_messages != null && messages.isEmpty) Text('Сообщений пока нет.', style: theme.textTheme.bodySmall),
-        for (final m in messages) _MessageBubble(message: m, mine: m.author.id == me.id),
+        if (_messages != null && messages.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Сообщений пока нет.', style: theme.textTheme.bodySmall),
+          ),
+        ...rows,
         if (canWrite) ...[
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('message-text'),
-            controller: _text,
-            enabled: !_busy,
-            minLines: 2,
-            maxLines: 6,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              hintText: replying ? 'Ответ на вопрос' : 'Сообщение ответственному',
-              border: const OutlineInputBorder(),
-              errorText: _sendError,
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Expanded(
+              child: TextField(
+                key: const Key('message-text'),
+                controller: _text,
+                enabled: !_busy,
+                minLines: 1,
+                maxLines: 6,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: replying ? 'Ответ на вопрос' : 'Сообщение ответственному',
+                  errorText: _sendError,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
+            const SizedBox(width: 8),
+            IconButton.filled(
               key: const Key('message-send'),
+              tooltip: replying ? 'Ответить' : 'Отправить',
               onPressed: _busy || _text.text.trim().isEmpty ? null : _send,
-              child: Text(_busy ? 'Отправляем…' : replying ? 'Ответить' : 'Отправить'),
+              icon: _busy
+                  ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send_rounded),
             ),
-          ),
+          ]),
         ],
       ],
     );
   }
 }
 
+class _DaySeparator extends StatelessWidget {
+  const _DaySeparator(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: Text(text, style: Theme.of(context).textTheme.labelSmall),
+        ),
+      );
+}
+
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.mine});
+  const _MessageBubble({super.key, required this.message, required this.mine, required this.showName});
 
   final Message message;
   final bool mine;
+  final bool showName;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bg = message.isClarificationQuestion
-        ? scheme.tertiaryContainer
+    final c = ModusColors.of(context);
+    final question = message.isClarificationQuestion;
+    final bg = question
+        ? c.warnBg
         : mine
-            ? scheme.primaryContainer
-            : scheme.surfaceContainerHigh;
+            ? theme.colorScheme.primary
+            : c.surface;
+    final fg = question
+        ? c.warn
+        : mine
+            ? theme.colorScheme.onPrimary
+            : theme.colorScheme.onSurface;
+    const r = Radius.circular(18);
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ModusRadius.lg)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-            [
-              message.author.fullName,
-              if (message.isClarificationQuestion) 'уточняющий вопрос',
-              formatDateTime(message.createdAt),
-            ].join(' · '),
-            style: theme.textTheme.labelSmall,
+      child: Column(
+        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          if (showName && !mine)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4, bottom: 2),
+              child: Text(message.author.fullName, style: theme.textTheme.labelSmall),
+            ),
+          Container(
+            constraints: const BoxConstraints(maxWidth: 300),
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.only(
+                topLeft: r,
+                topRight: r,
+                bottomLeft: mine ? r : const Radius.circular(6),
+                bottomRight: mine ? const Radius.circular(6) : r,
+              ),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (question)
+                Text('Уточняющий вопрос', style: theme.textTheme.labelSmall?.copyWith(color: fg, fontWeight: FontWeight.w700)),
+              SelectableText(message.text, style: TextStyle(color: fg)),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(formatTime(message.createdAt), style: theme.textTheme.labelSmall?.copyWith(color: fg.withValues(alpha: 0.7))),
+              ),
+            ]),
           ),
-          const SizedBox(height: 4),
-          SelectableText(message.text),
-        ]),
+        ],
       ),
     );
   }
 }
 
-/// Вложения. Приложить файл — если в `allowed_actions` есть `upload_attachment`.
+/// Вложения галереей (#191): картинки — плитками с превью, остальные файлы — строками.
+/// Приложить файл — если в `allowed_actions` есть `upload_attachment`.
 class AttachmentsSection extends StatefulWidget {
   const AttachmentsSection({super.key, required this.appeal, required this.onChanged, required this.pickFiles});
 
@@ -582,11 +655,25 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
     final attachments = widget.appeal.attachments;
     final canUpload = widget.appeal.allowedActions.contains(AppealAction.uploadAttachment);
     if (attachments.isEmpty && !canUpload) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final images = attachments.where(isImage).toList();
+    final files = attachments.where((a) => !isImage(a)).toList();
+    return CardBlock(
+      title: attachments.isEmpty ? 'Вложения' : 'Вложения · ${attachments.length}',
       children: [
-        const _Title('Вложения'),
-        for (final a in attachments)
+        if (images.isNotEmpty)
+          GridView.count(
+            key: const Key('attachment-gallery'),
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final a in images)
+                AttachmentThumb(key: Key('attachment-${a.id}'), attachment: a, onTap: () => _open(a)),
+            ],
+          ),
+        for (final a in files)
           ListTile(
             key: Key('attachment-${a.id}'),
             contentPadding: EdgeInsets.zero,
@@ -603,9 +690,7 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
             child: TextButton.icon(
               key: const Key('upload-attachment'),
               onPressed: _busy ? null : _upload,
-              icon: _busy
-                  ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.attach_file),
+              icon: _busy ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.attach_file),
               label: const Text('Приложить файл'),
             ),
           ),
@@ -614,7 +699,8 @@ class _AttachmentsSectionState extends State<AttachmentsSection> {
   }
 }
 
-/// История событий по возрастанию времени.
+/// История раскрывающимся блоком (#195): события по дням, у события — время.
+/// Свёрнута по умолчанию; выбор живёт, пока открыта карточка.
 class HistorySection extends StatefulWidget {
   const HistorySection({super.key, required this.appealId});
 
@@ -627,6 +713,7 @@ class HistorySection extends StatefulWidget {
 class _HistorySectionState extends State<HistorySection> {
   List<HistoryEvent>? _events;
   AppError? _error;
+  bool _open = false;
 
   @override
   void initState() {
@@ -649,32 +736,46 @@ class _HistorySectionState extends State<HistorySection> {
     final session = SessionScope.of(context);
     final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     String? value(String? v, String? field) => v == null ? null : historyValue(session.historyCodeLabel(field, v));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _Title('История'),
-        if (_events == null && _error == null) const LinearProgressIndicator(),
-        if (_error != null) Text(_error!.message, style: TextStyle(color: theme.colorScheme.error)),
-        for (final ev in _events ?? const <HistoryEvent>[])
-          Padding(
-            key: Key('history-${ev.id}'),
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 5, right: 12),
-                child: Icon(Icons.circle, size: 8, color: theme.colorScheme.primary),
-              ),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(historyKindLabel(ev.kind), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  if (ev.oldValue != null || ev.newValue != null)
-                    Text([value(ev.oldValue, ev.field), value(ev.newValue, ev.field)].whereType<String>().join(' → ')),
-                  if (ev.comment != null) Text(ev.comment!, style: muted),
-                  Text('${ev.actor?.fullName ?? 'Система'} · ${formatDateTime(ev.createdAt)}', style: muted),
-                ]),
-              ),
+    final events = _events ?? const <HistoryEvent>[];
+    final rows = <Widget>[];
+    for (var i = 0; i < events.length; i++) {
+      final ev = events[i];
+      if (i == 0 || dayKey(events[i - 1].createdAt) != dayKey(ev.createdAt)) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 6),
+          child: Text(formatDayTitle(ev.createdAt), style: theme.textTheme.labelLarge),
+        ));
+      }
+      rows.add(Padding(
+        key: Key('history-${ev.id}'),
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(width: 48, child: Text(formatTime(ev.createdAt), style: muted)),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(historyKindLabel(ev.kind), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              if (ev.oldValue != null || ev.newValue != null)
+                Text([value(ev.oldValue, ev.field), value(ev.newValue, ev.field)].whereType<String>().join(' → ')),
+              if (ev.comment != null) Text(ev.comment!, style: muted),
+              Text(ev.actor?.fullName ?? 'Система', style: muted),
             ]),
           ),
+        ]),
+      ));
+    }
+    return CardBlock(
+      title: _events == null ? 'История' : 'История · ${events.length}',
+      trailing: TextButton(
+        key: const Key('history-toggle'),
+        onPressed: () => setState(() => _open = !_open),
+        child: Text(_open ? 'Свернуть' : 'Показать'),
+      ),
+      children: [
+        if (_open) ...[
+          if (_events == null && _error == null) const LinearProgressIndicator(),
+          if (_error != null) Text(_error!.message, style: TextStyle(color: theme.colorScheme.error)),
+          ...rows,
+        ],
       ],
     );
   }

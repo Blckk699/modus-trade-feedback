@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app.dart';
+import 'role_switch.dart';
 
 /// Кто я: роль, подразделение, назначения ответственным; выход.
 class ProfileScreen extends StatelessWidget {
@@ -31,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
     final me = session.me;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Профиль')),
+      appBar: AppBar(title: const Text('Профиль'), actions: const [RoleSwitchAction()]),
       body: ListView(
         children: [
           ListTile(

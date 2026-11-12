@@ -5,9 +5,10 @@ import 'package:modus_api/api.dart';
 /// сотрудник видит «Мои обращения» и ленту, руководитель и собственник — ещё обработку
 /// и сводку, администратор — настройки. Права клиент не вычисляет, только читает.
 enum Section {
-  myAppeals('Мои обращения', 'Обращения', Icons.inbox_outlined, Icons.inbox),
-  processing('Обработка', 'Обработка', Icons.assignment_outlined, Icons.assignment),
-  feed('Общая лента', 'Лента', Icons.forum_outlined, Icons.forum),
+  home('Сегодня', 'Сегодня', Icons.grid_view_outlined, Icons.grid_view_rounded),
+  myAppeals('Мои обращения', 'Мои', Icons.description_outlined, Icons.description),
+  processing('Входящие', 'Входящие', Icons.inbox_outlined, Icons.inbox),
+  feed('Лента', 'Лента', Icons.forum_outlined, Icons.forum),
   analytics('Сводка', 'Сводка', Icons.insights_outlined, Icons.insights),
   meetings('Совещания', 'Совещания', Icons.groups_outlined, Icons.groups),
   settings('Настройки', 'Настройки', Icons.tune_outlined, Icons.tune),
@@ -26,10 +27,11 @@ enum Section {
 List<Section> sectionsFor(Me me) {
   final p = me.permissions;
   return [
+    Section.home,
     if (p.canCreateAppeal) Section.myAppeals,
-    Section.feed,
     if (p.canProcessAppeals || p.canViewDepartment || p.canViewAllAppeals || p.canViewUnassigned)
       Section.processing,
+    Section.feed,
     if (p.analyticsScope != PermissionsAnalyticsScopeEnum.none) Section.analytics,
     if (p.canUploadMeetings) Section.meetings,
     if (p.canManageSettings) Section.settings,
@@ -37,15 +39,5 @@ List<Section> sectionsFor(Me me) {
   ];
 }
 
-/// Стартовый экран роли, как `startPath` в вебе: собственник и руководитель — сводка,
-/// администратор — настройки (если раздела нет — обработка, затем свои обращения),
-/// остальные — свои обращения.
-Section startSectionFor(Me me) {
-  final available = sectionsFor(me);
-  final preferred = switch (me.role) {
-    Role.owner || Role.head => const [Section.analytics, Section.processing, Section.myAppeals],
-    Role.admin => const [Section.settings, Section.processing, Section.myAppeals],
-    _ => const [Section.myAppeals],
-  };
-  return preferred.firstWhere(available.contains, orElse: () => available.first);
-}
+/// Стартовый экран — «Сегодня» для всех ролей, как `startPath` в вебе: он сам собирается под права.
+Section startSectionFor(Me me) => Section.home;

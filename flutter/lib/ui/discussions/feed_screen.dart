@@ -6,6 +6,7 @@ import '../../app.dart';
 import '../../format.dart';
 import '../appeals/duplicates_bitrix.dart' show plural;
 import 'discussion_screen.dart';
+import '../home/role_switch.dart';
 
 /// Общая лента для всех: открытые обсуждения, реализованные улучшения, завершённые обсуждения
 /// (истории 20–22). Вкладки как в вебе.
@@ -18,7 +19,8 @@ class FeedScreen extends StatelessWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Общая лента'),
+          title: const Text('Лента'),
+          actions: const [RoleSwitchAction()],
           bottom: const TabBar(tabs: [
             Tab(key: Key('tab-open'), text: 'Обсуждения'),
             Tab(key: Key('tab-implemented'), text: 'Реализовано'),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
+import 'card_parts.dart' show needsAssignee;
+
 import '../../api/api_service.dart';
 import '../../api/app_error.dart';
 import '../../app.dart';
@@ -95,6 +97,8 @@ class ActionsPanel extends StatelessWidget {
     final actions = processingActions
         .where(appeal.allowedActions.contains)
         .where((a) => !(a == AppealAction.publishDiscussion && appeal.discussion != null))
+        // Без ответственного назначают блоком в карточке, переназначать пока некого.
+        .where((a) => !(a == AppealAction.reassign && needsAssignee(appeal)))
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
     return Padding(

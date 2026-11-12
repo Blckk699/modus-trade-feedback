@@ -172,6 +172,7 @@ Map<String, dynamic> appealJson({
   Map<String, dynamic>? bitrixTask,
   Map<String, dynamic>? discussion,
   String access = 'full',
+  List<String> viewerRelations = const ['author'],
 }) =>
     {
       'id': id,
@@ -207,7 +208,7 @@ Map<String, dynamic> appealJson({
       'bitrix_task': bitrixTask,
       'discussion': discussion,
       'attachments': attachments,
-      'viewer_relations': ['author'],
+      'viewer_relations': viewerRelations,
       'allowed_actions': allowedActions,
     };
 
