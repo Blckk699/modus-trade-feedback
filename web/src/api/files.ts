@@ -31,8 +31,8 @@ export function uploadMeeting(file: File, title: string): Promise<Schemas['Meeti
   );
 }
 
-/** Скачать вложение: download_url требует токен, поэтому качаем через fetch и сохраняем как файл. */
-export async function downloadAttachment(att: Schemas['Attachment']): Promise<void> {
+/** Содержимое вложения: download_url требует токен, поэтому файл берём через fetch, а не ссылкой. */
+export async function fetchAttachmentBlob(att: Schemas['Attachment']): Promise<Blob> {
   const url = att.download_url.startsWith('http') ? att.download_url : `${config.apiBaseUrl}${att.download_url}`;
   const token = tokenStore.get();
   let res: Response;
@@ -42,8 +42,12 @@ export async function downloadAttachment(att: Schemas['Attachment']): Promise<vo
     throw new ApiError(0, 'network_error', 'Не удалось связаться с сервером. Проверьте подключение.');
   }
   if (!res.ok) throw toApiError(res.status, await res.json().catch(() => null));
-  const blob = await res.blob();
-  const href = URL.createObjectURL(blob);
+  return res.blob();
+}
+
+/** Сохранить вложение как файл. */
+export async function downloadAttachment(att: Schemas['Attachment']): Promise<void> {
+  const href = URL.createObjectURL(await fetchAttachmentBlob(att));
   const a = document.createElement('a');
   a.href = href;
   a.download = att.filename;
