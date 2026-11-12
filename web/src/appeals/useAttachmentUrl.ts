@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { fetchAttachmentBlob } from '../api/files';
+import { tokenStore } from '../auth/tokenStore';
 import type { Schemas } from '../api/types';
 
 type Attachment = Schemas['Attachment'];
 
 /** Файл скачивается один раз за сеанс: плитка и просмотр берут один и тот же адрес. */
 const cache = new Map<number, Promise<string>>();
+
+/**
+ * Сеанс закончился или сменился пользователь (выход, переключатель роли): скачанные файлы
+ * принадлежали прежней сессии. Забываем их и освобождаем память.
+ */
+export function forgetAttachments() {
+  for (const p of cache.values()) p.then((url) => URL.revokeObjectURL(url)).catch(() => {});
+  cache.clear();
+}
+
+tokenStore.subscribe(forgetAttachments);
 
 function load(att: Attachment): Promise<string> {
   let p = cache.get(att.id);
