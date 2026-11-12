@@ -1308,6 +1308,57 @@ svg {
   min-height: 220px;
 }
 
+/* Каркас карточки: полоски на местах статусов, заголовка, текста и блоков */
+.bone {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.bone--pill {
+  height: 26px;
+  border-radius: var(--r-pill);
+}
+
+.bone--round {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.bone--title {
+  height: 24px;
+  border-radius: 10px;
+}
+
+.bone--block {
+  border-radius: var(--r-tile);
+}
+
+.card-skeleton .sheet__head {
+  gap: 6px;
+}
+
+.card-skeleton__lead {
+  display: flex;
+  gap: 14px;
+}
+
+.card-skeleton__title {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  align-content: start;
+}
+
+.card-skeleton__text {
+  display: grid;
+  gap: 10px;
+}
+
 .skeleton--row {
   min-height: 68px;
   border-radius: var(--r-tile);

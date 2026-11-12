@@ -1,3 +1,4 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
@@ -43,7 +44,7 @@ export function AccessRequestsTab() {
           </label>
         ))}
       </div>
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
+      {s.status === 'loading' && <RowsSkeleton />}
       {s.status === 'error' && (
         <div className="notice">
           <p className="error-text">{s.message}</p>

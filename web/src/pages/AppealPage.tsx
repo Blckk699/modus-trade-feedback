@@ -1,3 +1,4 @@
+import { CardSkeleton } from '../app/CardSkeleton';
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare, Users } from 'lucide-react';
@@ -45,9 +46,7 @@ export function AppealPage() {
   let body;
   if (s.status === 'loading') {
     body = (
-      <div className="sheet sheet--state" role="status">
-        <span className="spinner" aria-hidden="true" /> Открываем обращение…
-      </div>
+      <CardSkeleton label="Открываем обращение…" />
     );
   } else if (s.status === 'error') {
     const notFound = s.error instanceof ApiError && (s.error.status === 404 || s.error.status === 403);

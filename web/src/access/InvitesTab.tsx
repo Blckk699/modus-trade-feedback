@@ -1,3 +1,4 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
@@ -68,7 +69,7 @@ export function InvitesTab() {
           ))}
       </Modal>
 
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
+      {s.status === 'loading' && <RowsSkeleton />}
       {s.status === 'error' && <p className="error-text">{s.message}</p>}
       {s.status === 'ready' && s.data.length === 0 && (
         <EmptyState icon="inbox" title="Приглашений пока нет">

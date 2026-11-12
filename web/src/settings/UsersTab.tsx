@@ -1,3 +1,4 @@
+import { RowsSkeleton } from '../app/ListStates';
 import { ResetPassword } from './ResetPassword';
 import { Avatar } from '../app/Avatar';
 import { useState, type FormEvent } from 'react';
@@ -28,7 +29,7 @@ export function UsersTab() {
   const [saving, setSaving] = useState(false);
 
   const s = data.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
+  if (s.status === 'loading') return <RowsSkeleton />;
   if (s.status === 'error')
     return (
       <div className="notice">
