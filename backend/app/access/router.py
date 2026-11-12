@@ -23,11 +23,14 @@ from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.api.schemas import DepartmentRef, UserBrief
 from app.auth import service as auth_service
 from app.auth.me import MeOut, build_me, user_brief
+from app.auth.passwords import hash_password, normalize_email
+from app.auth.router import SessionOut
 from app.clock import LocalDatetime
 from app.domain.enums import NotificationKind, Role
 from app.errors import (
     AlreadyRegistered,
     Conflict,
+    EmailTaken,
     Forbidden,
     InviteInvalid,
     NotFound,
@@ -77,6 +80,7 @@ class AccessRequestOut(BaseModel):
     id: int
     status: RequestStatus
     full_name: str
+    email: str | None
     telegram_username: str | None
     department: DepartmentRef | None
     comment: str | None
@@ -188,6 +192,7 @@ async def request_out(session: AsyncSession, request: AccessRequest) -> AccessRe
         id=request.id,
         status=request.status,
         full_name=request.full_name,
+        email=request.email,
         telegram_username=request.telegram_username,
         department=await _department(session, request.department_id),
         comment=request.comment,
@@ -282,6 +287,8 @@ async def _notify_managers(session: AsyncSession, request: AccessRequest, now: d
     lines = [f"Новая заявка на доступ: <b>{notify.fragment(request.full_name, 120)}</b>"]
     if request.telegram_username:
         lines.append(f"Telegram: @{escape(request.telegram_username)}")
+    if request.email:
+        lines.append(f"Почта: {escape(request.email)}")
     if department:
         lines.append(f"Подразделение: {escape(department.name)}")
     if request.comment:
@@ -354,6 +361,127 @@ async def my_access_request(
     return AccessStatusOut(state=latest.status, request=request)
 
 
+# --- без сессии: регистрация по почте -------------------------------------------------------------
+
+
+class EmailRegisterIn(BaseModel):
+    full_name: str = Field(min_length=1, max_length=120, pattern=r"\S")
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    department_id: int | None = None
+    comment: str | None = Field(default=None, max_length=500)
+    invite_token: str | None = Field(default=None, max_length=200)
+
+
+class RegisterResult(BaseModel):
+    status: Literal["pending", "registered"]
+    request: AccessRequestOut | None
+    session: SessionOut | None
+
+
+async def _check_email_rate(session: AsyncSession, email: str, now: datetime, settings: SettingsDep) -> None:
+    since = now - timedelta(seconds=settings.access_request_window_seconds)
+    count = await session.scalar(
+        select(func.count()).select_from(AccessSubmission).where(AccessSubmission.email == email, AccessSubmission.created_at > since)
+    )
+    if (count or 0) >= settings.access_request_max_per_window:
+        raise TooManyRequests("Слишком часто. Попробуйте подать заявку позже.")
+    session.add(AccessSubmission(email=email, created_at=now))
+
+
+@router.post("/auth/register", response_model=RegisterResult, status_code=201, summary="Регистрация по почте и паролю")
+async def register_by_email(
+    body: EmailRegisterIn,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    clock: ClockDep,
+    settings: SettingsDep,
+) -> RegisterResult:
+    now = clock.now()
+    email = normalize_email(body.email)
+    if await auth_service.user_by_email(session, email) is not None:
+        raise EmailTaken()
+    full_name = body.full_name.strip()
+
+    if body.invite_token:
+        token = body.invite_token
+        # Двойное нажатие: регистрации по одному приглашению идут по очереди на его строке.
+        await session.execute(select(Invite.id).where(Invite.token_hash == _sha256(token)).with_for_update())
+        if await auth_service.user_by_email(session, email) is not None:
+            raise EmailTaken()
+        limits = _attempt_limits(request, settings, telegram_id=None, via_bot=False, token=token)
+        invite = await _valid_invite(session, request, token, now, settings, limits=limits, lock=True)
+        user = User(
+            email=email,
+            password_hash=hash_password(body.password),
+            full_name=(invite.full_name or full_name)[:200],
+            position=_clean(body.comment),
+            role=invite.role,
+            department_id=invite.department_id,
+            is_absent=False,
+            is_disabled=False,
+            created_at=now,
+        )
+        try:
+            async with session.begin_nested():
+                session.add(user)
+                await session.flush()
+        except IntegrityError:
+            raise EmailTaken() from None
+        invite.used_count += 1
+        pending = await _latest_email_request(session, email, lock=True)
+        if pending is not None and pending.status == "pending":
+            pending.status = "approved"
+            pending.assigned_role = invite.role
+            pending.assigned_department_id = invite.department_id
+            pending.decided_by_id = invite.created_by_id
+            pending.decided_at = now
+            pending.updated_at = now
+            pending.user_id = user.id
+            pending.password_hash = None
+        token_value, expires_at = await auth_service.open_session(session, user, "invite_email", now, settings)
+        return RegisterResult(
+            status="registered",
+            request=None,
+            session=SessionOut(access_token=token_value, expires_at=expires_at, user=await build_me(session, user)),
+        )
+
+    await _check_email_rate(session, email, now, settings)
+    await _check_department(session, body.department_id, "department_id")
+    fields = dict(
+        full_name=full_name,
+        department_id=body.department_id,
+        comment=_clean(body.comment),
+        password_hash=hash_password(body.password),
+        updated_at=now,
+    )
+    latest = await _latest_email_request(session, email, lock=True)
+    if latest is not None and latest.status == "pending":
+        for key, value in fields.items():
+            setattr(latest, key, value)
+        await session.flush()
+        response.status_code = 200
+        return RegisterResult(status="pending", request=await request_out(session, latest), session=None)
+    access_request = AccessRequest(email=email, status="pending", created_at=now, **fields)
+    session.add(access_request)
+    await session.flush()
+    await _notify_managers(session, access_request, now)
+    return RegisterResult(status="pending", request=await request_out(session, access_request), session=None)
+
+
+async def _latest_email_request(session: AsyncSession, email: str, *, lock: bool = False) -> AccessRequest | None:
+    query = (
+        select(AccessRequest)
+        .where(AccessRequest.email == email)
+        .order_by(AccessRequest.created_at.desc(), AccessRequest.id.desc())
+        .limit(1)
+    )
+    if lock:
+        query = query.with_for_update()
+    return await session.scalar(query)
+
+
 # --- администратор и собственник: заявки ------------------------------------------------------------
 
 
@@ -400,11 +528,15 @@ async def approve_access_request(
     request = await _pending_request(session, request_id)
     department_id = body.department_id if "department_id" in body.model_fields_set else request.department_id
     await _check_department(session, department_id, "department_id")
-    if await auth_service.user_by_telegram_id(session, request.telegram_id) is not None:
+    if request.telegram_id is not None and await auth_service.user_by_telegram_id(session, request.telegram_id) is not None:
         raise Conflict("Этот Telegram-аккаунт уже есть в системе")
+    if request.email is not None and await auth_service.user_by_email(session, request.email) is not None:
+        raise Conflict("Эта почта уже есть в системе")
 
     user = User(
         telegram_id=request.telegram_id,
+        email=request.email,
+        password_hash=request.password_hash,
         full_name=(body.full_name or request.full_name).strip(),
         position=_clean(body.position),
         role=body.role,
@@ -422,6 +554,7 @@ async def approve_access_request(
     request.decided_at = now
     request.updated_at = now
     request.user_id = user.id
+    request.password_hash = None  # хеш переехал в пользователя
 
     department = await session.get(Department, department_id) if department_id else None
     where = f", {escape(department.name)}" if department else ""
@@ -449,10 +582,11 @@ async def reject_access_request(
     text = "Заявка на доступ отклонена."
     if request.reject_reason:
         text += f"\nПричина: {notify.fragment(request.reject_reason, 500)}"
-    notify.add(
-        session, None, NotificationKind.ACCESS_REQUEST_REJECTED, text, now,
-        path=None, buttons=[], telegram_id=request.telegram_id,
-    )
+    if request.telegram_id is not None:
+        notify.add(
+            session, None, NotificationKind.ACCESS_REQUEST_REJECTED, text, now,
+            path=None, buttons=[], telegram_id=request.telegram_id,
+        )
     await session.flush()
     return await request_out(session, request)
 

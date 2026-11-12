@@ -11,7 +11,7 @@ from app.db import Base
 
 
 class AccessRequest(Base):
-    """Заявка незнакомого Telegram-аккаунта. На аккаунт не больше одной заявки `pending`."""
+    """Заявка из Telegram или регистрацией по почте. На аккаунт или почту не больше одной заявки `pending`."""
 
     __tablename__ = "access_requests"
     __table_args__ = (
@@ -22,10 +22,20 @@ class AccessRequest(Base):
             unique=True,
             postgresql_where=text("status = 'pending'"),
         ),
+        Index("ix_access_requests_email", "email"),
+        Index(
+            "uq_access_requests_pending_email",
+            "email",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger)
+    # Регистрация по почте: почта в нижнем регистре и хеш пароля, с которым войдёт после одобрения.
+    email: Mapped[str | None] = mapped_column(String(254))
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     telegram_username: Mapped[str | None] = mapped_column(String(64))
     full_name: Mapped[str] = mapped_column(String(200))
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"))
@@ -42,13 +52,17 @@ class AccessRequest(Base):
 
 
 class AccessSubmission(Base):
-    """Журнал подач заявки — для лимита частоты с одного Telegram-аккаунта."""
+    """Журнал подач заявки — для лимита частоты с одного Telegram-аккаунта или почты."""
 
     __tablename__ = "access_submissions"
-    __table_args__ = (Index("ix_access_submissions_telegram_id_created_at", "telegram_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_access_submissions_telegram_id_created_at", "telegram_id", "created_at"),
+        Index("ix_access_submissions_email_created_at", "email", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger)
+    email: Mapped[str | None] = mapped_column(String(254))
     created_at: Mapped[datetime]
 
 

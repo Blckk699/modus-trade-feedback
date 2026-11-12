@@ -19,7 +19,7 @@ class AuthSession(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    method: Mapped[str] = mapped_column(String(20))  # mini_app | widget | code | dev
+    method: Mapped[str] = mapped_column(String(20))  # mini_app | widget | code | dev | password | invite_*
     created_at: Mapped[datetime]
     expires_at: Mapped[datetime]
     revoked_at: Mapped[datetime | None]
@@ -48,3 +48,14 @@ class LoginCode(Base):
     created_at: Mapped[datetime]
     expires_at: Mapped[datetime]
     used_at: Mapped[datetime | None]
+
+
+class PasswordAttempt(Base):
+    """Неудачный вход по паролю. Ключ — `email:<почта>` или `ip:<адрес>`: лимиты по почте и по адресу."""
+
+    __tablename__ = "password_attempts"
+    __table_args__ = (Index("ix_password_attempts_key_created_at", "key", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime]
