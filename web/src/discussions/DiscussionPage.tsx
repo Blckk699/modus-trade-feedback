@@ -120,7 +120,8 @@ function useNameConsent(d: Discussion, onUpdated: (d: Discussion) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function answer(show: boolean): Promise<boolean> {
+  /** null — получилось; иначе текст ошибки сервера (например, обсуждение уже закрыто). */
+  async function answer(show: boolean): Promise<string | null> {
     setBusy(true);
     setError('');
     try {
@@ -132,10 +133,11 @@ function useNameConsent(d: Discussion, onUpdated: (d: Discussion) => void) {
           }),
         ),
       );
-      return true;
+      return null;
     } catch (e) {
-      setError(errorMessage(e));
-      return false;
+      const message = errorMessage(e);
+      setError(message);
+      return message;
     } finally {
       setBusy(false);
     }
@@ -172,8 +174,9 @@ function ConsentMenu({ discussion: d, onUpdated }: { discussion: Discussion; onU
 
   async function change() {
     menu.setOpen(false);
-    if (await answer(!shown)) toast(shown ? 'Имя скрыто: в обсуждении указано только подразделение' : 'Имя показано в обсуждении');
-    else toast('Не удалось изменить. Попробуйте ещё раз.', 'error');
+    const failed = await answer(!shown);
+    if (failed) toast(failed, 'error');
+    else toast(shown ? 'Имя скрыто: в обсуждении указано только подразделение' : 'Имя показано в обсуждении');
   }
 
   return (
