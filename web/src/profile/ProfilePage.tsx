@@ -1,6 +1,7 @@
 // Строка с выключателем (.toggle-row) описана в стилях настроек.
 import '../settings/settings.css';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { KeyRound, Mail, Send, Volume2, VolumeX } from 'lucide-react';
 import { playNotify, setSoundEnabled, soundEnabled } from '../live/sound';
 import { Avatar } from '../app/Avatar';
@@ -33,6 +34,12 @@ import { getWebApp } from '../telegram/webApp';
  * Telegram — вход в один клик и уведомления бота. Отвязать Telegram можно, пока остаётся почта.
  */
 export function ProfilePage() {
+  // Переход из колокольчика (/profile#notifications): показываем блок уведомлений, а не верх страницы.
+  // Зависим от hash, а не от монтирования: ссылка из колокольчика работает и когда профиль уже открыт.
+  const { hash, key } = useLocation();
+  useEffect(() => {
+    if (hash === '#notifications') document.getElementById('notifications')?.scrollIntoView({ block: 'start' });
+  }, [hash, key]);
   const me = useMe();
   const dict = useDictionaries();
   const { setMe } = useAuth();
@@ -40,7 +47,7 @@ export function ProfilePage() {
 
   return (
     <section className="page profile">
-      <PageHead over="Способы входа" title="Профиль" />
+      <PageHead over="Вход и уведомления" title="Профиль" />
       <div className="card profile__who">
         <Avatar name={me.full_name} size="lg" />
         <div>
@@ -266,7 +273,7 @@ function TelegramCard({ account, onChange }: CardProps) {
   }
 
   return (
-    <article className="card profile__card">
+    <article id="notifications" className="card profile__card profile__card--anchor">
       <header className="profile__head">
         <span className="profile__icon" aria-hidden="true">
           <Send size={18} />
@@ -279,7 +286,7 @@ function TelegramCard({ account, onChange }: CardProps) {
 
       {account.telegramLinked ? (
         <>
-          <p className="muted">Вход в один клик и уведомления бота работают.</p>
+          <p className="muted">Ответы по обращениям, вопросы и напоминания о сроках приходят в Telegram. Вход — в один клик.</p>
           {canUnlinkTelegram(account) ? (
             <div className="form__actions">
               <button
@@ -297,7 +304,10 @@ function TelegramCard({ account, onChange }: CardProps) {
         </>
       ) : (
         <>
-          <p className="muted">Привяжите Telegram, чтобы входить в один клик и получать уведомления бота.</p>
+          <p className="muted">
+            Привяжите Telegram: туда будут приходить ответы по вашим обращениям, уточняющие вопросы и напоминания о сроках, а
+            входить можно будет в один клик. Сейчас уведомления видны только на сайте, под колокольчиком.
+          </p>
           {inMiniApp ? (
             <p className="muted">Откройте профиль в браузере: привязка идёт через вход Telegram на сайте.</p>
           ) : telegramLoginConfigured() ? (
