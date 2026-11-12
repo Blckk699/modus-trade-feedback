@@ -2,9 +2,15 @@ import { tokenStore } from '../auth/tokenStore';
 import { config } from '../config';
 import { closeAction, parseMessage, PING_MS, retryDelay, type LiveEvent, type ServerMessage } from './events';
 
-/** Адрес сокета на том же хосте, что и API: http → ws, https → wss. Токена в адресе нет. */
-export function socketUrl(apiBaseUrl: string = config.apiBaseUrl): string {
-  return `${apiBaseUrl.replace(/^http/, 'ws')}/api/v1/ws`;
+/**
+ * Адрес сокета на том же хосте, что и API: http → ws, https → wss. Токена в адресе нет.
+ * База API может быть относительной (пустой): адрес достраиваем от адреса страницы — относительный
+ * адрес WebSocket принимают не все браузеры.
+ */
+export function socketUrl(apiBaseUrl: string = config.apiBaseUrl, pageUrl: string = window.location.href): string {
+  const url = new URL(`${apiBaseUrl.replace(/\/$/, '')}/api/v1/ws`, pageUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
 }
 
 const MOCK_CHANNEL = 'modus-live-mock';
