@@ -9,10 +9,11 @@ import { useDictionaries } from '../app/dictionaries';
 import { PageHead } from '../app/PageHead';
 import { useUnread } from '../app/unread';
 import { ActionsPanel } from '../appeals/ActionsPanel';
+import { AssignSection } from '../appeals/AssignSection';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
 import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { BitrixSection } from '../appeals/BitrixSection';
-import { cardSections } from '../appeals/cardSections';
+import { cardSections, needsAssignee } from '../appeals/cardSections';
 import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
@@ -120,6 +121,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
           </div>
         )}
 
+        {needsAssignee(a) && <AssignSection appeal={a} onUpdated={onUpdated} />}
+
         <Outcome appeal={a} />
 
         {(a.text || a.proposed_solution) && (
@@ -147,7 +150,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
           )}
           <div>
             <dt>Ответственный</dt>
-            <dd>{a.assignee?.full_name ?? 'Назначит администратор'}</dd>
+            <dd>{a.assignee?.full_name ?? (needsAssignee(a) ? 'Не назначен' : 'Назначит администратор')}</dd>
           </div>
           <div>
             <dt>Срок первого ответа</dt>

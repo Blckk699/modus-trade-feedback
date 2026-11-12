@@ -11,6 +11,7 @@ import { Select } from '../app/Select';
 import { useToast } from '../app/Toast';
 import { usePopover } from '../app/usePopover';
 import { ActionModal, useActionModal } from './actionModal';
+import { needsAssignee } from './cardSections';
 
 type Appeal = Schemas['Appeal'];
 type Action = Schemas['AppealAction'];
@@ -65,8 +66,13 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
   const modal = useMemo(() => ({ setBusy, cancel: () => setOpen(null) }), []);
   const menu = usePopover<HTMLDivElement>();
   // Уже вынесенное обращение второй раз не выносим: ссылка на обсуждение — в карточке.
+  // Пока ответственного нет, его назначают в блоке внутри карточки (AssignSection), а не кнопкой «Переназначить».
+  const assignInCard = needsAssignee(appeal);
   const actions = PROCESSING.filter(
-    (a) => appeal.allowed_actions.includes(a) && !(a === 'publish_discussion' && appeal.discussion),
+    (a) =>
+      appeal.allowed_actions.includes(a) &&
+      !(a === 'publish_discussion' && appeal.discussion) &&
+      !(a === 'reassign' && assignInCard),
   );
   if (actions.length === 0) return null;
 

@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { AccessRequestsTab } from '../access/AccessRequestsTab';
 import { InvitesTab } from '../access/InvitesTab';
 import { PageHead } from '../app/PageHead';
@@ -6,7 +6,6 @@ import { useMe } from '../auth';
 import { CategoriesTab } from './CategoriesTab';
 import { DeadlinesTab } from './DeadlinesTab';
 import { DepartmentsTab } from './DepartmentsTab';
-import { UnassignedTab } from './UnassignedTab';
 import { UsersTab } from './UsersTab';
 import './settings.css';
 
@@ -16,14 +15,14 @@ const TABS = {
   departments: { label: 'Подразделения', Component: DepartmentsTab, need: 'settings' },
   categories: { label: 'Категории', Component: CategoriesTab, need: 'settings' },
   deadlines: { label: 'Сроки', Component: DeadlinesTab, need: 'settings' },
-  unassigned: { label: 'Без ответственного', Component: UnassignedTab, need: 'settings' },
   requests: { label: 'Заявки', Component: AccessRequestsTab, need: 'access' },
   invites: { label: 'Приглашения', Component: InvitesTab, need: 'access' },
 } as const;
 type TabId = keyof typeof TABS;
 
 /**
- * Настройки администратора (W-08, истории 64–70). Раздел в навигации виден только при
+ * Настройки администратора (W-08, истории 64–69). Обращения без ответственного (история 70) назначают
+ * в карточке обращения, очередь — «Входящие» → «Без ответственного». Раздел в навигации виден только при
  * Me.permissions.can_manage_settings; права на сами операции проверяет бэкенд (403 остальным).
  */
 export function SettingsPage() {
@@ -33,6 +32,8 @@ export function SettingsPage() {
     TABS[id].need === 'settings' ? p.can_manage_settings : p.can_manage_access,
   );
   const raw = params.get('tab');
+  // Раньше назначение жило здесь отдельной вкладкой: старые ссылки ведём в очередь.
+  if (raw === 'unassigned') return <Navigate to="/queue?scope=unassigned" replace />;
   const tab: TabId = raw && visible.includes(raw as TabId) ? (raw as TabId) : visible[0];
   const { Component } = TABS[tab];
 

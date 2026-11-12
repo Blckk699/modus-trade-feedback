@@ -21,6 +21,14 @@ export interface CardSections {
  * видит статус, срок и итог основного обращения, но не его переписку, вложения, историю и инструменты обработки:
  * бэкенд и так отдаст там 403, клиент просто не рисует эти блоки.
  */
+/**
+ * Обращение без ответственного, и зрителю разрешено назначить (история 70): в карточке показываем
+ * блок назначения, а кнопку «Переназначить» в нижней панели убираем — переназначать пока некого.
+ */
+export function needsAssignee(a: Pick<Appeal, 'assignee' | 'allowed_actions'>): boolean {
+  return !a.assignee && a.allowed_actions.includes('reassign');
+}
+
 export function cardSections(a: Pick<Appeal, 'access' | 'participants_count'>): CardSections {
   const full = a.access !== 'participant';
   return {
