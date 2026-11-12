@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 
 import 'tokens.g.dart';
+import 'web_palette.dart';
 
 export 'tokens.g.dart' show ModusRadius, ModusSpacing, StatusColor;
+export 'web_palette.dart' show WebLook, WebExtra;
 
 /// Фирменные цвета, которых нет в [ColorScheme]: статусы, акцент, ссылки, предупреждения.
 /// Берутся из `design/tokens.json` через [ModusPalette].
 @immutable
 class ModusColors extends ThemeExtension<ModusColors> {
-  const ModusColors(this.palette);
+  const ModusColors(this.palette, this.extra);
 
   final ModusPalette palette;
+
+  /// Цвета и тени веба, которых нет в токенах.
+  final WebExtra extra;
 
   /// Цвета текущей темы. Без расширения (например, в тестах на голом MaterialApp) — палитра по яркости.
   static ModusColors of(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<ModusColors>() ?? ModusColors(theme.brightness == Brightness.dark ? darkPalette : lightPalette);
+    return theme.extension<ModusColors>() ??
+        (theme.brightness == Brightness.dark
+            ? ModusColors(webDarkPalette, webDarkExtra)
+            : ModusColors(webLightPalette, webLightExtra));
   }
 
   /// Цвета бейджа статуса по коду (`new`, `in_review`, …).
@@ -34,6 +42,12 @@ class ModusColors extends ThemeExtension<ModusColors> {
   Color get infoBg => palette.infoBg;
   Color get danger => palette.danger;
   Color get dangerBg => palette.dangerBg;
+  Color get card => extra.card;
+  Color get faint => extra.faint;
+  Color get people => extra.people;
+  Color get peopleBg => extra.peopleBg;
+  Color get surface => palette.surface;
+  Color get bg => palette.bg;
 
   @override
   ModusColors copyWith() => this;
@@ -45,7 +59,9 @@ class ModusColors extends ThemeExtension<ModusColors> {
 /// Тема приложения по токенам: `primary` — тёмно-синий, фирменный красный (`accent`)
 /// только у главного действия экрана (FAB и [accentButtonStyle]). См. design/README.md.
 ThemeData modusTheme(Brightness brightness) {
-  final p = brightness == Brightness.light ? lightPalette : darkPalette;
+  final light = brightness == Brightness.light;
+  final p = light ? webLightPalette : webDarkPalette;
+  final x = light ? webLightExtra : webDarkExtra;
   final scheme = ColorScheme.fromSeed(
     seedColor: p.primary,
     brightness: brightness,
@@ -53,8 +69,9 @@ ThemeData modusTheme(Brightness brightness) {
     onPrimary: p.onPrimary,
     primaryContainer: p.surface2,
     onPrimaryContainer: p.heading,
-    secondary: p.accent,
-    onSecondary: p.onAccent,
+    // Красный не отдаём в secondary: на нём стандартные виджеты (переключатели, индикаторы).
+    secondary: p.primary,
+    onSecondary: p.onPrimary,
     secondaryContainer: p.surface2,
     onSecondaryContainer: p.heading,
     tertiary: p.link,
@@ -78,10 +95,11 @@ ThemeData modusTheme(Brightness brightness) {
   );
 
   final text = _textTheme(p);
-  const small = BorderRadius.all(Radius.circular(ModusRadius.sm));
-  const card = BorderRadius.all(Radius.circular(ModusRadius.lg));
-  const sheet = BorderRadius.vertical(top: Radius.circular(ModusRadius.xl));
-  const minSize = Size(64, ModusSize.controlHeight);
+  const small = BorderRadius.all(Radius.circular(WebLook.controlRadius));
+  const card = BorderRadius.all(Radius.circular(WebLook.cardRadius));
+  const sheet = BorderRadius.vertical(top: Radius.circular(WebLook.cardRadius));
+  const minSize = Size(64, WebLook.controlHeight);
+  const none = OutlineInputBorder(borderRadius: small, borderSide: BorderSide.none);
   final buttonText = text.labelLarge;
 
   return ThemeData(
@@ -92,7 +110,7 @@ ThemeData modusTheme(Brightness brightness) {
     textTheme: text,
     scaffoldBackgroundColor: p.bg,
     canvasColor: p.bg,
-    extensions: [ModusColors(p)],
+    extensions: [ModusColors(p, x)],
     appBarTheme: AppBarTheme(
       backgroundColor: p.bg,
       surfaceTintColor: Colors.transparent,
@@ -100,12 +118,10 @@ ThemeData modusTheme(Brightness brightness) {
       titleTextStyle: text.titleLarge,
     ),
     cardTheme: CardThemeData(
-      color: p.surface,
+      color: x.card,
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: card,
-        side: BorderSide(color: p.border),
-      ),
+      margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(borderRadius: card),
     ),
     dividerTheme: DividerThemeData(color: p.border),
     filledButtonTheme: FilledButtonThemeData(
@@ -134,23 +150,22 @@ ThemeData modusTheme(Brightness brightness) {
       extendedTextStyle: buttonText,
     ),
     badgeTheme: BadgeThemeData(backgroundColor: p.accent, textColor: p.onAccent),
+    // Поля как в вебе (#154, #193): без рамок, заливка поверхностью; ошибка — заливкой danger-bg.
     inputDecorationTheme: InputDecorationTheme(
-      border: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.borderInput),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.borderInput),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: small,
-        borderSide: BorderSide(color: p.focus, width: 2),
-      ),
+      filled: true,
+      fillColor: p.surface,
+      border: none,
+      enabledBorder: none,
+      focusedBorder: none,
+      disabledBorder: none,
+      errorBorder: none,
+      focusedErrorBorder: none,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     ),
     chipTheme: ChipThemeData(
       shape: const RoundedRectangleBorder(borderRadius: small),
-      side: BorderSide(color: p.border),
+      side: BorderSide.none,
+      backgroundColor: p.surface2,
     ),
     navigationBarTheme: NavigationBarThemeData(backgroundColor: p.surface, indicatorColor: p.surface2, height: ModusSize.bottombar + 12),
     tabBarTheme: TabBarThemeData(labelColor: p.primary, unselectedLabelColor: p.muted, indicatorColor: p.primary),
@@ -160,7 +175,7 @@ ThemeData modusTheme(Brightness brightness) {
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: p.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(ModusRadius.xl))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(WebLook.cardRadius))),
     ),
     popupMenuTheme: const PopupMenuThemeData(elevation: 3),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
