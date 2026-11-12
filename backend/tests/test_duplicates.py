@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -169,3 +171,22 @@ async def test_praise_cannot_be_merged(client, login_as) -> None:
     for duplicate, main in ((praise["id"], A_001), (A_001, praise["id"])):
         response = await merge(client, owner, duplicate, main)
         assert (response.status_code, response.json()["error"]["code"]) == (409, "merge_not_allowed")
+
+
+async def test_author_sees_only_the_number_of_similar_appeals(client, login_as, time_machine, fake_claude) -> None:
+    """B-25 п.6: «Похожие уже рассматриваются: N» — без чужих номеров, текстов и имён."""
+    created = await submit_with_suggestions(client, login_as, time_machine, fake_claude, A_001, A_002)
+    author = await login_as("employee_sales")
+    card = (await client.get(f"/api/v1/appeals/{created['id']}", headers=author)).json()
+    assert created.get("similar_count", 0) == 0, "сразу после подачи подсказок ещё нет"
+    assert card["similar_count"] == 2
+    assert (await client.get(f"/api/v1/appeals/{created['id']}/similar", headers=author)).json() == []
+    for foreign in ("A-001", "A-002", "Айгерим"):
+        assert foreign not in json.dumps(card, ensure_ascii=False)
+
+    # «Это другое» и завершение похожего уменьшают число.
+    head = await login_as(HEAD)
+    suggestions = (await client.get(f"/api/v1/appeals/{created['id']}/similar", headers=head)).json()
+    dismissed = await client.post(f"/api/v1/duplicate-suggestions/{suggestions[0]['id']}/dismiss", headers=head)
+    assert dismissed.status_code == 204
+    assert (await client.get(f"/api/v1/appeals/{created['id']}", headers=author)).json()["similar_count"] == 1

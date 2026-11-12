@@ -20,7 +20,7 @@ from app.appeals.schemas import (
     BitrixTaskOut,
     DiscussionRef,
 )
-from app.domain.enums import AppealStatus, AppealType, DueState
+from app.domain.enums import FINAL_STATUSES, AppealStatus, AppealType, DueState
 from app.models import (
     Appeal,
     AppealParticipant,
@@ -29,6 +29,7 @@ from app.models import (
     Category,
     Department,
     Discussion,
+    DuplicateSuggestion,
     Notification,
     User,
 )
@@ -219,6 +220,19 @@ async def appeal_out(session: AsyncSession, appeal: Appeal, user: User, now: dat
         attachments = [attachment_out(a, directory, user, f) for a in rows.scalars()]
     bitrix = extras.bitrix.get(appeal.id)
     discussion = extras.discussions.get(appeal.id)
+    similar_count = 0
+    if full and not AppealStatus(appeal.status).is_final:
+        # Подсказки о повторах, которые не отклонили кнопкой «Это другое», и похожее ещё в работе.
+        similar_count = await session.scalar(
+            select(func.count())
+            .select_from(DuplicateSuggestion)
+            .join(Appeal, Appeal.id == DuplicateSuggestion.similar_appeal_id)
+            .where(
+                DuplicateSuggestion.appeal_id == appeal.id,
+                DuplicateSuggestion.dismissed_at.is_(None),
+                Appeal.status.not_in(list(FINAL_STATUSES)),
+            )
+        ) or 0
     return AppealOut(
         **item.model_dump(),
         text=appeal.text if full else None,
@@ -231,6 +245,7 @@ async def appeal_out(session: AsyncSession, appeal: Appeal, user: User, now: dat
         public_result=appeal.public_result,
         forwarded_from=appeal.forwarded_from if full else None,
         closed_reason=appeal.closed_reason,
+        similar_count=similar_count,
         bitrix_task=BitrixTaskOut(task_id=bitrix.task_id, url=bitrix.url, created_at=bitrix.created_at) if bitrix else None,
         discussion=DiscussionRef(id=discussion.id, status=discussion.status) if discussion else None,
         attachments=attachments,
