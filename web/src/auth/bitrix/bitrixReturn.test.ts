@@ -45,7 +45,7 @@ describe('коды ошибок контракта B-23 без текста в �
   it('invalid_bitrix_auth и bitrix_unavailable объясняются своими словами', () => {
     const bad = parseBitrixReturn('?error=invalid_bitrix_auth', '');
     expect(bad.kind).toBe('error');
-    expect(bad.kind === 'error' && bad.message).toMatch(/Попробуйте ещё раз/);
+    expect(bad.kind === 'error' && bad.message).toMatch(/^Для этой учётной записи вход через Битрикс24 не настроен\. Войдите по почте или через Telegram/);
     const down = parseBitrixReturn('?error=bitrix_unavailable', '');
     expect(down.kind === 'error' && down.message).toMatch(/не ответил/);
   });
