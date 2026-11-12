@@ -62,6 +62,13 @@ def test_templates_fit_telegram_limits(template):
     assert "@font-face" not in template and "http" not in template  # без внешних ресурсов и шрифтов
 
 
+def test_closed_appeal_card_shows_no_deadline():
+    appeal = {"number": "A-1", "type": "praise", "status": "closed", "due_state": "on_time",
+              "first_response_due_at": "2026-11-13T18:00:00+05:00"}
+    card = json.loads(formatting.appeal_card_data(appeal, {}))
+    assert card["dl"] == "" and card["d"] == ""
+
+
 def test_chat_data_is_trimmed_to_1024_bytes():
     appeal = {"number": "A-021", "type": "problem", "status": "new", "summary": "Очень длинная суть. " * 200}
     packed = formatting.appeal_card_data(appeal, {})
@@ -90,6 +97,25 @@ async def test_without_widget_support_the_same_text_is_sent(harness, backend):
 
     [message] = harness.telegram.sent()
     assert "<code>482913</code>" in message.text
+
+
+async def test_after_method_not_found_widgets_are_not_tried_again(harness, backend):
+    harness.telegram.reject_widgets = lambda m: TelegramBadRequest(method=m, message="Bad Request: method not found")
+
+    await harness.send_text("/code")
+    await harness.send_text("/code")
+
+    assert len(harness.telegram.widgets()) == 1  # вторая попытка не делалась
+    assert len(harness.telegram.sent()) == 2
+
+
+async def test_other_rejection_does_not_switch_widgets_off(harness, backend):
+    harness.telegram.reject_widgets = lambda m: TelegramBadRequest(method=m, message="Bad Request: widget is too big")
+
+    await harness.send_text("/code")
+    await harness.send_text("/code")
+
+    assert len(harness.telegram.widgets()) == 2
 
 
 async def test_widgets_can_be_switched_off():
@@ -174,16 +200,25 @@ def test_appeal_card_script_renders_and_escapes():
         "type": "problem",
         "status": "in_progress",
         "summary": "Счёт <script> дважды",
+        "priority": "high",
+        "category": {"id": 3, "name": "Межотдельное взаимодействие"},
         "assignee": {"full_name": "Марат Сейткали"},
         "first_response_due_at": "2026-11-13T18:00:00+05:00",
     }
-    dictionaries = {"statuses": [{"code": "in_progress", "label": "В работе"}]}
+    dictionaries = {
+        "statuses": [{"code": "in_progress", "label": "В работе"}],
+        "appeal_types": [{"code": "problem", "label": "Проблема"}],
+        "priorities": [{"code": "high", "label": "Высокий"}],
+    }
     html = run_widget(widgets.APPEAL_CARD, formatting.appeal_card_data(appeal, dictionaries, "Статус изменён"))["r"][
         "innerHTML"
     ]
     assert "A-021" in html and "В работе" in html and "Марат Сейткали" in html and "13 ноября, 18:00" in html
     assert "&lt;script&gt;" in html and "<script>" not in html
-    assert html.count('class="on"') == 3  # новое → рассмотрение → в работе
+    assert 'class="bg dot s-in_progress"' in html  # бейдж статуса, как .badge--status-* на сайте
+    assert "A-021 · Проблема · Межотдельное взаимодействие · приоритет высокий" in html
+    assert 'class="bg on_time"' in html and "В срок · до 13 ноября, 18:00" in html
+    assert html.count("background:var(--s-in_progress)") == 3  # новое → рассмотрение → в работе
 
 
 @needs_node
@@ -191,7 +226,7 @@ def test_rejected_card_has_no_progress_bar():
     html = run_widget(widgets.APPEAL_CARD, json.dumps({"n": "A-3", "st": "rejected", "sl": "Отклонено"}))["r"][
         "innerHTML"
     ]
-    assert 'class="p no"' in html and "Готово" not in html
+    assert 'class="bg dot s-rejected"' in html and "Готово" not in html
 
 
 @needs_node
@@ -203,4 +238,5 @@ def test_login_code_script_shows_code_and_countdown():
 
     expired = run_widget(widgets.LOGIN_CODE, json.dumps({"c": "482913", "e": 1}))
     assert expired["t"]["textContent"].startswith("Код истёк")
+    assert expired["t"]["className"] == "bg overdue"  # как .badge--due-overdue на сайте
     assert expired["b"]["disabled"] is True

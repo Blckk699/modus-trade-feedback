@@ -10,6 +10,13 @@ MONTHS = [
     "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ]
 TEXT_LIMIT = 1500
+# Подписи состояния срока — как web/src/appeals/labels.ts (dueStateLabel): в /dictionaries их нет.
+DUE_STATE_LABELS = {
+    "on_time": "В срок",
+    "due_soon": "Срок скоро",
+    "overdue": "Просрочено",
+    "answered": "Ответ дан",
+}
 
 
 def label(dictionaries: dict[str, Any], group: str, code: str | None) -> str:
@@ -70,14 +77,25 @@ def appeal_card_data(appeal: dict[str, Any], dictionaries: dict[str, Any], heade
     from app.widgets import pack
 
     assignee = appeal.get("assignee") or {}
+    status = appeal.get("status") or "new"
+    due_state = appeal.get("due_state") or ("on_time" if appeal.get("first_response_due_at") else "")
+    if status == "closed" or due_state == "no_deadline":  # как на сайте: у закрытых и бессрочных срока не показываем
+        due_state = ""
     data = {
         "h": header or "",
         "n": appeal["number"],
+        "t": appeal.get("type") or "problem",
         "k": label(dictionaries, "appeal_types", appeal.get("type")),
-        "st": appeal.get("status") or "new",
-        "sl": label(dictionaries, "statuses", appeal.get("status") or "new"),
+        "c": (appeal.get("category") or {}).get("name", ""),
+        "p": label(dictionaries, "priorities", appeal["priority"]) if appeal.get("priority") else "",
+        "st": status,
+        "sl": label(dictionaries, "statuses", status),
         "a": assignee.get("full_name", ""),
-        "d": due_text(appeal["first_response_due_at"]) if appeal.get("first_response_due_at") else "",
+        "ds": due_state,
+        "dl": DUE_STATE_LABELS.get(due_state, ""),
+        "d": due_text(appeal["first_response_due_at"])
+        if appeal.get("first_response_due_at") and due_state not in ("", "answered")
+        else "",
         "s": appeal.get("summary") or "",
     }
     return pack(data, shrink="s")
