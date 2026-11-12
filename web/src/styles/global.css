@@ -742,26 +742,6 @@ svg {
   border-bottom: 1px solid var(--line);
 }
 
-/* В шапке карточки обращения — только аватар и стрелка, справа от статусов */
-.roleswitch--compact {
-  margin-left: auto;
-}
-
-.roleswitch--compact .roleswitch__who--btn {
-  display: none;
-}
-
-.roleswitch--compact .roleswitch__btn {
-  padding: 0 8px 0 7px;
-  background: var(--surface-2);
-  box-shadow: none;
-}
-
-.roleswitch--compact .roleswitch__btn:hover,
-.roleswitch--compact .roleswitch__btn[aria-expanded='true'] {
-  background: var(--surface-3);
-}
-
 /* Между телефоном и широким экраном в шапке тесно: остаются аватар и стрелка */
 @media (max-width: 1180px) {
   .roleswitch__who--btn {
@@ -5267,7 +5247,7 @@ button.vote__option:not(.vote__option--mine):hover {
     height: 40px;
   }
 
-  /* В шапке приложения на телефоне переключателя нет: он в меню профиля и в шапке карточки */
+  /* В шапке приложения на телефоне переключателя нет: он в меню профиля */
   .head__tools .roleswitch {
     display: none;
   }
