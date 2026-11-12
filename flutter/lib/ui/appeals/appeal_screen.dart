@@ -472,18 +472,17 @@ class _MessagesSectionState extends State<MessagesSection> {
         rows.add(_DaySeparator(formatDayTitle(m.createdAt)));
       }
       final startsRun = i == 0 || messages[i - 1].author.id != m.author.id || rows.last is _DaySeparator;
-      rows.add(_MessageBubble(message: m, mine: m.author.id == me.id, showName: startsRun));
+      rows.add(_MessageBubble(
+        // Вопрос, на который ждут ответа, отмечен ключом: он в переписке один раз, без отдельной плашки.
+        key: replying && identical(m, lastQuestion) ? const Key('clarification-question') : null,
+        message: m,
+        mine: m.author.id == me.id,
+        showName: startsRun,
+      ));
     }
     return CardBlock(
       title: 'Переписка',
       children: [
-        if (replying && lastQuestion != null)
-          _Notice(
-            key2: const Key('clarification-question'),
-            title: 'Вопрос от ${lastQuestion.author.fullName}',
-            text: lastQuestion.text,
-            tone: _Tone.warn,
-          ),
         if (_messages == null && _loadError == null) const LinearProgressIndicator(),
         if (_loadError != null) Text(_loadError!.message, style: TextStyle(color: theme.colorScheme.error)),
         if (_messages != null && messages.isEmpty)
@@ -541,7 +540,7 @@ class _DaySeparator extends StatelessWidget {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.mine, required this.showName});
+  const _MessageBubble({super.key, required this.message, required this.mine, required this.showName});
 
   final Message message;
   final bool mine;

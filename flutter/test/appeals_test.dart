@@ -174,6 +174,9 @@ void main() {
     final session = await signedIn(server);
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
+    // Стартовый экран — «Сегодня»; переходим в «Мои».
+    await tester.tap(find.byKey(const Key('nav-myAppeals')));
+    await tester.pumpAndSettle();
 
     final query = server.last('GET', '/api/v1/appeals').url.queryParameters;
     expect(query['scope'], 'mine');
@@ -316,7 +319,7 @@ void main() {
 
     expect(find.text('Ожидает уточнения'), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('clarification-question')), 200, scrollable: list);
-    expect(find.text('Вопрос от Марат Сейткали'), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('clarification-question')), matching: find.text('Уточняющий вопрос')), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('message-text')), 200, scrollable: list);
     expect(find.text('Ответ на вопрос'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('message-text')), 'Акты сверки');

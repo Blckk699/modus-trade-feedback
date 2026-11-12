@@ -20,6 +20,7 @@ import { BrandMark } from './BrandLogo';
 import { buildNav, startPath, type NavId } from './navigation';
 import { Shell } from './Shell';
 import { ToastProvider } from './Toast';
+import { LiveProvider } from '../live/LiveProvider';
 import { UnreadProvider } from './unread';
 
 const PAGES: Record<NavId, ReactNode> = {
@@ -79,6 +80,7 @@ function AuthGate() {
   return (
     // key по пользователю: смена роли (W-14) перемонтирует вошедшую часть, и все экраны перечитывают данные.
     <UnreadProvider key={state.me.id}>
+      <LiveProvider>
       <Routes location={background ?? location}>
         <Route element={<Shell />}>
           {nav.map((item) => (
@@ -136,6 +138,7 @@ function AuthGate() {
           )}
         </Routes>
       )}
+      </LiveProvider>
     </UnreadProvider>
   );
 }

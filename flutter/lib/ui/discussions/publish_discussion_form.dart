@@ -5,6 +5,7 @@ import '../../api/app_error.dart';
 import '../../app.dart';
 import '../../appeals/deadline.dart';
 import '../../format.dart';
+import '../sheet_header.dart';
 
 /// Вынос на общее обсуждение (история 38): публичная формулировка и срок голосования.
 /// Закрывается с созданным обсуждением.
@@ -68,7 +69,7 @@ class _PublishDiscussionFormState extends State<PublishDiscussionForm> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('Вынести на общее обсуждение', style: theme.textTheme.titleLarge),
+          SheetHeader('Вынести на общее обсуждение', enabled: !_busy),
           const SizedBox(height: 8),
           Text(
             'Обсуждение увидят все сотрудники. Приватная переписка не публикуется. Автора спросят, '

@@ -46,10 +46,10 @@ Map<String, dynamic> body(FakeServer s, String method, String path) =>
 void main() {
   setUpAll(() => initializeDateFormatting('ru'));
 
-  test('раздел «Настройки» только у администратора', () {
+  test('«Настройки» у администратора и у собственника (заявки и приглашения), у сотрудника — нет', () {
     expect(sectionsFor(Me.fromJson(meJson(id: 2, role: 'admin', permissions: adminPermissions))!), contains(Section.settings));
-    expect(sectionsFor(Me.fromJson(meJson(id: 1, role: 'owner', permissions: ownerPermissions))!),
-        isNot(contains(Section.settings)));
+    expect(sectionsFor(Me.fromJson(meJson(id: 1, role: 'owner', permissions: ownerPermissions))!), contains(Section.settings));
+    expect(sectionsFor(Me.fromJson(meJson(permissions: plainEmployeePermissions))!), isNot(contains(Section.settings)));
   });
 
   testWidgets('сотрудник: изменение отправляет только изменённые поля; отсутствие и отключение', (tester) async {

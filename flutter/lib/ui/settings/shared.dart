@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
 import '../../api/app_error.dart';
+import '../sheet_header.dart';
 
 /// Только изменённые поля — PATCH не трогает остальное (как `changes` в вебе).
 /// Сгенерированные `*Update.toJson` отправляют все поля, а отсутствующие — как `null`,
@@ -107,7 +108,7 @@ class SheetForm extends StatelessWidget {
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(title, style: theme.textTheme.titleLarge),
+            SheetHeader(title, enabled: !busy),
             const SizedBox(height: 16),
             for (final c in children) ...[c, const SizedBox(height: 12)],
             if (error != null)

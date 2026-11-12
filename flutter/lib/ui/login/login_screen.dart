@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:modus_api/api.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/app_error.dart';
 import '../../app.dart';
@@ -10,6 +11,9 @@ import '../../theme/modus_theme.dart';
 import 'auth_forms.dart';
 import 'register_screen.dart';
 import 'server_settings_screen.dart';
+
+/// Бот компании: заявка на доступ и коды входа. Задаётся при сборке: --dart-define=BOT_USERNAME=...
+const botUsername = String.fromEnvironment('BOT_USERNAME', defaultValue: 'modus_fb_bot');
 
 enum _Method { email, code }
 
@@ -300,6 +304,12 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           'Войти кодом могут сотрудники, которых завёл администратор или чья заявка одобрена.',
           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        TextButton.icon(
+          key: const Key('open-bot'),
+          onPressed: () => launchUrl(Uri.parse('https://t.me/$botUsername'), mode: LaunchMode.externalApplication),
+          icon: const Icon(Icons.send_outlined, size: 18),
+          label: const Text('Нет доступа? Подайте заявку в боте'),
         ),
       ];
 

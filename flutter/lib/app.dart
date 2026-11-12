@@ -38,7 +38,12 @@ class ModusApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: modusTheme(Brightness.light),
         darkTheme: modusTheme(Brightness.dark),
-        builder: (context, child) => UnreadHost(child: child!),
+        // Тап вне поля убирает клавиатуру — иначе она закрывает кнопки листов и форм.
+        builder: (context, child) => GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: UnreadHost(child: child!),
+        ),
         home: const _Root(),
       ),
     );

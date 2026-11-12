@@ -1,3 +1,5 @@
+import { useLiveReload } from '../live/bus';
+import { useLive } from '../live/LiveProvider';
 import { Fragment, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, MessageCircle, X } from 'lucide-react';
@@ -61,6 +63,24 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
 
   const messages = list.state.status === 'ready' ? list.state.data : [];
   const count = messages.length;
+
+  // Живые обновления: чужое сообщение дочитывается без перезагрузки. Пока чат закрыт, на кнопке
+  // «Переписка» копится отметка «новое»; открыли чат — отметка снята.
+  useLiveReload([`messages:${appeal.id}`], list.reload);
+  const { setOpenChat } = useLive();
+  const [fresh, setFresh] = useState(0);
+  const seen = useRef<number | null>(null);
+  useEffect(() => {
+    if (list.state.status !== 'ready') return;
+    const added = seen.current === null ? 0 : count - seen.current;
+    seen.current = count;
+    if (added > 0 && !open) setFresh((n) => n + added);
+  }, [count, open, list.state.status]);
+  useEffect(() => {
+    if (open) setFresh(0);
+    setOpenChat(open ? appeal.id : null);
+    return () => setOpenChat(null);
+  }, [open, appeal.id, setOpenChat]);
 
   // Карточка-панель живёт в <dialog>: чат кладём в то же окно, иначе он окажется под подложкой и вне фокуса.
   useEffect(() => {
@@ -145,7 +165,8 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
   // Читать нечего и писать нельзя — открывать нечего, остаётся строка-справка.
   const idle = list.state.status === 'ready' && count === 0 && !canWrite;
 
-  const entryLabel = open ? 'Скрыть переписку' : count > 0 ? `Переписка, ${count} ${plural(count, ['сообщение', 'сообщения', 'сообщений'])}` : 'Переписка';
+  const freshLabel = fresh > 0 ? `, новых: ${fresh}` : '';
+  const entryLabel = open ? 'Скрыть переписку' : count > 0 ? `Переписка, ${count} ${plural(count, ['сообщение', 'сообщения', 'сообщений'])}${freshLabel}` : 'Переписка';
 
   return (
     <>
@@ -174,7 +195,7 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
           <button
             ref={entry}
             type="button"
-            className="btn btn--soft sheet__chat"
+            className={fresh > 0 ? 'btn btn--soft sheet__chat sheet__chat--fresh' : 'btn btn--soft sheet__chat'}
             aria-expanded={open}
             aria-controls={panelId}
             aria-label={entryLabel}
@@ -184,6 +205,7 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
             <MessageCircle size={17} aria-hidden="true" />
             <span className="sheet__chat-text">Переписка</span>
             {count > 0 && <span className="sheet__chat-count">{count}</span>}
+            {fresh > 0 && <span className="sheet__chat-new">+{fresh}</span>}
           </button>,
           entryHost,
         )}

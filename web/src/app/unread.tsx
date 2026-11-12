@@ -4,11 +4,13 @@ import { api, unwrap } from '../api/client';
 interface UnreadValue {
   count: number;
   refresh: () => void;
+  /** Счётчик пришёл с событием живых обновлений — ставим без запроса. */
+  setCount: (count: number) => void;
   /** Отметить прочитанным всё по обращению (при открытии карточки). */
   markAppealRead: (appealId: number) => void;
 }
 
-const Ctx = createContext<UnreadValue>({ count: 0, refresh: () => {}, markAppealRead: () => {} });
+const Ctx = createContext<UnreadValue>({ count: 0, refresh: () => {}, setCount: () => {}, markAppealRead: () => {} });
 const POLL_MS = 30_000;
 
 /** Счётчик непрочитанного: GET /notifications/unread-count раз в 30 с и при возврате на вкладку. */
@@ -40,7 +42,7 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
     };
   }, [refresh]);
 
-  return <Ctx.Provider value={{ count, refresh, markAppealRead }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ count, refresh, setCount, markAppealRead }}>{children}</Ctx.Provider>;
 }
 
 export const useUnread = () => useContext(Ctx);
