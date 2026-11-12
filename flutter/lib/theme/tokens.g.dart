@@ -29,6 +29,8 @@ class ModusPalette {
   final Color successBg;
   final Color info;
   final Color infoBg;
+  final Color people;
+  final Color peopleBg;
   final Map<String, StatusColor> status;
 
   const ModusPalette({
@@ -56,6 +58,8 @@ class ModusPalette {
     required this.successBg,
     required this.info,
     required this.infoBg,
+    required this.people,
+    required this.peopleBg,
     required this.status,
   });
 }
@@ -92,6 +96,8 @@ const lightPalette = ModusPalette(
   successBg: Color(0xFFE5F4EA),
   info: Color(0xFF1A66C9),
   infoBg: Color(0xFFE6F0FC),
+  people: Color(0xFF7A5300),
+  peopleBg: Color(0xFFFFF1C2),
   status: {
     'new': StatusColor(Color(0xFF1A62C4), Color(0xFFE6F0FC)),
     'in_review': StatusColor(Color(0xFF082742), Color(0xFFE3EAF2)),
@@ -128,6 +134,8 @@ const darkPalette = ModusPalette(
   successBg: Color(0xFF143222),
   info: Color(0xFF8DBBF5),
   infoBg: Color(0xFF12304F),
+  people: Color(0xFFF5D06B),
+  peopleBg: Color(0xFF3A3010),
   status: {
     'new': StatusColor(Color(0xFF8DBBF5), Color(0xFF12304F)),
     'in_review': StatusColor(Color(0xFFC9D6E6), Color(0xFF1C3047)),

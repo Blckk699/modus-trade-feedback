@@ -98,6 +98,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(body(server, 'POST', '/api/v1/admin/users'), {
       'telegram_id': 555,
+      'email': null,
       'full_name': 'Новый Сотрудник',
       'position': null,
       'role': 'employee',

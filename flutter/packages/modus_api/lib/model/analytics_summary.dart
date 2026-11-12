@@ -29,6 +29,7 @@ class AnalyticsSummary {
     this.repeatedTopics = const [],
     this.overdue = const [],
     this.assigneeLoad = const [],
+    required this.unassignedCount,
   });
 
   AnalyticsSummaryScopeEnum scope;
@@ -70,6 +71,9 @@ class AnalyticsSummary {
   /// Нагрузка по ответственным в выборке (история 53), по убыванию открытых
   List<AssigneeLoad> assigneeLoad;
 
+  /// Открытых обращений без ответственного в выборке
+  int unassignedCount;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is AnalyticsSummary &&
     other.scope == scope &&
@@ -87,7 +91,8 @@ class AnalyticsSummary {
     _deepEquality.equals(other.closedLastWeek, closedLastWeek) &&
     _deepEquality.equals(other.repeatedTopics, repeatedTopics) &&
     _deepEquality.equals(other.overdue, overdue) &&
-    _deepEquality.equals(other.assigneeLoad, assigneeLoad);
+    _deepEquality.equals(other.assigneeLoad, assigneeLoad) &&
+    other.unassignedCount == unassignedCount;
 
   @override
   int get hashCode =>
@@ -107,10 +112,11 @@ class AnalyticsSummary {
     (closedLastWeek.hashCode) +
     (repeatedTopics.hashCode) +
     (overdue.hashCode) +
-    (assigneeLoad.hashCode);
+    (assigneeLoad.hashCode) +
+    (unassignedCount.hashCode);
 
   @override
-  String toString() => 'AnalyticsSummary[scope=$scope, department=$department, generatedAt=$generatedAt, total=$total, closedCount=$closedCount, closedShare=$closedShare, avgFirstResponseHours=$avgFirstResponseHours, byType=$byType, byCategory=$byCategory, byStatus=$byStatus, newLast24h=$newLast24h, stuck=$stuck, closedLastWeek=$closedLastWeek, repeatedTopics=$repeatedTopics, overdue=$overdue, assigneeLoad=$assigneeLoad]';
+  String toString() => 'AnalyticsSummary[scope=$scope, department=$department, generatedAt=$generatedAt, total=$total, closedCount=$closedCount, closedShare=$closedShare, avgFirstResponseHours=$avgFirstResponseHours, byType=$byType, byCategory=$byCategory, byStatus=$byStatus, newLast24h=$newLast24h, stuck=$stuck, closedLastWeek=$closedLastWeek, repeatedTopics=$repeatedTopics, overdue=$overdue, assigneeLoad=$assigneeLoad, unassignedCount=$unassignedCount]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -138,6 +144,7 @@ class AnalyticsSummary {
       json[r'repeated_topics'] = this.repeatedTopics;
       json[r'overdue'] = this.overdue;
       json[r'assignee_load'] = this.assigneeLoad;
+      json[r'unassigned_count'] = this.unassignedCount;
     return json;
   }
 
@@ -182,6 +189,8 @@ class AnalyticsSummary {
         assert(json[r'overdue'] != null, 'Required key "AnalyticsSummary[overdue]" has a null value in JSON.');
         assert(json.containsKey(r'assignee_load'), 'Required key "AnalyticsSummary[assignee_load]" is missing from JSON.');
         assert(json[r'assignee_load'] != null, 'Required key "AnalyticsSummary[assignee_load]" has a null value in JSON.');
+        assert(json.containsKey(r'unassigned_count'), 'Required key "AnalyticsSummary[unassigned_count]" is missing from JSON.');
+        assert(json[r'unassigned_count'] != null, 'Required key "AnalyticsSummary[unassigned_count]" has a null value in JSON.');
         return true;
       }());
 
@@ -202,6 +211,7 @@ class AnalyticsSummary {
         repeatedTopics: RepeatedTopic.listFromJson(json[r'repeated_topics']),
         overdue: StuckAppeal.listFromJson(json[r'overdue']),
         assigneeLoad: AssigneeLoad.listFromJson(json[r'assignee_load']),
+        unassignedCount: mapValueOfType<int>(json, r'unassigned_count')!,
       );
     }
     return null;
@@ -265,6 +275,7 @@ class AnalyticsSummary {
     'repeated_topics',
     'overdue',
     'assignee_load',
+    'unassigned_count',
   };
 }
 

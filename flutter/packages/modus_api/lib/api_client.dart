@@ -185,6 +185,20 @@ class ApiClient {
           return value is DateTime ? value : DateTime.tryParse(value);
         case 'AcceptFeedbackRequest':
           return AcceptFeedbackRequest.fromJson(value);
+        case 'AccessRequest':
+          return AccessRequest.fromJson(value);
+        case 'AccessRequestApprove':
+          return AccessRequestApprove.fromJson(value);
+        case 'AccessRequestPage':
+          return AccessRequestPage.fromJson(value);
+        case 'AccessRequestReject':
+          return AccessRequestReject.fromJson(value);
+        case 'AccessRequestStatus':
+          return AccessRequestStatusTypeTransformer().decode(value);
+        case 'AccessRequestSubmit':
+          return AccessRequestSubmit.fromJson(value);
+        case 'AccessStatus':
+          return AccessStatus.fromJson(value);
         case 'AckNotificationRequest':
           return AckNotificationRequest.fromJson(value);
         case 'AdminUpdateSettingsRequest':
@@ -213,10 +227,14 @@ class ApiClient {
           return AppealStatusTypeTransformer().decode(value);
         case 'AppealType':
           return AppealTypeTypeTransformer().decode(value);
+        case 'AssignableRole':
+          return AssignableRoleTypeTransformer().decode(value);
         case 'AssigneeLoad':
           return AssigneeLoad.fromJson(value);
         case 'Attachment':
           return Attachment.fromJson(value);
+        case 'AuthMethods':
+          return AuthMethods.fromJson(value);
         case 'BitrixTask':
           return BitrixTask.fromJson(value);
         case 'BotNotification':
@@ -243,6 +261,8 @@ class ApiClient {
           return CountByStatus.fromJson(value);
         case 'CountByType':
           return CountByType.fromJson(value);
+        case 'CredentialsUpdate':
+          return CredentialsUpdate.fromJson(value);
         case 'DeadlineRule':
           return DeadlineRule.fromJson(value);
         case 'Department':
@@ -283,12 +303,18 @@ class ApiClient {
           return DueStateTypeTransformer().decode(value);
         case 'DuplicateSuggestion':
           return DuplicateSuggestion.fromJson(value);
+        case 'EmailLogin':
+          return EmailLogin.fromJson(value);
+        case 'EmailRegister':
+          return EmailRegister.fromJson(value);
         case 'Error':
           return Error.fromJson(value);
         case 'ErrorCode':
           return ErrorCodeTypeTransformer().decode(value);
         case 'ErrorError':
           return ErrorError.fromJson(value);
+        case 'ExchangeBitrixLoginRequest':
+          return ExchangeBitrixLoginRequest.fromJson(value);
         case 'FailNotificationRequest':
           return FailNotificationRequest.fromJson(value);
         case 'FeedItem':
@@ -301,6 +327,20 @@ class ApiClient {
           return HistoryEvent.fromJson(value);
         case 'ImplementAppealRequest':
           return ImplementAppealRequest.fromJson(value);
+        case 'Invite':
+          return Invite.fromJson(value);
+        case 'InviteAccept':
+          return InviteAccept.fromJson(value);
+        case 'InviteAccepted':
+          return InviteAccepted.fromJson(value);
+        case 'InviteCreate':
+          return InviteCreate.fromJson(value);
+        case 'InviteCreated':
+          return InviteCreated.fromJson(value);
+        case 'InvitePreview':
+          return InvitePreview.fromJson(value);
+        case 'InviteState':
+          return InviteStateTypeTransformer().decode(value);
         case 'LabeledCode':
           return LabeledCode.fromJson(value);
         case 'LoginCode':
@@ -347,6 +387,8 @@ class ApiClient {
           return PriorityTypeTransformer().decode(value);
         case 'ReassignAppealRequest':
           return ReassignAppealRequest.fromJson(value);
+        case 'RegisterResult':
+          return RegisterResult.fromJson(value);
         case 'RejectAppealRequest':
           return RejectAppealRequest.fromJson(value);
         case 'RepeatedTopic':
@@ -357,18 +399,26 @@ class ApiClient {
           return RoleTypeTransformer().decode(value);
         case 'Session':
           return Session.fromJson(value);
+        case 'SessionToken':
+          return SessionToken.fromJson(value);
         case 'SetNameConsentRequest':
           return SetNameConsentRequest.fromJson(value);
         case 'StartWorkRequest':
           return StartWorkRequest.fromJson(value);
         case 'StuckAppeal':
           return StuckAppeal.fromJson(value);
+        case 'SwitchAccountRequest':
+          return SwitchAccountRequest.fromJson(value);
         case 'SystemSettings':
           return SystemSettings.fromJson(value);
         case 'TakeAppealRequest':
           return TakeAppealRequest.fromJson(value);
+        case 'TelegramIdentity':
+          return TelegramIdentity.fromJson(value);
         case 'TelegramWidgetLoginRequest':
           return TelegramWidgetLoginRequest.fromJson(value);
+        case 'TemporaryPassword':
+          return TemporaryPassword.fromJson(value);
         case 'TextDraftRequest':
           return TextDraftRequest.fromJson(value);
         case 'UnreadCount':
