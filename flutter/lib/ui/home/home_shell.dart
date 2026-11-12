@@ -9,6 +9,7 @@ import '../discussions/feed_screen.dart';
 import '../meetings/meetings_screen.dart';
 import '../settings/settings_screen.dart';
 import 'profile_screen.dart';
+import 'today_screen.dart';
 import 'unread_scope.dart';
 
 /// Главный экран: нижняя навигация по разделам роли. Больше пяти разделов —
@@ -36,9 +37,9 @@ class _HomeShellState extends State<HomeShell> {
     final onBar = overflow ? sections.take(HomeShell.maxBarItems - 1).toList() : sections;
     final inMore = overflow ? sections.skip(HomeShell.maxBarItems - 1).toList() : <Section>[];
     final barIndex = onBar.contains(current) ? onBar.indexOf(current) : onBar.length;
-    // Счётчик непрочитанного — на первом разделе панели (у сотрудника это «Мои обращения»).
+    // Счётчик непрочитанного — на «Мои обращения» (если раздела нет — на первом пункте панели).
     final unread = UnreadScope.of(context).count;
-    final badgeOn = onBar.first;
+    final badgeOn = onBar.contains(Section.myAppeals) ? Section.myAppeals : onBar.first;
 
     return Scaffold(
       body: _screenFor(current),
@@ -103,6 +104,7 @@ class _HomeShellState extends State<HomeShell> {
         );
 
   Widget _screenFor(Section section) => switch (section) {
+        Section.home => TodayScreen(onOpenSection: (s) => setState(() => _current = s)),
         Section.myAppeals => const MyAppealsScreen(),
         Section.processing => const QueueScreen(),
         Section.feed => const FeedScreen(),
