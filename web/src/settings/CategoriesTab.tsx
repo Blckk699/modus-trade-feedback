@@ -24,6 +24,9 @@ export function CategoriesTab() {
   // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
   const [saving, setSaving] = useState(false);
   const [switching, setSwitching] = useState<number | null>(null);
+  // Удаление — в два нажатия: первое спрашивает, второе удаляет.
+  const [confirming, setConfirming] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
   const toast = useToast();
 
   const s = data.state;
@@ -51,6 +54,21 @@ export function CategoriesTab() {
       toast(errorMessage(e), 'error');
     } finally {
       setSwitching(null);
+    }
+  }
+  // Удалить можно только категорию без обращений. Если обращения есть, сервер отвечает 409
+  // и сам объясняет, что делать: показываем его текст.
+  async function remove(c: Category) {
+    setRemoving(c.id);
+    try {
+      await unwrap(api.DELETE('/api/v1/admin/categories/{category_id}', { params: { path: { category_id: c.id } } }));
+      data.set([categories.filter((x) => x.id !== c.id), departments, users]);
+      toast(`Категория «${c.name}» удалена`);
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setRemoving(null);
+      setConfirming(null);
     }
   }
   const sorted = [...categories].sort((a, b) => Number(b.is_active) - Number(a.is_active) || byName(a, b));
@@ -95,6 +113,25 @@ export function CategoriesTab() {
                 <button type="button" className="btn btn--ghost" onClick={() => setEditing(c.id)}>
                   Изменить
                 </button>
+                {confirming === c.id ? (
+                  <>
+                    <button type="button" className="btn btn--text btn--danger" disabled={removing === c.id} onClick={() => void remove(c)}>
+                      {removing === c.id ? 'Удаляем…' : 'Да, удалить'}
+                    </button>
+                    <button type="button" className="btn btn--text" disabled={removing === c.id} onClick={() => setConfirming(null)}>
+                      Отмена
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--text btn--danger"
+                    onClick={() => setConfirming(c.id)}
+                    title="Удалить можно категорию, в которой нет обращений. Остальные — только выключить"
+                  >
+                    Удалить
+                  </button>
+                )}
               </div>
             </li>
         ))}
