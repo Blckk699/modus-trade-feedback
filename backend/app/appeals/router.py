@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import ClockDep, CurrentUserDep, SessionDep, SettingsDep
 from app.appeals import policy, service
+from app.appeals.previews import build_preview, has_preview
 from app.appeals.schemas import AppealCreate, AppealOut, AppealPage, AttachmentOut, HistoryEventOut
 from app.appeals.views import Directory, Extras, appeal_out, attachment_out, facts, list_item
 from app.domain.enums import AppealAction, AppealSource, AppealStatus, AppealType, Priority
@@ -140,10 +142,11 @@ async def get_history(appeal_id: int, user: CurrentUserDep, session: SessionDep)
 
 @router.get("/appeals/{appeal_id}/attachments", response_model=list[AttachmentOut], summary="Вложения обращения")
 async def list_attachments(appeal_id: int, user: CurrentUserDep, session: SessionDep) -> list[AttachmentOut]:
-    await service.get_visible(session, appeal_id, user)
+    appeal = await service.get_visible(session, appeal_id, user)
     directory = await Directory.load(session)
+    extras = await Extras.load(session, user, [appeal])
     rows = await session.execute(select(Attachment).where(Attachment.appeal_id == appeal_id).order_by(Attachment.id))
-    return [attachment_out(a, directory) for a in rows.scalars()]
+    return [attachment_out(a, directory, user, facts(appeal, directory, extras)) for a in rows.scalars()]
 
 
 @router.post(
@@ -160,15 +163,16 @@ async def upload_attachment(
     appeal = await service.get_visible(session, appeal_id, user, lock=True)
     directory = await Directory.load(session)
     extras = await Extras.load(session, user, [appeal])
-    if AppealAction.UPLOAD_ATTACHMENT not in policy.allowed_actions(user, facts(appeal, directory, extras)):
+    appeal_facts = facts(appeal, directory, extras)
+    if AppealAction.UPLOAD_ATTACHMENT not in policy.allowed_actions(user, appeal_facts):
         raise Forbidden("Приложить файл могут автор и ответственный, пока обращение не закрыто")
     attachment = await service.save_attachment(session, appeal, user, file, settings, clock.now())
-    return attachment_out(attachment, directory)
+    return attachment_out(attachment, directory, user, appeal_facts)
 
 
-@router.get("/attachments/{attachment_id}", summary="Скачать файл", response_class=FileResponse)
+@router.get("/attachments/{attachment_id}", summary="Скачать файл или его уменьшенную копию", response_class=FileResponse)
 async def download_attachment(
-    attachment_id: int, user: CurrentUserDep, session: SessionDep, settings: SettingsDep
+    attachment_id: int, user: CurrentUserDep, session: SessionDep, settings: SettingsDep, preview: bool = False
 ) -> FileResponse:
     attachment = await session.get(Attachment, attachment_id)
     if attachment is None:
@@ -177,4 +181,29 @@ async def download_attachment(
     path = Path(settings.attachments_dir) / attachment.storage_key
     if not path.is_file():
         raise NotFound("Файл не найден в хранилище")
+    if preview:
+        small = await run_in_threadpool(build_preview, path) if has_preview(attachment.content_type) else None
+        if small is None:
+            raise NotFound("У этого файла нет уменьшенной копии")
+        # Копия не меняется, пока жив файл; отдаётся только вошедшему пользователю.
+        return FileResponse(small, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
     return FileResponse(path, media_type=attachment.content_type, filename=attachment.filename)
+
+
+@router.delete("/attachments/{attachment_id}", status_code=204, summary="Удалить файл")
+async def delete_attachment(
+    attachment_id: int, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> None:
+    attachment = await session.get(Attachment, attachment_id)
+    if attachment is None:
+        raise NotFound("Файл не найден")
+    appeal = await service.get_visible(session, attachment.appeal_id, user, lock=True)
+    directory = await Directory.load(session)
+    extras = await Extras.load(session, user, [appeal])
+    appeal_facts = facts(appeal, directory, extras)
+    allowed = policy.can_delete_attachment(
+        policy.relations(user, appeal_facts), appeal_facts.status, is_uploader=attachment.uploaded_by_id == user.id
+    )
+    if not allowed:
+        raise Forbidden("Удалить файл могут тот, кто его загрузил, и ответственный, пока обращение не закрыто")
+    await service.delete_attachment(session, appeal, attachment, user, settings, clock.now())

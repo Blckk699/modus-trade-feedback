@@ -22,7 +22,7 @@ export function useBitrixLogin(): boolean {
 /** Фирменный знак портала: облако с «24». Простая форма, чтобы не тянуть картинку. */
 function BitrixMark() {
   return (
-    <svg className="bitrix-login__mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg className="sso-btn__mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <circle cx="12" cy="12" r="12" fill="#2FC6F6" />
       <text x="12" y="16" textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#fff" fontFamily="inherit">
         24
@@ -40,7 +40,7 @@ export function BitrixLoginButton() {
   const [busy, setBusy] = useState(false);
   return (
     <a
-      className="btn btn--soft bitrix-login"
+      className="btn btn--soft sso-btn"
       href={bitrixAuth.startUrl()}
       aria-disabled={busy || undefined}
       onClick={(e) => {

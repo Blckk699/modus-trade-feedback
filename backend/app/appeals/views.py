@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import CategoryRef, DepartmentRef, UserBrief
 from app.appeals import policy
+from app.appeals.previews import has_preview
 from app.appeals.schemas import (
     AppealListItem,
     AppealOut,
@@ -185,14 +186,21 @@ def list_item(appeal: Appeal, user: User, directory: Directory, extras: Extras, 
     )
 
 
-def attachment_out(attachment: Attachment, directory: Directory) -> AttachmentOut:
+def attachment_out(attachment: Attachment, directory: Directory, user: User, appeal: policy.AppealFacts) -> AttachmentOut:
+    """`appeal` — факты об обращении этого вложения глазами `user`: по ним считается `can_delete`."""
+    url = f"/api/v1/attachments/{attachment.id}"
+    can_delete = policy.can_delete_attachment(
+        policy.relations(user, appeal), appeal.status, is_uploader=attachment.uploaded_by_id == user.id
+    )
     return AttachmentOut(
         id=attachment.id,
         appeal_id=attachment.appeal_id,
         filename=attachment.filename,
         content_type=attachment.content_type,
         size_bytes=attachment.size_bytes,
-        download_url=f"/api/v1/attachments/{attachment.id}",
+        download_url=url,
+        preview_url=f"{url}?preview=1" if has_preview(attachment.content_type) else None,
+        can_delete=can_delete,
         uploaded_by=directory.user_brief(attachment.uploaded_by_id),
         created_at=attachment.created_at,
     )
@@ -208,7 +216,7 @@ async def appeal_out(session: AsyncSession, appeal: Appeal, user: User, now: dat
     attachments: list[AttachmentOut] = []
     if full:
         rows = await session.execute(select(Attachment).where(Attachment.appeal_id == appeal.id).order_by(Attachment.id))
-        attachments = [attachment_out(a, directory) for a in rows.scalars()]
+        attachments = [attachment_out(a, directory, user, f) for a in rows.scalars()]
     bitrix = extras.bitrix.get(appeal.id)
     discussion = extras.discussions.get(appeal.id)
     return AppealOut(

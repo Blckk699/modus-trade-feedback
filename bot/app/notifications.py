@@ -44,9 +44,11 @@ NUMBER_KEY = "reply_appeal_number"
 
 ACCESS_REQUESTS_PATH = "/settings/access-requests"
 
-# Уведомления по обращению, которые приходят карточкой-виджетом (заголовок над номером).
-# Уточняющий вопрос, переписка и согласие на имя остаются текстом: на них отвечают свайпом и кнопками.
+# Уведомления по обращению, которые приходят карточкой-виджетом (событие над номером).
+# Уточняющий вопрос и согласие на имя остаются текстом: на них отвечают свайпом и кнопками в боте.
 CARD_HEADERS = {
+    "clarification_answered": "Автор ответил на уточнение",
+    "message_received": "Новое сообщение",
     "appeal_created": "Обращение зарегистрировано",
     "appeal_assigned": "Вам назначено обращение",
     "status_changed": "Статус изменён",
@@ -136,13 +138,20 @@ async def approved_menu(api: Api, settings: Settings, telegram_id: int) -> Reply
     return keyboards.main_menu(me, settings.mini_app_url)
 
 
+def _answers_in_bot(markup: Any) -> bool:
+    """Есть кнопки ответа в боте (callback): такое уведомление — текст, на него отвечают свайпом."""
+    if not isinstance(markup, InlineKeyboardMarkup):
+        return False
+    return any(button.callback_data for row in markup.inline_keyboard for button in row)
+
+
 async def _send(
     bot: Bot, api: Api, settings: Settings, notification: dict[str, Any], markup: Any, plain: bool = False
 ) -> Message:
     """Карточка-виджет для уведомлений по обращению, иначе обычный текст. `plain` — без разметки (битый HTML)."""
     chat_id = notification["recipient"]["telegram_id"]
     kind, appeal = notification.get("kind"), notification.get("appeal")
-    if not plain and appeal and kind in CARD_HEADERS:
+    if not plain and appeal and kind in CARD_HEADERS and not _answers_in_bot(markup):
         dictionaries = await api.dictionaries()
         return await widgets.send_card(
             bot,
@@ -150,7 +159,8 @@ async def _send(
             chat_id,
             html=widgets.APPEAL_CARD,
             data=formatting.appeal_card_data(appeal, dictionaries, header=CARD_HEADERS[kind]),
-            caption=notification["text"],
+            caption=formatting.card_caption(notification["text"]),
+            text=notification["text"],
             reply_markup=markup,
         )
     kwargs: dict[str, Any] = {"parse_mode": None} if plain else {}

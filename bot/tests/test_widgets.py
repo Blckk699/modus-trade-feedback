@@ -13,11 +13,11 @@ import zlib
 
 import pytest
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.methods import SendMessage
+from aiogram.methods import EditMessageCaption, EditMessageReplyMarkup, SendMessage
 
 from app import formatting, texts, widgets
 from app.notifications import deliver_pending
-from app.widgets import SendWidget
+from app.widgets import EditMessageWidgetData, SendWidget
 from tests.support import MINI_APP_URL, BotHarness, employee
 
 USER = 100000004
@@ -54,7 +54,9 @@ def data(widget: SendWidget) -> dict:
 # ------------------------------------------------------------------ шаблоны
 
 
-@pytest.mark.parametrize("template", [widgets.APPEAL_CARD, widgets.LOGIN_CODE])
+@pytest.mark.parametrize(
+    "template", [widgets.APPEAL_CARD, widgets.LOGIN_CODE, widgets.DRAFT_CARD, widgets.APPEAL_LIST]
+)
 def test_templates_fit_telegram_limits(template):
     raw = template.encode()
     assert len(raw) <= 32768
@@ -85,8 +87,8 @@ async def test_login_code_comes_as_widget_with_copyable_code(harness, backend):
     [widget] = harness.telegram.widgets()
     assert widget.__api_method__ == "sendWidget"
     assert widget.html == widgets.LOGIN_CODE
-    assert data(widget) == {"c": "482913", "e": 1794494100000}  # 19:35 +05:00
-    assert "<code>482913</code>" in widget.caption and widget.parse_mode == "HTML"
+    assert data(widget) == {"c": "482913", "e": 1794494100000, "l": 300}  # 19:35 +05:00
+    assert "482913" not in widget.caption and widget.parse_mode == "HTML"  # подпись не повторяет код
     # Копирует кнопка Telegram под виджетом: copyText внутри защищённого виджета запрещён.
     [[button]] = widget.reply_markup.inline_keyboard
     assert button.text == texts.BTN_COPY_CODE and button.copy_text.text == "482913"
@@ -148,7 +150,7 @@ async def test_status_change_is_a_card_with_buttons_and_acked_by_its_id(harness,
     [widget] = harness.telegram.widgets()
     assert widget.chat_id == USER
     assert widget.html == widgets.APPEAL_CARD
-    assert widget.caption == STATUS_CHANGED["text"]
+    assert widget.caption == STATUS_CHANGED["text"]  # суть не в кавычках — подпись как у бэкенда
     card = data(widget)
     assert card["n"] == "A-021" and card["st"] == "in_progress" and card["sl"] == "В работе"
     assert card["h"] == "Статус изменён" and card["k"] == "Проблема"
@@ -178,11 +180,197 @@ async def test_long_notification_text_goes_as_message(harness, backend):
     assert harness.telegram.sent()[0].text == long_text["text"]
 
 
+# ------------------------------------------------------------------ черновик
+
+
+DICTIONARIES = {
+    "statuses": [{"code": "new", "label": "Новое"}, {"code": "in_progress", "label": "В работе"}],
+    "appeal_types": [{"code": "problem", "label": "Проблема"}, {"code": "suggestion", "label": "Предложение"}],
+    "priorities": [{"code": "high", "label": "Высокий"}, {"code": "medium", "label": "Средний"}],
+}
+DRAFT = {
+    "type": "problem",
+    "category": {"id": 1, "name": "Межотдельное взаимодействие"},
+    "priority": "medium",
+    "summary": "В заявках на камеры не указан объект",
+    "text": "Опять в заявке на камеры не написали, для какого объекта",
+    "proposed_solution": None,
+    "transcript": None,
+}
+CREATED = {
+    "id": 21,
+    "number": "A-021",
+    "type": "problem",
+    "status": "new",
+    "summary": DRAFT["summary"],
+    "assignee": {"id": 3, "full_name": "Марат Сейткали"},
+    "first_response_due_at": "2026-11-13T18:00:00+05:00",
+}
+
+
+@pytest.fixture
+def drafting(backend):
+    backend.on("GET", "/api/v1/dictionaries", 200, DICTIONARIES)
+    backend.on("POST", "/api/v1/drafts/text", 200, DRAFT)
+    backend.on("POST", "/api/v1/appeals", 201, CREATED)
+    return backend
+
+
+async def test_draft_comes_as_widget_and_is_redrawn_in_place(harness, drafting):
+    await harness.send_text("Опять в заявке на камеры не написали")
+
+    [card] = harness.telegram.widgets()
+    assert card.html == widgets.DRAFT_CARD and card.caption == texts.DRAFT_CAPTION
+    fields = data(card)
+    assert (fields["k"], fields["c"], fields["p"], fields["s"]) == (
+        "Проблема", "Межотдельное взаимодействие", "Средний", DRAFT["summary"])
+    assert fields["q"] == DRAFT["text"] and fields["x"] == ""
+
+    await harness.press(card, texts.BTN_DRAFT_PRIORITY)
+    await harness.press(harness.telegram.of_type(EditMessageReplyMarkup)[-1], "Высокий")
+
+    [edit] = harness.telegram.of_type(EditMessageWidgetData)
+    assert edit.message_id == harness.telegram.message_id_of(card)
+    assert json.loads(edit.chat_data)["p"] == "Высокий"
+    assert len(harness.telegram.widgets()) == 1  # та же карточка, не новая
+    assert harness.telegram.of_type(EditMessageReplyMarkup)[-1].reply_markup is not None  # кнопки на месте
+
+
+async def test_sent_draft_is_marked_and_appeal_card_follows(harness, drafting):
+    await harness.send_text("Опять в заявке на камеры не написали")
+    [card] = harness.telegram.widgets()
+
+    await harness.press(card, texts.BTN_DRAFT_SEND)
+
+    mark = json.loads(harness.telegram.of_type(EditMessageWidgetData)[-1].chat_data)
+    assert mark["x"] == "sent" and mark["n"] == "A-021"
+    caption = harness.telegram.of_type(EditMessageCaption)[-1]
+    assert caption.caption == texts.DRAFT_SENT and caption.reply_markup is None
+    appeal = harness.telegram.widgets()[-1]
+    assert appeal.html == widgets.APPEAL_CARD
+    assert appeal.caption == texts.appeal_created_caption("A-021")
+    assert "Марат Сейткали" not in appeal.caption  # ответственный и срок — в карточке
+    assert data(appeal)["a"] == "Марат Сейткали" and data(appeal)["d"] == "13 ноября, 18:00"
+
+
+async def test_cancelled_draft_widget_is_marked(harness, drafting):
+    await harness.send_text("Передумал")
+    [card] = harness.telegram.widgets()
+
+    await harness.press(card, texts.BTN_DRAFT_CANCEL)
+
+    assert json.loads(harness.telegram.of_type(EditMessageWidgetData)[-1].chat_data)["x"] == "cancelled"
+    assert harness.telegram.of_type(EditMessageCaption)[-1].caption == texts.DRAFT_CANCELLED
+    assert drafting.calls("POST", "/api/v1/appeals") == []
+
+
+async def test_draft_is_resent_when_widget_cannot_be_redrawn(harness, drafting):
+    harness.telegram.reject_widget_edits = lambda m: TelegramBadRequest(method=m, message="Bad Request: no")
+    await harness.send_text("Опять в заявке на камеры не написали")
+    [card] = harness.telegram.widgets()
+
+    await harness.press(card, texts.BTN_DRAFT_PRIORITY)
+    await harness.press(harness.telegram.of_type(EditMessageReplyMarkup)[-1], "Высокий")
+
+    old, new = harness.telegram.widgets()
+    assert data(new)["p"] == "Высокий"
+    await harness.press(new, texts.BTN_DRAFT_SEND)
+    assert len(drafting.calls("POST", "/api/v1/appeals")) == 1
+
+
+def test_long_draft_text_is_trimmed_to_fit():
+    draft = {**DRAFT, "text": "Очень длинный текст обращения. " * 100, "proposed_solution": "Решение. " * 50}
+    packed = formatting.draft_card_data(draft, DICTIONARIES)
+    assert len(packed.encode()) <= 1024
+    fields = json.loads(packed)
+    assert fields["q"].endswith("…") and fields["s"] == DRAFT["summary"]  # суть режется последней
+
+
+# ------------------------------------------------------------------ мои обращения
+
+
+def appeals_page(count: int, total: int) -> dict:
+    items = [
+        {"id": i, "number": f"A-{i:03}", "type": "suggestion", "status": "in_progress" if i % 2 else "new",
+         "summary": f"Обращение номер {i}: длинная суть про склад, заявки и согласования " * 2,
+         "created_at": "2026-11-12T10:00:00+05:00", "has_unread": i == 1}
+        for i in range(1, count + 1)
+    ]
+    return {"items": items, "total": total, "page": 1, "page_size": 10}
+
+
+async def test_my_appeals_come_as_list_widget(harness, backend):
+    backend.on("GET", "/api/v1/dictionaries", 200, DICTIONARIES)
+    backend.on("GET", "/api/v1/appeals", 200, appeals_page(3, 3))
+
+    await harness.send_text(texts.BTN_MY_APPEALS)
+
+    [widget] = harness.telegram.widgets()
+    assert widget.html == widgets.APPEAL_LIST and widget.caption is None
+    listing = data(widget)
+    assert listing["T"] == 3 and listing["L"] == {"in_progress": "В работе", "new": "Новое"}
+    assert listing["i"][0][:3] == ["A-001", "suggestion", "in_progress"]
+    assert listing["i"][0][4:] == ["12 ноября", 1]
+    [[button]] = widget.reply_markup.inline_keyboard
+    assert button.web_app.url == MINI_APP_URL + "/my"
+
+
+def test_long_appeal_list_fits_chat_data():
+    packed = formatting.appeal_list_data(appeals_page(10, 40), DICTIONARIES)
+    assert len(packed.encode()) <= 1024
+    listing = json.loads(packed)
+    assert listing["T"] == 40 and len(listing["i"]) >= 5
+
+
+# ------------------------------------------------------------------ подписи уведомлений
+
+
+def test_card_caption_drops_what_the_card_shows():
+    text = ("Обращение <b>A-021</b> «Счёт дважды: в 1С и в Битрикс» зарегистрировано.\n"
+            "Ответственный: Марат Сейткали\nСрок первого ответа: 13 ноября, 18:00")
+    assert formatting.card_caption(text) == "Обращение <b>A-021</b> зарегистрировано."
+
+    status = "Обращение <b>A-021</b> «Счёт» реализовано.\nКомментарий: настроили обмен"
+    assert formatting.card_caption(status) == "Обращение <b>A-021</b> реализовано.\nКомментарий: настроили обмен"
+
+
+async def test_new_message_is_a_card_with_short_caption(harness, backend):
+    note = {**STATUS_CHANGED, "kind": "message_received",
+            "text": "Новое сообщение по обращению <b>A-021</b> «Счёт дважды» от Марат Сейткали:\nПроверим завтра"}
+    backend.on("GET", "/api/v1/bot/notifications/pending", 200, [note])
+
+    await deliver_pending(harness.bot, harness.api, harness.settings)
+
+    [widget] = harness.telegram.widgets()
+    assert data(widget)["h"] == "Новое сообщение"
+    assert widget.caption == "Новое сообщение по обращению <b>A-021</b> от Марат Сейткали:\nПроверим завтра"
+
+
+async def test_notification_with_reply_button_stays_text(harness, backend):
+    note = {**STATUS_CHANGED, "kind": "status_changed",
+            "buttons": [{"type": "reply_clarification", "text": "Ответить", "appeal_id": 21, "discussion_id": None}]}
+    backend.on("GET", "/api/v1/bot/notifications/pending", 200, [note])
+
+    await deliver_pending(harness.bot, harness.api, harness.settings)
+
+    assert harness.telegram.widgets() == []
+
+
+async def test_widget_rejection_sends_full_text(harness, backend):
+    text = "Обращение <b>A-021</b> «Счёт» зарегистрировано.\nОтветственный: Марат Сейткали"
+    backend.on("GET", "/api/v1/bot/notifications/pending", 200, [{**STATUS_CHANGED, "kind": "appeal_created", "text": text}])
+    harness.telegram.reject_widgets = lambda m: TelegramBadRequest(method=m, message="Bad Request: method not found")
+
+    await deliver_pending(harness.bot, harness.api, harness.settings)
+
+    assert harness.telegram.sent()[0].text == text  # прежний полный текст, со сутью и ответственным
+
+
 # ------------------------------------------------------------------ скрипты виджетов в node
 
 NODE_STUB = """
 const els = {};
-global.document = {getElementById: id => (els[id] ||= {innerHTML: '', textContent: '', className: '', disabled: false})};
+global.document = {getElementById: id => (els[id] ||= {innerHTML: '', textContent: '', className: '', style: {}})};
 global.window = {TelegramWidget: {chatData: process.argv[1], onEvent() {}, ready() {}, copyText(t) { els.copied = t }}};
 global.setInterval = () => 0;
 """
@@ -221,7 +409,10 @@ def test_appeal_card_script_renders_and_escapes():
     assert "A-021" in html and "В работе" in html and "Марат Сейткали" in html and "13 ноября, 18:00" in html
     assert "&lt;script&gt;" in html and "<script>" not in html
     assert 'class="bg dot s-in_progress"' in html  # бейдж статуса, как .badge--status-* на сайте
-    assert "A-021 · Проблема · Межотдельное взаимодействие · приоритет высокий" in html
+    assert '<span class="no">A-021</span>' in html
+    assert "Проблема · Межотдельное взаимодействие · приоритет высокий" in html
+    assert ">МС</span>" in html  # аватарка с инициалами ответственного
+    assert '<span class="on">В работе</span>' in html
     assert 'class="bg on_time"' in html and "В срок · до 13 ноября, 18:00" in html
     assert html.count("background:var(--s-in_progress)") == 3  # новое → рассмотрение → в работе
 
@@ -238,9 +429,32 @@ def test_rejected_card_has_no_progress_bar():
 def test_login_code_script_shows_code_and_countdown():
     future = json.dumps({"c": "482913", "e": 4102444800000})
     els = run_widget(widgets.LOGIN_CODE, future)
-    assert els["c"]["textContent"] == "482913"
+    assert els["c"]["innerHTML"] == "".join(f"<span>{d}</span>" for d in "482913")  # цифры по ячейкам
     assert els["t"]["textContent"].startswith("Действует ещё")
+    assert els["b"]["style"]["width"] == "100%"
 
-    expired = run_widget(widgets.LOGIN_CODE, json.dumps({"c": "482913", "e": 1}))
+    expired = run_widget(widgets.LOGIN_CODE, json.dumps({"c": "482913", "e": 1, "l": 300}))
     assert expired["t"]["textContent"].startswith("Код истёк")
-    assert expired["t"]["className"] == "bg overdue"  # как .badge--due-overdue на сайте
+    assert expired["t"]["className"] == "pl overdue"  # цвета .badge--due-overdue сайта
+    assert expired["c"]["className"] == "c x" and expired["b"]["style"]["width"] == "0%"
+
+
+@needs_node
+def test_draft_script_renders_fields_and_state():
+    draft = {**DRAFT, "category": None, "summary": "Суть <b>", "transcript": "да"}
+    html = run_widget(widgets.DRAFT_CARD, formatting.draft_card_data(draft, DICTIONARIES))["r"]["innerHTML"]
+    assert "Суть &lt;b&gt;" in html and "Определит администратор" in html and "Расшифровка голосового" in html
+    assert "Не отправлен" in html
+
+    sent = run_widget(widgets.DRAFT_CARD, formatting.draft_card_data(DRAFT, DICTIONARIES, "sent", "A-021"))["r"]
+    assert "Отправлен · A-021" in sent["innerHTML"] and sent["className"] == "w off"
+
+
+@needs_node
+def test_list_script_renders_rows_and_rest():
+    html = run_widget(widgets.APPEAL_LIST, formatting.appeal_list_data(appeals_page(2, 12), DICTIONARIES))["r"][
+        "innerHTML"
+    ]
+    assert html.count('class="r"') == 2 and 'class="rt u"' in html
+    assert 'class="bg dot s-in_progress">В работе' in html and "A-001 · 12 ноября" in html
+    assert "Ещё 10 — в приложении" in html

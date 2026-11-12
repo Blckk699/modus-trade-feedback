@@ -6,6 +6,7 @@ import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Category, type Department, type User } from './shared';
 import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
+import { useToast } from '../app/Toast';
 
 function loadAll() {
   return Promise.all([
@@ -22,6 +23,8 @@ export function CategoriesTab() {
   const [editing, setEditing] = useState<number | null>(null);
   // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
   const [saving, setSaving] = useState(false);
+  const [switching, setSwitching] = useState<number | null>(null);
+  const toast = useToast();
 
   const s = data.state;
   if (s.status === 'loading') return <RowsSkeleton />;
@@ -38,6 +41,18 @@ export function CategoriesTab() {
   const [categories, departments, users] = s.data;
   const replace = (c: Category) =>
     data.set([categories.some((x) => x.id === c.id) ? categories.map((x) => (x.id === c.id ? c : x)) : [...categories, c], departments, users]);
+  // Выключенную категорию нельзя выбрать при подаче; поданные по ней обращения остаются у ответственного.
+  async function setActive(c: Category, isActive: boolean) {
+    setSwitching(c.id);
+    try {
+      replace(await unwrap(api.PATCH('/api/v1/admin/categories/{category_id}', { params: { path: { category_id: c.id } }, body: { is_active: isActive } })));
+      toast(isActive ? `«${c.name}» снова можно выбрать при подаче` : `«${c.name}» выключена: при подаче её больше не выбрать`);
+    } catch (e) {
+      toast(errorMessage(e), 'error');
+    } finally {
+      setSwitching(null);
+    }
+  }
   const sorted = [...categories].sort((a, b) => Number(b.is_active) - Number(a.is_active) || byName(a, b));
 
   const edited = editing === null ? undefined : categories.find((c) => c.id === editing);
@@ -66,10 +81,21 @@ export function CategoriesTab() {
                 </span>
                 <span className="muted">Заместитель: {c.deputy?.full_name ?? 'нет'}</span>
               </div>
-              <div className="settings-row__badges">{!c.is_active && <span className="badge">Не используется</span>}</div>
-              <button type="button" className="btn btn--ghost" onClick={() => setEditing(c.id)}>
-                Изменить
-              </button>
+              <div className="settings-row__badges">{!c.is_active && <span className="badge">Выключена</span>}</div>
+              <div className="settings-row__actions">
+                <button
+                  type="button"
+                  className="btn btn--text"
+                  disabled={switching === c.id}
+                  onClick={() => void setActive(c, !c.is_active)}
+                  title={c.is_active ? 'Категорию нельзя будет выбрать при подаче обращения' : 'Категорию снова можно будет выбрать при подаче'}
+                >
+                  {switching === c.id ? '…' : c.is_active ? 'Выключить' : 'Включить'}
+                </button>
+                <button type="button" className="btn btn--ghost" onClick={() => setEditing(c.id)}>
+                  Изменить
+                </button>
+              </div>
             </li>
         ))}
       </ul>
@@ -110,7 +136,6 @@ function CategoryForm({ category, departments, users, onBusy, onSaved, onCancel 
   const [departmentId, setDepartmentId] = useState(category ? String(category.department.id) : '');
   const [responsibleId, setResponsibleId] = useState(category?.responsible ? String(category.responsible.id) : '');
   const [deputyId, setDeputyId] = useState(category?.deputy ? String(category.deputy.id) : '');
-  const [active, setActive] = useState(category?.is_active ?? true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -141,9 +166,8 @@ function CategoryForm({ category, departments, users, onBusy, onSaved, onCancel 
           department_id: category.department.id,
           responsible_id: category.responsible?.id ?? null,
           deputy_id: category.deputy?.id ?? null,
-          is_active: category.is_active,
         };
-        const body = changes(before, { ...fields, is_active: active });
+        const body = changes(before, fields);
         saved = Object.keys(body).length
           ? await unwrap(api.PATCH('/api/v1/admin/categories/{category_id}', { params: { path: { category_id: category.id } }, body }))
           : category;
@@ -208,14 +232,6 @@ function CategoryForm({ category, departments, users, onBusy, onSaved, onCancel 
           {personSelect(deputyId, setDeputyId, 'Нет', 'deputy_id')}
         </label>
       </div>
-      {category && (
-        <div className="settings-checks">
-          <label>
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Категорию можно выбрать при
-            подаче обращения
-          </label>
-        </div>
-      )}
       {error && (
         <p className="error-text" role="alert">
           {error}

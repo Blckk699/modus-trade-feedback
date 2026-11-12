@@ -8,6 +8,8 @@ export const config = {
   devLogin: env.VITE_DEV_LOGIN === 'true',
   /** Имя бота для виджета Telegram Login, без @. */
   telegramBotUsername: (env.VITE_TELEGRAM_BOT_USERNAME as string | undefined) || '',
+  /** Числовой id того же бота: с ним вход Telegram — своя кнопка (Telegram.Login.auth), без него — iframe-виджет. */
+  telegramBotId: Number(env.VITE_TELEGRAM_BOT_ID) || 0,
   /** Только для мока: имя примера /me (заголовок Prefer). Мок без состояния и не помнит, под кем вход. */
   mockMeExample: (env.VITE_MOCK_ME_EXAMPLE as string | undefined) || '',
   /** Только для локальной проверки экранов: вход по почте на моке в памяти вместо API. На сервере не задаётся. */

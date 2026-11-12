@@ -3294,6 +3294,81 @@ a.tile:hover .tile__go {
   align-items: baseline;
 }
 
+/* «Что дальше» для автора: кто, когда, шаги, куда придёт ответ */
+.whowhen {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--r-tile);
+  background: var(--surface-2);
+}
+
+.whowhen__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 20px;
+}
+
+.whowhen__facts dt {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.whowhen__facts dd {
+  color: var(--heading);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.whowhen__steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  list-style: decimal;
+  padding-left: 20px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.whowhen__where {
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.whowhen__where a {
+  font-weight: 600;
+}
+
+/* Подсказка у срока: раскрывается по нажатию */
+.due-hint {
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.due-hint summary {
+  width: fit-content;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.due-hint p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.due-hint p.due-hint__now {
+  color: var(--status-rejected);
+  font-weight: 600;
+}
+
 /* Назначение ответственного в карточке: видно, пока ответственного нет */
 .assign {
   display: grid;
@@ -4151,6 +4226,15 @@ button.chat-entry--ask[aria-expanded='true'] {
   font-size: 21px;
   font-weight: 500;
   letter-spacing: -0.022em;
+}
+
+/* Окно подтверждения (app/Confirm) */
+.confirm__text {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .dialog-form__actions {
@@ -5158,6 +5242,25 @@ button.vote__option:not(.vote__option--mine):hover {
   font-weight: 600;
 }
 
+/* «Ещё нет доступа? Зарегистрироваться» — вторичная кнопка на всю ширину под входом через сервисы */
+.auth__register {
+  width: 100%;
+  min-height: 44px;
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+  white-space: normal;
+  text-align: center;
+}
+
+.auth__register:hover {
+  background: var(--surface-3);
+}
+
+.auth__register-ask {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 /* Поле пароля с кнопкой «показать» */
 .pwd {
   position: relative;
@@ -5188,8 +5291,14 @@ button.vote__option:not(.vote__option--mine):hover {
   color: var(--heading);
 }
 
+/* Прежний виджет Telegram (сборка без id бота): обёртка на всю ширину, виджет по центру */
 .telegram-login {
-  min-height: 40px;
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
 }
 
 .dev-login {
@@ -6043,14 +6152,20 @@ button.vote__option:not(.vote__option--mine):hover {
 }
 
 /* Вход через Битрикс24 (W-15): кнопка рядом с виджетом Telegram */
-.bitrix-login {
+/* Кнопки входа через сервисы (Битрикс24, Telegram): одного вида, на всю ширину, значок слева от текста */
+.sso-btn {
   gap: 10px;
   width: 100%;
   min-height: 44px;
 }
 
-.bitrix-login__mark {
+.sso-btn__mark {
   width: 22px;
   height: 22px;
   flex: none;
+}
+
+.sso-btn__wrap {
+  display: grid;
+  gap: 6px;
 }

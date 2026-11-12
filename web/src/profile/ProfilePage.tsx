@@ -25,8 +25,7 @@ import {
   type FieldErrors,
 } from '../auth/email/forms';
 import { PasswordField } from '../auth/email/PasswordField';
-import { TelegramWidget } from '../auth/methods/telegramWidget';
-import { config } from '../config';
+import { TelegramWidget, telegramLoginConfigured } from '../auth/methods/telegramWidget';
 import { getWebApp } from '../telegram/webApp';
 
 /**
@@ -301,11 +300,12 @@ function TelegramCard({ account, onChange }: CardProps) {
           <p className="muted">Привяжите Telegram, чтобы входить в один клик и получать уведомления бота.</p>
           {inMiniApp ? (
             <p className="muted">Откройте профиль в браузере: привязка идёт через вход Telegram на сайте.</p>
-          ) : config.telegramBotUsername ? (
+          ) : telegramLoginConfigured() ? (
             busy ? (
               <p className="muted">Привязываем…</p>
             ) : (
               <TelegramWidget
+                label="Привязать Telegram"
                 onUser={(user) => run(() => emailAuth.linkTelegram(user), 'Telegram привязан: вход в один клик и уведомления включены', linkTelegramProblem)}
               />
             )

@@ -11,7 +11,8 @@ import { useDictionaries } from '../app/dictionaries';
 import { PageHead } from '../app/PageHead';
 import { Select } from '../app/Select';
 import { TypeIcon } from '../appeals/TypeIcon';
-import { formatDateTime, formatSize } from '../lib/format';
+import { WhoWhenBlock } from '../appeals/WhoWhenBlock';
+import { formatSize } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { useCardLock, useInCard } from './CardModal';
 
@@ -245,7 +246,6 @@ export function NewAppealPage() {
 }
 
 function CreatedPanel({ appeal, failedFiles }: Created) {
-  const due = appeal.first_response_due_at;
   const background = useBackground();
   const inCard = useInCard();
   // После подачи фокус на заголовке: диктор объявит результат, а не «тело страницы».
@@ -259,21 +259,7 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
       <h1 ref={title} tabIndex={-1} className="compose__title" role="status">
         Обращение {appeal.number} подано
       </h1>
-      <p className="muted">
-        {due ? `Первый ответ придёт до ${formatDateTime(due)}. ` : ''}Обо всех изменениях напишем в Telegram и покажем
-        здесь.
-      </p>
-
-      <dl className="facts">
-        <div>
-          <dt>Ответственный</dt>
-          <dd>{appeal.assignee ? appeal.assignee.full_name : 'Назначит администратор'}</dd>
-        </div>
-        <div>
-          <dt>Первый ответ</dt>
-          <dd>{due ? `до ${formatDateTime(due)}` : 'Без срока'}</dd>
-        </div>
-      </dl>
+      <WhoWhenBlock appeal={appeal} />
 
       {failedFiles.length > 0 && (
         <div className="notice notice--danger" role="alert">
