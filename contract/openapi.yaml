@@ -21,6 +21,7 @@ info:
     - Пользователь: `Authorization: Bearer <access_token>`. Токен выдают маршруты `/auth/*`:
       почта и пароль (основной вход в вебе и мобильном приложении), Mini App, Telegram Login,
       одноразовый код из бота, dev-вход. Telegram — вход в один клик, привязывается к аккаунту (`/me/telegram`).
+      Вход через Битрикс24 (`/auth/bitrix/*`) — если включён на сервере (`GET /auth/methods`).
     - Бот: `X-Service-Key: <ключ бота>` и `X-Telegram-Id: <Telegram ID пользователя>` — бот действует от имени
       пользователя, права проверяются так же, как для самого пользователя. Так бот вызывает любые
       пользовательские маршруты. Маршруты `/bot/*` требуют только `X-Service-Key`.
@@ -499,6 +500,131 @@ paths:
                   code: too_many_requests
                   message: Слишком много неудачных попыток. Попробуйте через 5 минут.
                   details: {retry_after_seconds: 300}
+  /api/v1/auth/methods:
+    get:
+      tags: [auth]
+      summary: Какие способы входа включены
+      description: |
+        Публичный маршрут для экрана входа. `bitrix24=false` — кнопку «Войти через Битрикс24» не показывать:
+        на сервере не заданы `BITRIX24_CLIENT_ID`, `BITRIX24_CLIENT_SECRET` и `BITRIX24_PORTAL`.
+      operationId: getAuthMethods
+      security: []
+      responses:
+        '200':
+          description: Способы входа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMethods'
+              example:
+                bitrix24: true
+  /api/v1/auth/bitrix/start:
+    get:
+      tags: [auth]
+      summary: Начать вход через Битрикс24
+      description: |
+        Клиент открывает этот адрес обычным переходом браузера (не `fetch`). Сервер отвечает `302` на
+        `https://<портал>/oauth/authorize/?client_id=…&state=…` и ставит cookie с `state`: он одноразовый,
+        живёт 10 минут и привязан к браузеру. После входа портал возвращает пользователя на
+        `GET /auth/bitrix/callback`. Вход через Битрикс24 не настроен — `404 not_found`.
+      operationId: startBitrixLogin
+      security: []
+      responses:
+        '302':
+          description: Переход на страницу входа портала
+          headers:
+            Location:
+              schema:
+                type: string
+              description: '`https://<портал>/oauth/authorize/?client_id=…&state=…`'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/v1/auth/bitrix/callback:
+    get:
+      tags: [auth]
+      summary: Возврат с портала Битрикс24 (адрес возврата локального приложения)
+      description: |
+        Этот адрес указывается в настройках локального приложения на портале. Клиент его не вызывает.
+        Сервер проверяет `state` (cookie, срок, одноразовость) и `domain`, меняет `code` на токен портала,
+        узнаёт пользователя через `user.current` и сопоставляет его с сотрудником: по `bitrix_user_id`,
+        затем по почте без учёта регистра (при совпадении запоминает `bitrix_user_id`). Токены портала не хранятся.
+
+        Ответ всегда `302` на страницу клиента `<веб>/auth/bitrix/done`:
+        - успех — `?code=<одноразовый код>`: клиент меняет его на сессию через `POST /auth/bitrix/exchange`.
+          Токена сессии в адресной строке нет; код живёт 60 секунд;
+        - отказ — `?error=<код ошибки>`: `access_request_pending` (незнакомому сотруднику создана заявка на доступ
+          с именем и почтой из портала, либо она уже на рассмотрении), `access_request_rejected`, `user_disabled`,
+          `invalid_bitrix_auth` (неверный или просроченный `state`, чужой портал, портал отклонил `code`),
+          `bitrix_unavailable` (портал не ответил).
+      operationId: bitrixLoginCallback
+      security: []
+      parameters:
+        - name: code
+          in: query
+          description: Авторизационный код портала, живёт 30 секунд
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: domain
+          in: query
+          description: Домен портала
+          schema:
+            type: string
+        - name: member_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Переход на `<веб>/auth/bitrix/done?code=…` или `?error=…`
+          headers:
+            Location:
+              schema:
+                type: string
+  /api/v1/auth/bitrix/exchange:
+    post:
+      tags: [auth]
+      summary: Обменять одноразовый код входа через Битрикс24 на сессию
+      description: |
+        Страница `<веб>/auth/bitrix/done` берёт `code` из адреса и получает ту же сессию, что у остальных способов входа.
+        Код одноразовый и живёт 60 секунд; неверный, использованный или просроченный — `401 invalid_bitrix_auth`.
+      operationId: exchangeBitrixLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+            example:
+              code: 7Jq0mYw3n2c1VbXkT9sLrA
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          description: Код неверный, уже использован или истёк (`invalid_bitrix_auth`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: invalid_bitrix_auth
+                  message: Не удалось подтвердить вход через Битрикс24. Попробуйте ещё раз.
+                  details: null
+        '403':
+          $ref: '#/components/responses/LoginForbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /api/v1/auth/switch:
     post:
       tags: [auth]
@@ -3725,6 +3851,7 @@ components:
       type: string
       description: |
         `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `invalid_credentials` 401 ·
+        `invalid_bitrix_auth` 401 ·
         `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
         `access_request_pending` 403 · `access_request_rejected` 403 · `password_change_required` 403 ·
         `not_found` 404 · `conflict` 409 · `already_registered` 409 · `email_taken` 409 · `telegram_taken` 409 ·
@@ -3737,6 +3864,7 @@ components:
         - invalid_telegram_auth
         - invalid_login_code
         - invalid_credentials
+        - invalid_bitrix_auth
         - user_not_registered
         - user_disabled
         - dev_login_disabled
@@ -3992,6 +4120,13 @@ components:
           type: string
           nullable: true
           description: Рабочая почта для входа. Только для администратора и для самого пользователя
+        bitrix_user_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: |
+            ID сотрудника на портале Битрикс24, если он входил через портал. Только для администратора
+            и для самого пользователя
         full_name:
           type: string
         position:
@@ -5531,6 +5666,13 @@ components:
               nullable: true
               maxLength: 64
               description: Только бот
+    AuthMethods:
+      type: object
+      required: [bitrix24]
+      properties:
+        bitrix24:
+          type: boolean
+          description: Вход через Битрикс24 настроен на сервере
     EmailRegister:
       type: object
       required: [full_name, email, password]

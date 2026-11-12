@@ -14,4 +14,6 @@ export const config = {
   emailAuthMock: env.VITE_EMAIL_AUTH_MOCK === 'true',
   /** Только для локальной проверки экранов: вход через Битрикс24 без портала и бэкенда B-23. */
   bitrixAuthMock: env.VITE_BITRIX_AUTH_MOCK === 'true',
+  /** Только для локальной проверки: переключатель ролей на dev-пользователях вместо API. На сервере не задаётся. */
+  roleSwitchMock: env.VITE_ROLE_SWITCH_MOCK === 'true',
 };

@@ -1,5 +1,5 @@
 import { api, unwrap } from '../../api/client';
-import { ApiError, toApiError } from '../../api/errors';
+import { ApiError } from '../../api/errors';
 import type { Session } from '../../api/types';
 import { config } from '../../config';
 import { CODES } from '../email/forms';
@@ -7,12 +7,11 @@ import { CODES } from '../email/forms';
 /**
  * Вход через Битрикс24 (B-23). Экраны знают только этот интерфейс.
  *
- * Маршруты по контракту B-23 (PR #183):
+ * Маршруты по контракту B-23:
  * - GET  /api/v1/auth/methods — { bitrix24 } : включён ли вход;
  * - GET  /api/v1/auth/bitrix/start — переход браузера: бэкенд ставит state и уводит на портал;
  * - портал возвращает на бэкенд, бэкенд — на /auth/bitrix/done?code=… (одноразовый, 60 с) или ?error=<код>;
  * - POST /api/v1/auth/bitrix/exchange {code} — сессия, как у других способов входа.
- * Пока контракт не в main и типы не сгенерированы, запросы идут через fetch; после gen:api — через api.
  */
 export interface BitrixAuthApi {
   /** Сервер включил вход через Битрикс24 (заданы ключи портала). */
@@ -25,23 +24,6 @@ export interface BitrixAuthApi {
   sessionFromToken(token: string): Promise<Session>;
 }
 
-async function request<T>(path: string, body?: unknown): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(
-      `${config.apiBaseUrl}${path}`,
-      body === undefined
-        ? undefined
-        : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
-    );
-  } catch {
-    throw new ApiError(0, 'network_error', 'Не удалось связаться с сервером. Проверьте подключение.');
-  }
-  const data = await res.json().catch(() => undefined);
-  if (!res.ok) throw toApiError(res.status, data);
-  return data as T;
-}
-
 async function sessionFromToken(token: string): Promise<Session> {
   const user = await unwrap(api.GET('/api/v1/me', { headers: { Authorization: `Bearer ${token}` } }));
   return { access_token: token, token_type: 'bearer', expires_at: '', user };
@@ -49,9 +31,9 @@ async function sessionFromToken(token: string): Promise<Session> {
 
 export const httpBitrixAuth: BitrixAuthApi = {
   // Старый сервер маршрута не знает (404) — кнопку не показываем.
-  enabled: () => request<{ bitrix24?: boolean }>('/api/v1/auth/methods').then((m) => m.bitrix24 === true),
+  enabled: () => unwrap(api.GET('/api/v1/auth/methods')).then((m) => m.bitrix24 === true),
   startUrl: () => `${config.apiBaseUrl}/api/v1/auth/bitrix/start`,
-  exchange: (code) => request<Session>('/api/v1/auth/bitrix/exchange', { code }),
+  exchange: (code) => unwrap(api.POST('/api/v1/auth/bitrix/exchange', { body: { code } })),
   sessionFromToken,
 };
 
@@ -71,7 +53,7 @@ export function createMockBitrixAuth(): BitrixAuthApi {
       if (code === 'mock-pending') throw refuse(CODES.pending, 'Заявка на рассмотрении.');
       if (code === 'mock-rejected') throw refuse(CODES.rejected, 'Заявка отклонена.', { reason: 'Подрядчикам доступ не выдаём' });
       if (code === 'mock-disabled') throw refuse(CODES.disabled, 'Доступ отключён.');
-      if (code !== 'mock-ok') throw new ApiError(401, 'unauthorized', 'Код входа неверный или истёк. Попробуйте войти ещё раз.');
+      if (code !== 'mock-ok') throw new ApiError(401, 'invalid_bitrix_auth', 'Не удалось подтвердить вход через Битрикс24. Попробуйте ещё раз.');
       return unwrap(api.POST('/api/v1/auth/dev/login', { body: { user_id: 4 } }));
     },
     sessionFromToken,

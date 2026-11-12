@@ -216,6 +216,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Какие способы входа включены
+         * @description Публичный маршрут для экрана входа. `bitrix24=false` — кнопку «Войти через Битрикс24» не показывать:
+         *     на сервере не заданы `BITRIX24_CLIENT_ID`, `BITRIX24_CLIENT_SECRET` и `BITRIX24_PORTAL`.
+         *
+         */
+        get: operations["getAuthMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Начать вход через Битрикс24
+         * @description Клиент открывает этот адрес обычным переходом браузера (не `fetch`). Сервер отвечает `302` на
+         *     `https://<портал>/oauth/authorize/?client_id=…&state=…` и ставит cookie с `state`: он одноразовый,
+         *     живёт 10 минут и привязан к браузеру. После входа портал возвращает пользователя на
+         *     `GET /auth/bitrix/callback`. Вход через Битрикс24 не настроен — `404 not_found`.
+         *
+         */
+        get: operations["startBitrixLogin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Возврат с портала Битрикс24 (адрес возврата локального приложения)
+         * @description Этот адрес указывается в настройках локального приложения на портале. Клиент его не вызывает.
+         *     Сервер проверяет `state` (cookie, срок, одноразовость) и `domain`, меняет `code` на токен портала,
+         *     узнаёт пользователя через `user.current` и сопоставляет его с сотрудником: по `bitrix_user_id`,
+         *     затем по почте без учёта регистра (при совпадении запоминает `bitrix_user_id`). Токены портала не хранятся.
+         *
+         *     Ответ всегда `302` на страницу клиента `<веб>/auth/bitrix/done`:
+         *     - успех — `?code=<одноразовый код>`: клиент меняет его на сессию через `POST /auth/bitrix/exchange`.
+         *       Токена сессии в адресной строке нет; код живёт 60 секунд;
+         *     - отказ — `?error=<код ошибки>`: `access_request_pending` (незнакомому сотруднику создана заявка на доступ
+         *       с именем и почтой из портала, либо она уже на рассмотрении), `access_request_rejected`, `user_disabled`,
+         *       `invalid_bitrix_auth` (неверный или просроченный `state`, чужой портал, портал отклонил `code`),
+         *       `bitrix_unavailable` (портал не ответил).
+         *
+         */
+        get: operations["bitrixLoginCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Обменять одноразовый код входа через Битрикс24 на сессию
+         * @description Страница `<веб>/auth/bitrix/done` берёт `code` из адреса и получает ту же сессию, что у остальных способов входа.
+         *     Код одноразовый и живёт 60 секунд; неверный, использованный или просроченный — `401 invalid_bitrix_auth`.
+         *
+         */
+        post: operations["exchangeBitrixLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Переключиться на связанный аккаунт (демо-переключатель ролей)
+         * @description Выдаёт новую сессию от имени выбранного пользователя — с теми же правами, что при обычном входе под ним.
+         *     Доступные пользователи — `Me.switch_targets`. Группа связанных аккаунтов задаётся настройкой вне
+         *     репозитория; без неё список пуст, а маршрут отвечает `403`. Переключение пишется в журнал.
+         *     Текущая сессия остаётся действующей: клиент заменяет токен на новый.
+         *     Пользователь не из группы — `403 forbidden`; у выбранного отключён доступ — `403 user_disabled`.
+         *     Только для сессии клиента: бот с сервисным ключом получает `403`.
+         *
+         */
+        post: operations["switchAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/access-requests/departments": {
         parameters: {
             query?: never;
@@ -1760,6 +1886,7 @@ export interface components {
         };
         /**
          * @description `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `invalid_credentials` 401 ·
+         *     `invalid_bitrix_auth` 401 ·
          *     `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
          *     `access_request_pending` 403 · `access_request_rejected` 403 · `password_change_required` 403 ·
          *     `not_found` 404 · `conflict` 409 · `already_registered` 409 · `email_taken` 409 · `telegram_taken` 409 ·
@@ -1770,7 +1897,7 @@ export interface components {
          *
          * @enum {string}
          */
-        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "invalid_credentials" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "access_request_pending" | "access_request_rejected" | "password_change_required" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "email_taken" | "telegram_taken" | "last_login_method" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
+        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "invalid_credentials" | "invalid_bitrix_auth" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "access_request_pending" | "access_request_rejected" | "password_change_required" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "email_taken" | "telegram_taken" | "last_login_method" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
         /**
          * @description employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
          * @enum {string}
@@ -1903,6 +2030,13 @@ export interface components {
             telegram_id: number | null;
             /** @description Рабочая почта для входа. Только для администратора и для самого пользователя */
             email?: string | null;
+            /**
+             * Format: int64
+             * @description ID сотрудника на портале Битрикс24, если он входил через портал. Только для администратора
+             *     и для самого пользователя
+             *
+             */
+            bitrix_user_id?: number | null;
             full_name: string;
             /** @description Должность, например «Сотрудник закупок» */
             position: string | null;
@@ -1933,6 +2067,10 @@ export interface components {
             has_password: boolean;
             /** @description Привязан ли Telegram (вход в один клик и уведомления бота) */
             telegram_linked: boolean;
+            /** @description Связанные аккаунты, на которые можно переключиться (`POST /auth/switch`): демо-переключатель ролей
+             *     в шапке. Пусто — переключатель не показывать.
+             *      */
+            switch_targets: components["schemas"]["UserBrief"][];
             /** @description Категории, где пользователь — ответственный */
             responsible_for: components["schemas"]["CategoryRef"][];
             /** @description Категории, где пользователь — заместитель */
@@ -2569,6 +2707,10 @@ export interface components {
             /** @description Только бот */
             telegram_username?: string | null;
         };
+        AuthMethods: {
+            /** @description Вход через Битрикс24 настроен на сервере */
+            bitrix24: boolean;
+        };
         EmailRegister: {
             full_name: string;
             /** @description Рабочая почта, уникальна без учёта регистра */
@@ -3085,6 +3227,138 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    getAuthMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Способы входа */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethods"];
+                };
+            };
+        };
+    };
+    startBitrixLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Переход на страницу входа портала */
+            302: {
+                headers: {
+                    /** @description `https://<портал>/oauth/authorize/?client_id=…&state=…` */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    bitrixLoginCallback: {
+        parameters: {
+            query?: {
+                /** @description Авторизационный код портала, живёт 30 секунд */
+                code?: string;
+                state?: string;
+                /** @description Домен портала */
+                domain?: string;
+                member_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Переход на `<веб>/auth/bitrix/done?code=…` или `?error=…` */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exchangeBitrixLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "code": "7Jq0mYw3n2c1VbXkT9sLrA"
+                 *     } */
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Session"];
+            /** @description Код неверный, уже использован или истёк (`invalid_bitrix_auth`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["LoginForbidden"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    switchAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "user_id": 3
+                 *     } */
+                "application/json": {
+                    /** @description `id` из `Me.switch_targets` */
+                    user_id: number;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Session"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Пользователь не из группы связанных аккаунтов (`forbidden`) или у него отключён доступ (`user_disabled`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
         };
     };
     listAccessDepartments: {

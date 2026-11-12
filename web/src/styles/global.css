@@ -644,6 +644,124 @@ svg {
   display: none;
 }
 
+/* Переключатель роли в шапке (демо): кто сейчас вошёл и под кого можно переключиться */
+.roleswitch {
+  position: relative;
+  flex: none;
+}
+
+.roleswitch__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  max-width: 240px;
+  padding: 0 12px 0 7px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-raised);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.roleswitch__btn:hover,
+.roleswitch__btn[aria-expanded='true'] {
+  background: var(--surface-2);
+}
+
+.roleswitch__who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.roleswitch__who strong {
+  overflow: hidden;
+  color: var(--heading);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleswitch__who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleswitch__who--btn {
+  font-size: 11.5px;
+}
+
+.roleswitch__who--btn strong {
+  font-size: 13px;
+}
+
+.pop.roleswitch__pop {
+  min-width: 300px;
+}
+
+.roleswitch__note {
+  padding: 6px 12px 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.roleswitch__item {
+  min-height: 52px;
+  font-weight: 500;
+}
+
+.roleswitch__item[aria-checked='true'] {
+  background: var(--surface-2);
+}
+
+.roleswitch__item:disabled {
+  opacity: 0.6;
+}
+
+.roleswitch__group {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* В шапке карточки обращения — только аватар и стрелка, справа от статусов */
+.roleswitch--compact {
+  margin-left: auto;
+}
+
+.roleswitch--compact .roleswitch__who--btn {
+  display: none;
+}
+
+.roleswitch--compact .roleswitch__btn {
+  padding: 0 8px 0 7px;
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.roleswitch--compact .roleswitch__btn:hover,
+.roleswitch--compact .roleswitch__btn[aria-expanded='true'] {
+  background: var(--surface-3);
+}
+
+/* Между телефоном и широким экраном в шапке тесно: остаются аватар и стрелка */
+@media (max-width: 1180px) {
+  .roleswitch__who--btn {
+    display: none;
+  }
+}
+
 /* круглая кнопка-инструмент: колокольчик, крестик */
 .tool-btn {
   position: relative;
@@ -4673,6 +4791,11 @@ button.vote__option:not(.vote__option--mine):hover {
   .tool-btn {
     width: 40px;
     height: 40px;
+  }
+
+  /* В шапке приложения на телефоне переключателя нет: он в меню профиля и в шапке карточки */
+  .head__tools .roleswitch {
+    display: none;
   }
 
   .usermenu {
