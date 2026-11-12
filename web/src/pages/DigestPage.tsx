@@ -122,14 +122,14 @@ export function DigestPage() {
         </div>
       )}
       {s.status === 'error' && <LoadError message={s.message} onRetry={summary.reload} />}
-      {s.status === 'ready' && <SummaryView data={s.data} />}
+      {s.status === 'ready' && <SummaryView data={s.data} narrowed={narrowed} />}
     </section>
   );
 }
 
 const TICKS = 36;
 
-function SummaryView({ data: d }: { data: Summary }) {
+function SummaryView({ data: d, narrowed }: { data: Summary; narrowed: boolean }) {
   const dict = useDictionaries();
   const pct = Math.round(d.closed_share * 100);
   const overdue = d.overdue.length;
@@ -152,7 +152,7 @@ function SummaryView({ data: d }: { data: Summary }) {
         hint={d.avg_first_response_hours === null ? 'ответов ещё не было' : 'от подачи до ответа'}
       />
 
-      {d.last_week && d.previous_week && <WeekBlock now={d.last_week} before={d.previous_week} />}
+      {d.last_week && d.previous_week && <WeekBlock now={d.last_week} before={d.previous_week} narrowed={narrowed} />}
 
       <Block className="bento__half" title="Просрочен первый ответ" sub="Ответа нет дольше срока" count={d.overdue.length} danger>
         <More items={sortStuck(d.overdue)} limit={5}>
@@ -293,8 +293,11 @@ export function formatHours(h: number): string {
 
 type Period = Schemas['PeriodStats'];
 
-/** Последние семь дней рядом с предыдущими семью: значение, изменение и что было неделей раньше. */
-function WeekBlock({ now, before }: { now: Period; before: Period }) {
+/**
+ * Последние семь дней рядом с предыдущими семью: значение, изменение и что было неделей раньше.
+ * Сервер считает недели по отфильтрованной выборке (при статусе «Новое» завершённых будет ноль) — при фильтрах пишем об этом.
+ */
+function WeekBlock({ now, before, narrowed }: { now: Period; before: Period; narrowed: boolean }) {
   const hours = (h: number | null) => (h === null ? '—' : formatHours(h));
   const cells: { label: string; value: string; was: string; delta: Delta }[] = [
     { label: 'Подано', value: String(now.created_count), was: String(before.created_count), delta: countDelta(now.created_count, before.created_count, 'neutral') },
@@ -314,7 +317,7 @@ function WeekBlock({ now, before }: { now: Period; before: Period }) {
     },
   ];
   return (
-    <Block className="bento__full" title="Неделя к неделе" sub="Последние 7 дней и 7 дней перед ними">
+    <Block className="bento__full" title="Неделя к неделе" sub={narrowed ? 'Последние 7 дней и 7 дней перед ними, только обращения под выбранные фильтры' : 'Последние 7 дней и 7 дней перед ними'}>
       <dl className="week">
         {cells.map((c) => (
           <div key={c.label} className="week__cell">
