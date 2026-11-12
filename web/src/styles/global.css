@@ -5194,3 +5194,16 @@ button.vote__option:not(.vote__option--mine):hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* Вход через Битрикс24 (W-15): кнопка рядом с виджетом Telegram */
+.bitrix-login {
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+}
+
+.bitrix-login__mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}

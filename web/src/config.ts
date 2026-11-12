@@ -12,4 +12,6 @@ export const config = {
   mockMeExample: (env.VITE_MOCK_ME_EXAMPLE as string | undefined) || '',
   /** Только для локальной проверки экранов: вход по почте на моке в памяти вместо API. На сервере не задаётся. */
   emailAuthMock: env.VITE_EMAIL_AUTH_MOCK === 'true',
+  /** Только для локальной проверки экранов: вход через Битрикс24 без портала и бэкенда B-23. */
+  bitrixAuthMock: env.VITE_BITRIX_AUTH_MOCK === 'true',
 };
