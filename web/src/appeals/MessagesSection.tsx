@@ -24,7 +24,8 @@ export function MessagesSection({ appeal, onAppealChanged }: { appeal: Appeal; o
   const replying = appeal.allowed_actions.includes('reply_clarification');
   const canWrite = replying || appeal.allowed_actions.includes('send_message');
 
-  // Нет доступа к переписке (например, администратор) — раздела нет.
+  // Кому переписка не положена, раздел не рисуют вовсе (cardSections.canReadMessages).
+  // Это запасной случай: права изменились, пока карточка была открыта.
   if (list.state.status === 'error' && list.state.error instanceof ApiError && list.state.error.status === 403) {
     return null;
   }
