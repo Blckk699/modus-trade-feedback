@@ -1,5 +1,5 @@
 import { CardSkeleton } from '../app/CardSkeleton';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUp, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { Avatar } from '../app/Avatar';
@@ -57,6 +57,7 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
   // Решать про имя может только автор — значит, это его обращение.
   const isAuthorView = d.can_set_name_consent;
   const open = d.status === 'open';
+  const comments = useComments(d);
 
   return (
     <article className="sheet">
@@ -95,8 +96,10 @@ function DiscussionView({ discussion: d, onUpdated }: { discussion: Discussion; 
 
         <Votes discussion={d} onUpdated={onUpdated} />
         {d.can_close && open && <CloseForm discussion={d} onUpdated={onUpdated} />}
-        <Comments discussion={d} />
+        <CommentsList discussion={d} comments={comments} />
       </div>
+      {/* Поле комментария закреплено внизу карточки и не уезжает вместе с лентой комментариев. */}
+      {open && <CommentComposer comments={comments} />}
     </article>
   );
 }
@@ -183,7 +186,7 @@ function Votes({ discussion: d, onUpdated }: { discussion: Discussion; onUpdated
   ];
 
   return (
-    <section className="section vote">
+    <section className="section section--well vote">
       <div className="section__head">
         <h2 className="section__title">Голосование</h2>
         <span className="muted">
@@ -292,13 +295,13 @@ function CloseForm({ discussion: d, onUpdated }: { discussion: Discussion; onUpd
   );
 }
 
-function Comments({ discussion: d }: { discussion: Discussion }) {
+/** Комментарии обсуждения: лента стоит в прокручиваемой части карточки, поле ввода — в её подвале. */
+function useComments(d: Discussion) {
   const list = useAsync(
     () =>
       unwrap(api.GET('/api/v1/discussions/{discussion_id}/comments', { params: { path: { discussion_id: d.id } } })),
     [d.id],
   );
-  const me = useMe();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -325,10 +328,25 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
     }
   }
 
+  return { list, text, setText, busy, error, send };
+}
+
+type CommentsState = ReturnType<typeof useComments>;
+
+function CommentsList({ discussion: d, comments }: { discussion: Discussion; comments: CommentsState }) {
+  const { list } = comments;
+  const end = useRef<HTMLLIElement>(null);
   const count = list.state.status === 'ready' ? list.state.data.length : null;
+  const sent = useRef(count);
+
+  // Свой новый комментарий показываем сразу: лента прокручивается к нему.
+  useEffect(() => {
+    if (count !== null && sent.current !== null && count > sent.current) end.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    sent.current = count;
+  }, [count]);
 
   return (
-    <section className="section comments">
+    <section className="section section--well comments">
       <h2 className="section__title">
         Комментарии
         {count !== null && count > 0 && <span className="section__count">{count}</span>}
@@ -340,8 +358,8 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
       )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
         <ul className="comments__list">
-          {list.state.data.map((c) => (
-            <li key={c.id} className="comment">
+          {list.state.data.map((c, i, all) => (
+            <li key={c.id} className="comment" ref={i === all.length - 1 ? end : undefined}>
               <Avatar name={c.author.full_name} />
               <div className="comment__body">
                 <div className="comment__meta">
@@ -355,7 +373,15 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
           ))}
         </ul>
       )}
-      {d.status === 'open' && (
+    </section>
+  );
+}
+
+function CommentComposer({ comments }: { comments: CommentsState }) {
+  const me = useMe();
+  const { text, setText, busy, error, send } = comments;
+  return (
+    <footer className="sheet__foot sheet__foot--composer">
         <form className="composer composer--with-avatar" onSubmit={send}>
           <Avatar name={me.full_name} />
           <div className="composer__box">
@@ -380,7 +406,6 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
             </div>
           </div>
         </form>
-      )}
-    </section>
+    </footer>
   );
 }
