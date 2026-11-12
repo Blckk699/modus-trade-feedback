@@ -19,6 +19,8 @@ export function usePopover<T extends HTMLElement>() {
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      // Панель может быть внутри окна (меню «Ещё» в карточке): Esc закрывает только её, окно остаётся.
+      e.preventDefault();
       setOpen(false);
       ref.current?.querySelector<HTMLElement>('[data-popover-trigger]')?.focus();
     };

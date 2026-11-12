@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { ChevronUp } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
@@ -8,6 +9,7 @@ import { useAsync } from '../lib/useAsync';
 import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 import { useToast } from '../app/Toast';
+import { usePopover } from '../app/usePopover';
 import { ActionModal, useActionModal } from './actionModal';
 
 type Appeal = Schemas['Appeal'];
@@ -37,6 +39,9 @@ const SHORT: Partial<Record<Action, string>> = {
   publish_discussion: 'На обсуждение',
 };
 
+/** Действия, которые нужны реже остальных. */
+const RARE: Action[] = ['reassign', 'publish_discussion'];
+
 /** Что сказать после действия: «A-021: вопрос отправлен автору». */
 const DONE: Partial<Record<Action, string>> = {
   take: 'взято на рассмотрение',
@@ -58,6 +63,7 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
   const [open, setOpen] = useState<Action | null>(null);
   const [busy, setBusy] = useState(false);
   const modal = useMemo(() => ({ setBusy, cancel: () => setOpen(null) }), []);
+  const menu = usePopover<HTMLDivElement>();
   // Уже вынесенное обращение второй раз не выносим: ссылка на обсуждение — в карточке.
   const actions = PROCESSING.filter(
     (a) => appeal.allowed_actions.includes(a) && !(a === 'publish_discussion' && appeal.discussion),
@@ -66,6 +72,9 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
 
   const label = (a: Action) => SHORT[a] ?? dict.data?.actions.find((x) => x.code === a)?.label ?? a;
   const primary = PRIMARY.find((a) => actions.includes(a));
+  // Редкие действия прячем под «Ещё», только когда кнопок больше трёх: иначе всё помещается в ряд.
+  const rare = actions.length > 3 ? actions.filter((a) => RARE.includes(a)) : [];
+  const shown = actions.filter((a) => !rare.includes(a));
   const done = (a: Appeal) => {
     if (open) toast(`${a.number}: ${DONE[open] ?? 'сохранено'}`);
     setOpen(null);
@@ -75,19 +84,58 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
 
   return (
     <>
-      {/* Действия закреплены внизу карточки. Главное — тёмной кнопкой, отказ — красным текстом слева. */}
+      {/* Действия закреплены внизу карточки: отказ красным текстом слева, главное — тёмной кнопкой справа.
+          Когда действий много, редкие (переназначить, вынести на обсуждение) уходят под «Ещё». */}
       <footer className="sheet__foot" role="group" aria-label="Действия">
-        {actions.map((a) => (
-          <button
-            key={a}
-            type="button"
-            className={a === 'reject' ? 'btn btn--text btn--danger sheet__reject' : a === primary ? 'btn sheet__primary' : 'btn btn--soft'}
-            aria-haspopup="dialog"
-            onClick={() => setOpen(a)}
-          >
-            {label(a)}
+        {actions.includes('reject') && (
+          <button type="button" className="btn btn--text btn--danger sheet__reject" aria-haspopup="dialog" onClick={() => setOpen('reject')}>
+            {label('reject')}
           </button>
-        ))}
+        )}
+        {rare.length > 0 && (
+          <div className="sheet__more" ref={menu.ref}>
+            <button
+              type="button"
+              className="btn btn--soft"
+              aria-haspopup="menu"
+              aria-expanded={menu.open}
+              data-popover-trigger
+              onClick={() => menu.setOpen(!menu.open)}
+            >
+              Ещё <ChevronUp size={16} aria-hidden="true" />
+            </button>
+            {menu.open && (
+              <div className="pop pop--above" role="menu">
+                {rare.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    className="pop__item"
+                    role="menuitem"
+                    onClick={() => {
+                      menu.setOpen(false);
+                      setOpen(a);
+                    }}
+                  >
+                    {dict.data?.actions.find((x) => x.code === a)?.label ?? label(a)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {shown
+          .filter((a) => a !== 'reject' && a !== primary)
+          .map((a) => (
+            <button key={a} type="button" className="btn btn--soft" aria-haspopup="dialog" onClick={() => setOpen(a)}>
+              {label(a)}
+            </button>
+          ))}
+        {primary && (
+          <button type="button" className="btn sheet__primary" aria-haspopup="dialog" onClick={() => setOpen(primary)}>
+            {label(primary)}
+          </button>
+        )}
       </footer>
 
       <Modal open={open !== null} onClose={() => setOpen(null)} labelledBy="action-title" locked={busy} closeOnBackdrop={false}>
@@ -108,7 +156,7 @@ export function ActionsPanel({ appeal, onUpdated }: Props) {
         <TextAction
           title="Вопрос автору"
           fieldLabel="Вопрос"
-          hint="Пока автор не ответит, срок не идёт."
+          hint="Автор получит вопрос в Telegram и сможет ответить там или здесь."
           submitLabel="Задать вопрос"
           onSubmit={(question) => unwrap(api.POST('/api/v1/appeals/{appeal_id}/request-info', { ...id, body: { question } }))}
           onDone={done}

@@ -95,7 +95,7 @@ export function Shell() {
               Выйти
             </span>
           </button>
-          <span className="rail__me" tabIndex={0} aria-label={`${me.full_name}, ${who}`}>
+          <span className="rail__me" tabIndex={0} role="img" aria-label={`Вы вошли как ${me.full_name}, ${who}`}>
             <Avatar name={me.full_name} />
             <span className="tip tip--card" aria-hidden="true">
               <strong>{me.full_name}</strong>

@@ -19,7 +19,7 @@ async function loginAs(page: Page, name: string) {
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible();
 }
 
-/** Действие из строки «Действия»: кнопка открывает окно с формой, отправка его закрывает. */
+/** Действие из панели «Действия» внизу карточки: кнопка открывает окно с формой, отправка его закрывает. */
 async function act(page: Page, action: string, text: string | null, submit: string) {
   await page.getByRole('group', { name: 'Действия' }).getByRole('button', { name: action }).click();
   const dialog = page.getByRole('dialog');
@@ -51,9 +51,9 @@ test('подал — взяли — уточнили — ответил — ре
   await loginAs(page, ASSIGNEE);
   await page.goto(appealPath!);
   await expect(state(page)).toContainText('Новое');
-  await act(page, 'Взять на рассмотрение', null, 'Взять');
+  await act(page, 'Взять', null, 'Взять');
   await expect(state(page)).toContainText('На рассмотрении');
-  await act(page, 'Задать уточняющий вопрос', 'Какой срок поставки обычно нужен?', 'Задать вопрос');
+  await act(page, 'Задать вопрос', 'Какой срок поставки обычно нужен?', 'Задать вопрос');
   await expect(state(page)).toContainText('Ожидает уточнения');
 
   // 3. Автор отвечает на вопрос из карточки — обращение возвращается на рассмотрение.

@@ -44,9 +44,20 @@ npm run dev
   - `methods/index.ts` — список способов: Telegram Login, dev-вход.
   - Способ входа — объект `AuthMethod`: `autoLogin` для входа без участия пользователя, `LoginButton` для экрана входа.
   - **Вход Mini App (T-06):** добавьте `methods/miniApp.ts` с `autoLogin` по `Telegram.WebApp.initData` → `POST /api/v1/auth/telegram/mini-app` и поставьте его первым в список. Экраны править не нужно.
-- `src/app/navigation.ts` — разделы по `Me.permissions` и стартовый экран роли. Права клиент не вычисляет.
+- `src/app/navigation.ts` — разделы по `Me.permissions`. Стартовый экран у всех ролей один — «Сегодня» (`/`). Права клиент не вычисляет.
 - `src/app/dictionaries.tsx` — русские подписи статусов, типов и ролей из `GET /api/v1/dictionaries`.
-- `src/styles/global.css` — токены темы. Светлая и тёмная тема: по системе или переключателем в шапке. Оболочка Mini App может переопределить переменные цветами Telegram.
+- `src/styles/global.css` — токены темы и весь визуальный язык. Светлая и тёмная тема: по системе или переключателем (на компьютере — внизу рейки, на телефоне — в меню под аватаром). Mini App рисуется теми же токенами.
+
+## Интерфейс
+
+- **Оболочка** (`src/app/Shell.tsx`): на компьютере слева рейка разделов с кнопкой «Подать обращение», сверху шапка с заголовком экрана, поиском и уведомлениями. На телефоне рейку заменяет нижняя панель (до пяти пунктов, остальные под «Ещё»). Заголовок экран объявляет сам через `PageHead`.
+- **«Сегодня»** (`src/pages/HomePage.tsx`): собирается из прав пользователя. Сводная фраза (`homeBrief.ts`), «Ждёт вас», две плитки с числами, шкала сроков (`dueTimeline.ts`), список и боковая карточка. Все данные — из существующих эндпоинтов.
+- **Карточки поверх экрана**: обращение, обсуждение и совещание открываются панелью справа, форма подачи — окном по центру. Ссылка передаёт текущий экран в `state.background` (`src/app/background.ts`), `App.tsx` рисует карточку вторым набором маршрутов. По прямой ссылке (уведомление бота, адресная строка) тот же экран открывается отдельной страницей.
+- **Поиск** (`src/app/CommandBar.tsx`): Ctrl/⌘ + K или «/». Разделы, «Подать обращение» и обращения по `GET /appeals?q=`.
+- **Уведомления** (`src/app/Notifications.tsx`): список из `GET /notifications`, отметка прочитанным через `POST /notifications/read`.
+- **Фильтры «Входящих»** живут в адресе: `/queue?scope=assigned&due=overdue`.
+- **Сообщения о результате** (`src/app/Toast.tsx`): `useToast()`.
+- Значки — `lucide-react`. Числа на цветных плитках — `src/app/DotNumber.tsx`.
 
 ## Mini App (T-06)
 
@@ -55,7 +66,7 @@ npm run dev
 - Вход: `auth/methods/miniApp.ts` идёт первым в `authMethods` и отправляет `initData` в `POST /api/v1/auth/telegram/mini-app`. При отказе (`401`/`403`) показывается экран входа с `message`.
 - Оболочка `telegram/MiniAppShell.tsx` (в `App` рядом с `AuthGate`, вне Telegram ничего не делает):
   - вызывает `ready()` и `expand()`;
-  - берёт тему из `themeParams` (`telegram/theme.ts`, переменные из `global.css`) и обновляет её по `themeChanged`;
+  - красит рамку Telegram (шапка, фон, нижняя полоса) цветами нашей текущей темы (`telegram/theme.ts`); сами экраны под тему Telegram не перекрашиваются;
   - показывает кнопку «Назад» Telegram, когда в истории есть куда вернуться (`navigate(-1)`).
 - Ссылки из бота (`telegram/startParam.ts`): `startapp` — это маршрут контракта (`Notification.path`), в котором `/` заменён на `_`. Например, `appeals_21` → `/appeals/21`, `discussions_5` → `/discussions/5`, `analytics` → `/digest`. Inline-кнопка `web_app` в боте может вести сразу на путь: `<MINI_APP_URL>/appeals/21`.
 - Проверка в браузере без Telegram: откройте `http://localhost:5173/#tgWebAppData=<urlencoded initData>&tgWebAppVersion=8.0&tgWebAppPlatform=ios&tgWebAppThemeParams=<urlencoded JSON>`. Мок принимает любые `initData`.

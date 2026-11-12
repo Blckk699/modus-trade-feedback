@@ -12,18 +12,20 @@ import { usePopover } from './usePopover';
 
 type Notification = Schemas['Notification'];
 
-/** Текст уведомления приходит с разметкой для Telegram (<b>, <i>, <a>): в списке показываем его без тегов. */
+/** Текст уведомления приходит с разметкой для Telegram (<b>, <i>, <a>): в списке показываем его без тегов, строки сохраняем. */
 export function plainText(html: string): string {
   return html
-    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 /** Куда ведёт уведомление: path из контракта (с теми же заменами, что у ссылок бота) или карточка обращения. */

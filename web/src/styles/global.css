@@ -13,6 +13,8 @@
   --surface-3: #e6eaf0;
   --line: #e2e6ec;
   --line-strong: #c9d0da;
+  /* граница полей ввода: не меньше 3:1 к фону (WCAG 1.4.11), как border-input в design/tokens.json */
+  --field-line: #848fa0;
 
   --text: #323a47;
   --heading: #082742;
@@ -62,6 +64,7 @@
   --shadow-card: 0 1px 0 rgba(8, 39, 66, 0.03);
   --shadow-raised: 0 1px 2px rgba(8, 39, 66, 0.06), 0 2px 8px rgba(8, 39, 66, 0.05);
   --shadow-pop: 0 2px 6px rgba(8, 39, 66, 0.07), 0 18px 48px rgba(8, 39, 66, 0.16);
+  --shadow-fab: 0 2px 4px rgba(8, 39, 66, 0.12), 0 8px 18px rgba(8, 39, 66, 0.16);
   --shadow-sheet: -24px 0 64px rgba(8, 39, 66, 0.18);
   --scrim: rgba(8, 23, 38, 0.36);
   --tip-bg: #0b1f33;
@@ -90,6 +93,7 @@
     --surface-3: #1a3550;
     --line: #1c3650;
     --line-strong: #2c4c6b;
+  --field-line: #5a7ea3;
     --text: #e6ecf2;
     --heading: #ffffff;
     --muted: #9aabbf;
@@ -98,7 +102,7 @@
     --primary-hover: #a9cbef;
     --primary-text: #082742;
     --accent: #e40000;
-    --accent-hover: #f01a1a;
+    --accent-hover: #cc0000;
     --accent-text: #ffffff;
     --link: #8dbbf5;
     --focus: #8dbbf5;
@@ -130,6 +134,7 @@
     --shadow-card: none;
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
     --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
     --scrim: rgba(2, 8, 14, 0.6);
     --tip-bg: #e6ecf2;
@@ -146,6 +151,7 @@
   --surface-3: #1a3550;
   --line: #1c3650;
   --line-strong: #2c4c6b;
+  --field-line: #5a7ea3;
   --text: #e6ecf2;
   --heading: #ffffff;
   --muted: #9aabbf;
@@ -154,7 +160,7 @@
   --primary-hover: #a9cbef;
   --primary-text: #082742;
   --accent: #e40000;
-  --accent-hover: #f01a1a;
+  --accent-hover: #cc0000;
   --accent-text: #ffffff;
   --link: #8dbbf5;
   --focus: #8dbbf5;
@@ -186,6 +192,7 @@
   --shadow-card: none;
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+  --shadow-fab: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 18px rgba(0, 0, 0, 0.4);
   --shadow-sheet: -24px 0 64px rgba(0, 0, 0, 0.5);
   --scrim: rgba(2, 8, 14, 0.6);
   --tip-bg: #e6ecf2;
@@ -310,6 +317,7 @@ svg {
 .prose {
   white-space: pre-wrap;
   max-width: 68ch;
+  text-wrap: pretty;
 }
 
 .skip-link {
@@ -416,7 +424,7 @@ svg {
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--accent-text);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 30%, transparent);
+  box-shadow: var(--shadow-fab);
   transition: transform 0.15s var(--ease), background-color 0.15s;
 }
 
@@ -677,7 +685,7 @@ svg {
   padding: 0 8px 0 14px;
   border-radius: var(--r-pill);
   background: var(--surface);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-raised), inset 0 0 0 1px var(--field-line);
   transition: box-shadow 0.15s;
 }
 
@@ -947,6 +955,7 @@ svg {
   color: var(--text);
   font-size: 13.5px;
   line-height: 1.4;
+  white-space: pre-line;
 }
 
 .note--unread .note__text {
@@ -963,15 +972,15 @@ svg {
 
 .toasts {
   position: fixed;
-  inset: auto 0 24px 0;
+  inset: auto auto 24px calc(var(--rail-w) + 20px);
   z-index: 90;
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: 8px;
   width: auto;
   height: auto;
   margin: 0;
-  padding: 0 16px;
+  padding: 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1065,12 +1074,9 @@ svg {
 
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap);
   align-content: start;
-}
-
-.page--narrow {
-  max-width: 860px;
 }
 
 .toolbar {
@@ -1078,15 +1084,11 @@ svg {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
-.toolbar__end {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 13px;
+.toolbar > * {
+  min-width: 0;
 }
 
 .bento {
@@ -1253,10 +1255,6 @@ svg {
   min-height: 34px;
   padding: 0 14px;
   font-size: 13px;
-}
-
-.btn--block {
-  width: 100%;
 }
 
 .link-btn {
@@ -1621,7 +1619,7 @@ svg {
   border: 0;
   border-radius: var(--r-ctl);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
   color: var(--text);
   font-size: 15px;
   line-height: 1.45;
@@ -1629,11 +1627,11 @@ svg {
 }
 
 .input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .input:hover {
-  box-shadow: inset 0 0 0 1px var(--faint);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
 .input:focus,
@@ -1708,6 +1706,7 @@ textarea.input {
   background: var(--surface-2);
 }
 
+.select--pill .select__button:focus-visible,
 .select--pill .select__button[aria-expanded='true'] {
   box-shadow: var(--shadow-raised), 0 0 0 2px var(--focus);
 }
@@ -1770,6 +1769,7 @@ textarea.input {
 /* переключатель-пилюля: вкладки и выбор из нескольких вариантов */
 .segmented {
   display: inline-flex;
+  width: fit-content;
   max-width: 100%;
   padding: 4px;
   gap: 2px;
@@ -1882,7 +1882,7 @@ textarea.input {
   height: 26px;
   margin: 0;
   border-radius: var(--r-pill);
-  background: var(--line-strong);
+  background: var(--field-line);
   cursor: pointer;
   transition: background-color 0.15s;
 }
@@ -2305,7 +2305,18 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-width: 0;
   gap: 8px;
+}
+
+.tile__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile__go {
+  flex: none;
 }
 
 .tile__label,
@@ -2401,7 +2412,7 @@ a.tile:hover .tile__go {
   inset: 0 auto 0 0;
   width: 12%;
   border-radius: 12px 12px 0 0;
-  background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--danger) 9%, transparent) 6px 8px);
+  background: color-mix(in srgb, var(--danger) 7%, transparent);
 }
 
 .tl__now {
@@ -2430,16 +2441,26 @@ a.tile:hover .tile__go {
 
 .tl__chip {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 62px;
-  padding: 4px 10px 4px 9px;
-  border-left: 3px solid currentColor;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
   text-decoration: none;
   transition: transform 0.12s var(--ease);
+}
+
+.tl__chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .tl__chip:hover {
@@ -2824,7 +2845,7 @@ a.tile:hover .tile__go {
 
 .sheet__foot {
   display: flex;
-  flex-wrap: wrap-reverse;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -2834,13 +2855,18 @@ a.tile:hover .tile__go {
   border-radius: 0 0 28px 28px;
 }
 
-.sheet__primary {
-  order: 9;
+.sheet__reject {
+  margin-right: auto;
 }
 
-.sheet__reject {
-  order: -1;
-  margin-right: auto;
+.sheet__more {
+  position: relative;
+}
+
+.pop--above {
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 260px;
 }
 
 /* переписка пузырями */
@@ -2905,7 +2931,7 @@ a.tile:hover .tile__go {
   padding: 4px;
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
   transition: box-shadow 0.15s;
 }
 
@@ -2930,7 +2956,7 @@ a.tile:hover .tile__go {
   padding: 4px;
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
 }
 
 .composer__box:focus-within {
@@ -2955,7 +2981,7 @@ a.tile:hover .tile__go {
 }
 
 .composer__input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .composer__foot {
@@ -2968,7 +2994,7 @@ a.tile:hover .tile__go {
 }
 
 .composer__hint {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .suggestions {
@@ -3060,6 +3086,7 @@ a.tile:hover .tile__go {
 /* отдельная страница карточки: прямая ссылка без списка под ней */
 .solo {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   max-width: 780px;
 }
@@ -3175,12 +3202,12 @@ a.tile:hover .tile__go {
   padding: 14px;
   border-radius: var(--r-tile);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
   transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 .choice__item:hover .choice__box {
-  box-shadow: inset 0 0 0 1px var(--faint);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
 .choice__item input:checked + .choice__box {
@@ -3534,13 +3561,13 @@ a.talk:hover {
   border: 0;
   border-radius: var(--r-tile);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
   text-align: left;
   transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 button.vote__option:hover {
-  box-shadow: inset 0 0 0 1px var(--faint);
+  box-shadow: inset 0 0 0 1px var(--muted);
 }
 
 .vote__option--static {
@@ -3663,7 +3690,7 @@ button.vote__option:hover {
   padding: 30px 20px;
   border-radius: var(--r-tile);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--field-line);
   text-align: center;
   cursor: pointer;
   transition: box-shadow 0.15s, background-color 0.15s;
@@ -3857,8 +3884,7 @@ button.vote__option:hover {
 
 .quote {
   padding: 10px 14px;
-  border-left: 3px solid var(--line-strong);
-  border-radius: 0 12px 12px 0;
+  border-radius: 12px;
   background: var(--surface-2);
   color: var(--text);
   font-size: 14px;
@@ -4001,6 +4027,7 @@ button.vote__option:hover {
 .auth__lead {
   max-width: 34em;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
 .telegram-login {
@@ -4327,11 +4354,13 @@ button.vote__option:hover {
     border-radius: 50%;
     background: var(--accent);
     color: var(--accent-text);
-    box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 36%, transparent);
+    box-shadow: var(--shadow-fab);
   }
 
+  /* на телефоне внизу панель разделов и кнопки карточки — сообщения показываем сверху */
   .toasts {
-    bottom: calc(var(--tabbar-h) + 20px + env(safe-area-inset-bottom));
+    inset: calc(10px + env(safe-area-inset-top)) 12px auto 12px;
+    justify-items: center;
   }
 
   .card {
@@ -4454,6 +4483,8 @@ button.vote__option:hover {
 
   .filters {
     flex-wrap: nowrap;
+    flex: 0 0 calc(100% + 24px);
+    width: calc(100% + 24px);
     max-width: calc(100% + 24px);
     margin: 0 -12px;
     padding: 2px 12px;
@@ -4524,8 +4555,13 @@ button.vote__option:hover {
     flex: 1 1 auto;
   }
 
-  .sheet__reject {
-    flex: 0 0 auto !important;
+  .sheet__foot .sheet__reject {
+    flex: 0 0 auto;
+  }
+
+  .sheet__more {
+    display: flex;
+    flex: 1 1 auto;
   }
 
   .sheet--state {

@@ -39,7 +39,7 @@ export function CategoriesTab() {
   return (
     <div className="settings-tab">
       <div className="settings-toolbar">
-        <p className="muted">Новое обращение категории получает ответственный, а если он отсутствует — заместитель. Уже назначенные обращения при изменении не переназначаются.</p>
+        <p className="muted">Новое обращение получает ответственный за категорию, а когда его нет на месте, заместитель. Уже назначенные обращения остаются у прежнего ответственного.</p>
         {!adding && (
           <button type="button" className="btn" onClick={() => setAdding(true)}>
             Добавить категорию
@@ -78,7 +78,7 @@ export function CategoriesTab() {
                 <strong>{c.name}</strong>
                 <span className="muted">{c.department.name}</span>
                 <span className={c.responsible ? 'muted' : 'error-text'}>
-                  Ответственный: {c.responsible?.full_name ?? 'не назначен — обращения уйдут в очередь администратора'}
+                  Ответственный: {c.responsible?.full_name ?? 'не назначен, обращения уйдут администратору'}
                 </span>
                 <span className="muted">Заместитель: {c.deputy?.full_name ?? 'нет'}</span>
               </div>
@@ -203,8 +203,8 @@ function CategoryForm({ category, departments, users, onSaved, onCancel }: Categ
       {category && (
         <div className="settings-checks">
           <label>
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Используется — категорию можно
-            выбрать при подаче обращения
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> Категорию можно выбрать при
+            подаче обращения
           </label>
         </div>
       )}

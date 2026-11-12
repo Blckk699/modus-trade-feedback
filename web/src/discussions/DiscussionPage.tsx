@@ -373,7 +373,7 @@ function Comments({ discussion: d }: { discussion: Discussion }) {
               aria-label="Комментарий"
             />
             <div className="composer__foot">
-              {error ? <span className="error-text">{error}</span> : <span className="composer__hint">Ctrl + Enter — отправить</span>}
+              {error ? <span className="error-text">{error}</span> : <span className="composer__hint">Ctrl + Enter, чтобы отправить</span>}
               <button type="submit" className="btn btn--sm composer__send" disabled={busy || !text.trim()}>
                 {busy ? 'Отправляем…' : 'Отправить'}
                 <ArrowUp size={15} aria-hidden="true" />

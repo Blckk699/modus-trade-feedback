@@ -127,7 +127,7 @@ export function QueuePage() {
 
       <div className="toolbar">
         {scopes.length > 1 && (
-          <div className="segmented" role="group" aria-label="Чьи обращения показать">
+          <div className="segmented" role="radiogroup" aria-label="Чьи обращения показать">
             {scopes.map((sc) => (
               <label key={sc} className="segmented__item">
                 <input type="radio" name="scope" checked={filters.scope === sc} onChange={() => set({ scope: sc })} />

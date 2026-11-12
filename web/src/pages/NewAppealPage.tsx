@@ -256,8 +256,8 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
         Обращение {appeal.number} подано
       </h1>
       <p className="muted">
-        {due ? `Первый ответ придёт до ${formatDateTime(due)}.` : 'Срок ответа появится, когда назначат ответственного.'} Обо
-        всех изменениях напишем в Telegram и покажем здесь.
+        {due ? `Первый ответ придёт до ${formatDateTime(due)}. ` : ''}Обо всех изменениях напишем в Telegram и покажем
+        здесь.
       </p>
 
       <dl className="facts">

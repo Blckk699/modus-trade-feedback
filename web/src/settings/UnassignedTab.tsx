@@ -52,7 +52,7 @@ export function UnassignedTab() {
         </p>
       ))}
       {page.items.length === 0 ? (
-        <EmptyState icon="inbox" title="Нераспределённых обращений нет">
+        <EmptyState icon="inbox" title="Обращений без ответственного нет">
           Сюда попадают обращения без категории или из категории без ответственного.
         </EmptyState>
       ) : (
@@ -78,7 +78,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
     e.preventDefault();
     setError('');
     if (!assigneeId) return setError('Выберите ответственного.');
-    if (!reason.trim()) return setError('Укажите причину — она попадёт в историю обращения.');
+    if (!reason.trim()) return setError('Укажите причину. Она попадёт в историю обращения.');
     setBusy(true);
     try {
       const appeal = await unwrap(

@@ -72,7 +72,7 @@ export function MyAppealsPage() {
       />
 
       <div className="toolbar">
-        <div className="segmented" role="group" aria-label="Какие обращения показать">
+        <div className="segmented" role="radiogroup" aria-label="Какие обращения показать">
           {FILTERS.map((f) => (
             <label key={f.id} className="segmented__item">
               <input type="radio" name="my-filter" checked={filter === f.id} onChange={() => setFilter(f.id)} />

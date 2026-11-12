@@ -23,11 +23,6 @@
   max-width: 420px;
   border-radius: var(--r-pill);
   padding-left: 18px;
-  box-shadow: var(--shadow-raised);
-}
-
-.settings-toolbar .input:focus-visible {
-  box-shadow: var(--shadow-raised), 0 0 0 2px var(--focus);
 }
 
 .settings-toolbar p {

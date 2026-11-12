@@ -56,11 +56,14 @@ const appealsPage = (query: AppealsQuery) => unwrap(api.GET('/api/v1/appeals', {
 async function loadHome(me: Me): Promise<HomeData> {
   const p = me.permissions;
   const scope = defaultScope(me);
+  // Администратор стартует с очереди без ответственного. Для списка на главном берём все обращения:
+  // нераспределённые и так видны в «Ждёт вас» и на плитке.
+  const listScope = scope === 'unassigned' && p.can_view_all_appeals ? 'all' : scope;
   const soft = <T,>(call: Promise<T>): Promise<T | null> => call.catch(() => null);
   const open = { status: OPEN_STATUSES, sort: 'due_asc' as const };
 
   const [queue, assigned, mine, mineOpen, mineAwaiting, unassigned, requests, summary, discussions, implemented] = await Promise.all([
-    scope ? soft(appealsPage({ scope, ...open, page_size: 30 })) : null,
+    listScope ? soft(appealsPage({ scope: listScope, ...open, page_size: 30 })) : null,
     p.can_process_appeals ? soft(appealsPage({ scope: 'assigned', ...open, page_size: 50 })) : null,
     appealsPage({ scope: 'mine', sort: 'created_desc', page_size: 5 }),
     soft(appealsPage({ scope: 'mine', status: OPEN_STATUSES, page_size: 1 })),
@@ -590,7 +593,7 @@ function TimelineCard({ items, now, mineOnly }: { items: Item[]; now: Date; mine
                 state={{ background }}
                 className={`tl__chip tl__chip--${item.a.due_state}`}
                 style={{ left: `${x}%`, top: `${lane * 34}px` }}
-                title={`${item.a.summary ?? 'Без краткой сути'} — ${timeLeftLabel(item.dueAt, now)}`}
+                title={`${item.a.summary ?? 'Без краткой сути'} · ${timeLeftLabel(item.dueAt, now)}`}
                 aria-label={`${item.number}: ${item.a.summary ?? 'без краткой сути'}, ${timeLeftLabel(item.dueAt, now)}`}
               >
                 {item.number}

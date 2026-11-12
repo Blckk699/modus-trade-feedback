@@ -37,7 +37,7 @@ export function FeedPage() {
     <section className="page">
       <PageHead over="Что обсуждают и что уже сделали" title="Лента" />
       <div className="toolbar">
-        <div className="segmented" role="group" aria-label="Раздел ленты">
+        <div className="segmented" role="radiogroup" aria-label="Раздел ленты">
           {TABS.map((t) => (
             <label key={t.id} className="segmented__item">
               <input type="radio" name="feed-tab" checked={tab === t.id} onChange={() => choose(t.id)} />

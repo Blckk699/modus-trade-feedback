@@ -48,7 +48,7 @@ export function DeadlinesTab() {
     e.preventDefault();
     setError('');
     setSaved(false);
-    if (invalid.length) return setError('Срок — целое число рабочих дней от 1 до 30.');
+    if (invalid.length) return setError('Срок: целое число рабочих дней от 1 до 30.');
     setBusy(true);
     try {
       const nextRules = await unwrap(
@@ -72,8 +72,8 @@ export function DeadlinesTab() {
   return (
     <form className="form settings-form" onSubmit={submit} noValidate>
       <p className="muted">
-        Срок первого ответа — в рабочих днях. Новые сроки применяются к новым обращениям и к переназначениям после
-        сохранения.
+        Срок первого ответа считается в рабочих днях. Новые значения действуют для обращений, которые подали или
+        переназначили после сохранения.
       </p>
       <div className="settings-grid">
         {known.map((p) => (

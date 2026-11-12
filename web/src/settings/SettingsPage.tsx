@@ -39,7 +39,7 @@ export function SettingsPage() {
   return (
     <section className="page">
       <PageHead over={p.can_manage_settings ? 'Люди, подразделения, категории и сроки' : 'Кто получает доступ'} title="Настройки" />
-      <div className="segmented settings-tabs" role="group" aria-label="Разделы настроек">
+      <div className="segmented settings-tabs" role="radiogroup" aria-label="Разделы настроек">
         {visible.map((id) => (
           <label key={id} className="segmented__item">
             <input
