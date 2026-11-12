@@ -31,10 +31,8 @@ Future<Attachment> uploadAttachment(ApiService api, int appealId, PickedFile fil
   }
 }
 
-/// Скачивает вложение во временную папку и открывает системным просмотрщиком.
-/// `download_url` требует токен, поэтому качаем через клиент API. Сгенерированный
-/// `downloadAttachment` пытается разобрать файл как JSON, поэтому берём `WithHttpInfo`.
-Future<void> openAttachment(ApiService api, Attachment attachment) async {
+/// Байты вложения (для превью картинок). `download_url` требует токен — качаем через клиент API.
+Future<List<int>> downloadAttachmentBytes(ApiService api, Attachment attachment) async {
   final http.Response response;
   try {
     response = await api.attachments.downloadAttachmentWithHttpInfo(attachment.id);
@@ -44,10 +42,20 @@ Future<void> openAttachment(ApiService api, Attachment attachment) async {
   if (response.statusCode >= 400) {
     throw AppError.from(ApiException(response.statusCode, response.body));
   }
+  return response.bodyBytes;
+}
+
+bool isImage(Attachment a) => a.contentType.startsWith('image/');
+
+/// Скачивает вложение во временную папку и открывает системным просмотрщиком.
+/// `download_url` требует токен, поэтому качаем через клиент API. Сгенерированный
+/// `downloadAttachment` пытается разобрать файл как JSON, поэтому берём `WithHttpInfo`.
+Future<void> openAttachment(ApiService api, Attachment attachment) async {
+  final bytes = await downloadAttachmentBytes(api, attachment);
   final dir = await getTemporaryDirectory();
   final safeName = attachment.filename.replaceAll(RegExp(r'[/\\]'), '_');
   final file = File('${dir.path}/attachment_${attachment.id}_$safeName');
-  await file.writeAsBytes(response.bodyBytes, flush: true);
+  await file.writeAsBytes(bytes, flush: true);
   final result = await OpenFilex.open(file.path, type: attachment.contentType);
   if (result.type != ResultType.done) {
     throw AppError(code: 'open_failed', message: 'Не удалось открыть файл: ${result.message}');
