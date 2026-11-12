@@ -164,6 +164,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Регистрация по рабочей почте и паролю
+         * @description Без `invite_token` — заявка на доступ (`status=pending`), как заявка из Telegram: те же уведомления
+         *     администратору и собственнику, войти до одобрения нельзя. Повторная регистрация с той же почтой,
+         *     пока заявка на рассмотрении, обновляет её (`200`).
+         *     С действующим `invite_token` — сразу пользователь с ролью и подразделением приглашения и сессия (`201`).
+         *     Почта уникальна без учёта регистра и не подтверждается письмом. Пароль — от 8 символов, хранится только хешем.
+         *
+         */
+        post: operations["registerByEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Вход по почте и паролю
+         * @description Выдаёт ту же сессию, что остальные способы входа. Ответы различают причину:
+         *     - `401 invalid_credentials` — неверная почта или пароль;
+         *     - `403 access_request_pending` — заявка на рассмотрении; `403 access_request_rejected` — заявка отклонена;
+         *     - `403 user_disabled` — доступ отключён;
+         *     - `403 password_change_required` — вход с временным паролем от администратора: повторите запрос с `new_password`;
+         *     - `429 too_many_requests` — 5 неудачных попыток подряд по этой почте, вход заблокирован на 5 минут.
+         *     Про заявку и временный пароль сервер говорит, только если пароль верный.
+         *
+         */
+        post: operations["loginByEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/access-requests/departments": {
         parameters: {
             query?: never;
@@ -309,6 +361,56 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Задать или сменить почту и пароль
+         * @description Пользователь, пришедший через Telegram, задаёт почту и пароль (`email` и `new_password` обязательны).
+         *     У кого пароль уже есть, указывает `current_password`; можно сменить почту, пароль или оба.
+         *     Неверный текущий пароль — `422` с полем `current_password`. Почта у другого сотрудника — `409 email_taken`.
+         *
+         */
+        put: operations["updateMyCredentials"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/telegram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Привязать Telegram к аккаунту
+         * @description Тело — поля Telegram Login без изменений, проверяются так же, как при входе виджетом.
+         *     Потом пользователь входит через Telegram и получает уведомления бота.
+         *     Telegram у другого сотрудника — `409 telegram_taken`.
+         *
+         */
+        post: operations["linkTelegram"];
+        /**
+         * Отвязать Telegram
+         * @description Можно, только если у аккаунта есть почта и пароль, иначе `409 last_login_method`. Уведомления бота перестают приходить.
+         */
+        delete: operations["unlinkTelegram"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1322,8 +1424,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Добавить сотрудника по Telegram ID
-         * @description Только администратор, остальным — `403`.
+         * Добавить сотрудника по Telegram ID или почте
+         * @description Нужен хотя бы один способ входа: `telegram_id` или `email`. Пароль сотруднику с почтой выдаётся
+         *     сбросом (`POST /admin/users/{id}/reset-password`). Только администратор, остальным — `403`.
+         *
          */
         post: operations["adminCreateUser"];
         delete?: never;
@@ -1355,6 +1459,31 @@ export interface paths {
          *
          */
         patch: operations["adminUpdateUser"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Сбросить пароль сотруднику
+         * @description Возвращает временный пароль один раз, в базе — только хеш. При входе с ним сотрудник задаёт новый
+         *     (`403 password_change_required`). Блокировка после неудачных попыток снимается.
+         *     У сотрудника без почты — `409 conflict`. Только администратор, остальным — `403`.
+         *
+         */
+        post: operations["adminResetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/departments": {
@@ -1630,16 +1759,18 @@ export interface components {
             };
         };
         /**
-         * @description `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 ·
+         * @description `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `invalid_credentials` 401 ·
          *     `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
-         *     `not_found` 404 · `conflict` 409 · `already_registered` 409 · `invite_invalid` 410 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
+         *     `access_request_pending` 403 · `access_request_rejected` 403 · `password_change_required` 403 ·
+         *     `not_found` 404 · `conflict` 409 · `already_registered` 409 · `email_taken` 409 · `telegram_taken` 409 ·
+         *     `last_login_method` 409 · `invite_invalid` 410 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 ·
          *     `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 ·
          *     `too_many_requests` 429 ·
          *     `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500
          *
          * @enum {string}
          */
-        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
+        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "invalid_credentials" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "access_request_pending" | "access_request_rejected" | "password_change_required" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "email_taken" | "telegram_taken" | "last_login_method" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
         /**
          * @description employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
          * @enum {string}
@@ -1770,6 +1901,8 @@ export interface components {
              * @description Только для администратора и для самого пользователя
              */
             telegram_id: number | null;
+            /** @description Рабочая почта для входа. Только для администратора и для самого пользователя */
+            email?: string | null;
             full_name: string;
             /** @description Должность, например «Сотрудник закупок» */
             position: string | null;
@@ -1794,6 +1927,12 @@ export interface components {
             can_manage_access: boolean;
         };
         Me: components["schemas"]["User"] & {
+            /** @description Почта для входа; null — задать в профиле (`PUT /me/credentials`) */
+            email: string | null;
+            /** @description Есть ли пароль; false — вход только через Telegram */
+            has_password: boolean;
+            /** @description Привязан ли Telegram (вход в один клик и уведомления бота) */
+            telegram_linked: boolean;
             /** @description Категории, где пользователь — ответственный */
             responsible_for: components["schemas"]["CategoryRef"][];
             /** @description Категории, где пользователь — заместитель */
@@ -1802,9 +1941,11 @@ export interface components {
             assigned_open_count: number;
             permissions: components["schemas"]["Permissions"];
         };
+        /** @description Нужен хотя бы один из `telegram_id` и `email` */
         UserCreate: {
             /** Format: int64 */
-            telegram_id: number;
+            telegram_id?: number | null;
+            email?: string | null;
             full_name: string;
             position?: string | null;
             role: components["schemas"]["Role"];
@@ -2322,6 +2463,8 @@ export interface components {
             id: number;
             status: components["schemas"]["AccessRequestStatus"];
             full_name: string;
+            /** @description Почта, если заявка подана регистрацией по почте; иначе заявка из Telegram */
+            email: string | null;
             telegram_username: string | null;
             /** @description Подразделение, которое выбрал заявитель */
             department: components["schemas"]["DepartmentRef"] | null;
@@ -2425,6 +2568,44 @@ export interface components {
             full_name?: string | null;
             /** @description Только бот */
             telegram_username?: string | null;
+        };
+        EmailRegister: {
+            full_name: string;
+            /** @description Рабочая почта, уникальна без учёта регистра */
+            email: string;
+            password: string;
+            /** @description Из `GET /access-requests/departments` */
+            department_id?: number | null;
+            /** @description Должность или комментарий */
+            comment?: string | null;
+            /** @description Токен из ссылки `https://<домен>/invite/<токен>`; с ним — сразу вход без заявки */
+            invite_token?: string | null;
+        };
+        RegisterResult: {
+            /**
+             * @description pending — заявка на рассмотрении, войти нельзя; registered — пользователь создан по приглашению
+             * @enum {string}
+             */
+            status: "pending" | "registered";
+            request: components["schemas"]["AccessRequest"] | null;
+            session: components["schemas"]["Session"] | null;
+        };
+        EmailLogin: {
+            email: string;
+            password: string;
+            /** @description Только при входе с временным паролем — новый пароль */
+            new_password?: string | null;
+        };
+        CredentialsUpdate: {
+            /** @description Новая почта; не передано — без изменений */
+            email?: string | null;
+            new_password?: string | null;
+            /** @description Обязателен, если пароль уже есть */
+            current_password?: string | null;
+        };
+        TemporaryPassword: {
+            /** @description Показывается один раз */
+            temporary_password: string;
         };
         SessionToken: {
             access_token: string;
@@ -2817,6 +2998,95 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    registerByEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailRegister"];
+            };
+        };
+        responses: {
+            /** @description Заявка на рассмотрении обновлена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterResult"];
+                };
+            };
+            /** @description Заявка подана (`pending`) или пользователь создан по приглашению (`registered`) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterResult"];
+                };
+            };
+            /** @description Почта уже принадлежит сотруднику (`email_taken`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            410: components["responses"]["InviteInvalid"];
+            422: components["responses"]["ValidationError"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    loginByEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailLogin"];
+            };
+        };
+        responses: {
+            200: components["responses"]["Session"];
+            /** @description Неверная почта или пароль (`invalid_credentials`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Заявка на рассмотрении или отклонена, доступ отключён, нужно сменить временный пароль */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+            /** @description Пять неудачных попыток подряд по этой почте (`too_many_requests`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     listAccessDepartments: {
         parameters: {
             query?: never;
@@ -2985,6 +3255,114 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["LoginForbidden"];
+        };
+    };
+    updateMyCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Текущий пользователь */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Почта уже у другого сотрудника (`email_taken`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    linkTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "id": 100000004,
+                 *       "first_name": "Айгерим",
+                 *       "last_name": "Нурланова",
+                 *       "username": "aigerim_demo",
+                 *       "auth_date": 1794300000,
+                 *       "hash": "9b1c0e7d4a..."
+                 *     } */
+                "application/json": components["schemas"]["TelegramWidgetLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Текущий пользователь с привязанным Telegram */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["InvalidTelegramAuth"];
+            /** @description Этот Telegram уже у другого сотрудника (`telegram_taken`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    unlinkTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Текущий пользователь без Telegram */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Это единственный способ входа (`last_login_method`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getDictionaries: {
@@ -4547,6 +4925,32 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
+        };
+    };
+    adminResetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Временный пароль */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemporaryPassword"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     adminCreateDepartment: {

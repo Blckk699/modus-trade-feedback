@@ -239,3 +239,25 @@
     padding: 18px;
   }
 }
+
+/* Сброс пароля в форме сотрудника */
+.reset {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.reset__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.reset__value {
+  flex: 1 1 180px;
+  width: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.02em;
+}

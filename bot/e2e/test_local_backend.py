@@ -63,7 +63,8 @@ async def test_employee_is_recognised_and_stranger_offered_request(bot, people):
 
     greeting, offer = bot.telegram.sent()
     assert greeting.text.startswith("Здравствуйте")
-    assert offer.text == texts.REQUEST_INTRO  # T-09: вместо отказа — заявка на доступ
+    assert offer.text.startswith(texts.REQUEST_INTRO)  # T-09: вместо отказа — заявка на доступ
+    assert texts.LINK_HINT in offer.text  # T-11: или привязать Telegram к аккаунту по почте
 
 
 async def test_login_code_from_bot_is_accepted_once(bot, backend, people):
