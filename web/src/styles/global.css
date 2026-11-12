@@ -4153,6 +4153,15 @@ button.chat-entry--ask[aria-expanded='true'] {
   letter-spacing: -0.022em;
 }
 
+/* Окно подтверждения (app/Confirm) */
+.confirm__text {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .dialog-form__actions {
   display: flex;
   flex-wrap: wrap;

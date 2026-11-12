@@ -9,6 +9,7 @@ import { useAsync } from '../lib/useAsync';
 import { byName, changes, fieldErrors, idOrNull, type Department, type Role, type User } from './shared';
 import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
+import { Confirm } from '../app/Confirm';
 
 const ROLES: Role[] = ['employee', 'head', 'owner', 'admin'];
 
@@ -19,7 +20,7 @@ function loadAll() {
   ]);
 }
 
-/** Сотрудники: добавить по Telegram ID, роль, подразделение, отсутствие, отключение доступа (истории 64, 65, 68). */
+/** Сотрудники: добавить по Telegram ID или почте, роль, подразделение, отсутствие, отключение доступа (истории 64, 65, 68). */
 export function UsersTab() {
   const data = useAsync(loadAll, []);
   const [q, setQ] = useState('');
@@ -100,9 +101,7 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
         <span className="muted">
           {[dict.roleLabel(user.role), user.department?.name, user.position].filter(Boolean).join(' · ')}
         </span>
-        <span className="muted settings-row__fine">
-          {[user.email, user.telegram_id ? `Telegram ID: ${user.telegram_id}` : 'Telegram не привязан'].filter(Boolean).join(' · ')}
-        </span>
+        <span className="muted settings-row__fine">{loginWays(user)}</span>
       </div>
       <div className="settings-row__badges">
         {user.is_absent && <span className="badge badge--dot badge--status-awaiting_info">Отсутствует</span>}
@@ -112,6 +111,36 @@ function UserRow({ user, onEdit }: { user: User; onEdit: () => void }) {
         Изменить
       </button>
     </li>
+  );
+}
+
+/** Как сотрудник входит: почта видна всегда, даже когда её нет, — от неё зависит сброс пароля. */
+function loginWays(u: User): string {
+  return [
+    u.email ? `Почта: ${u.email}` : 'Почты нет',
+    u.telegram_id ? `Telegram ID: ${u.telegram_id}` : 'Telegram не привязан',
+    u.bitrix_user_id ? 'Битрикс24' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * Пароль есть только у входящих по почте. Остальным сбрасывать нечего — объясняем, как они входят,
+ * чтобы администратор не искал кнопку, которой быть не может.
+ */
+function PasswordSection({ user }: { user: User }) {
+  if (user.email) return <ResetPassword userId={user.id} name={user.full_name} />;
+  const via = [user.telegram_id ? 'Telegram' : null, user.bitrix_user_id ? 'Битрикс24' : null].filter(Boolean).join(' или ');
+  return (
+    <div className="notice">
+      <p className="notice__title">Пароля нет</p>
+      <p>
+        {via
+          ? `${user.full_name} входит через ${via}, пароль не нужен и сбрасывать нечего. Если не получается войти, проверьте Telegram ID или попросите войти через Битрикс24.`
+          : 'У сотрудника нет ни почты, ни Telegram: войти ему нечем. Добавьте его заново с почтой или Telegram ID.'}
+      </p>
+    </div>
   );
 }
 
@@ -127,6 +156,9 @@ interface UserFormProps {
 function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProps) {
   const dict = useDictionaries();
   const [telegramId, setTelegramId] = useState('');
+  const [email, setEmail] = useState('');
+  /** Отключение доступа сбрасывает сессии — перед сохранением спрашиваем ещё раз. */
+  const [confirmDisable, setConfirmDisable] = useState(false);
   const [fullName, setFullName] = useState(user?.full_name ?? '');
   const [position, setPosition] = useState(user?.position ?? '');
   const [role, setRole] = useState<Role>(user?.role ?? 'employee');
@@ -137,14 +169,22 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit(e?: FormEvent, confirmed = false) {
+    e?.preventDefault();
     setError('');
     setErrors({});
     const local: Record<string, string> = {};
-    if (!user && !/^\d{1,15}$/.test(telegramId.trim())) local.telegram_id = 'Числовой Telegram ID, например 123456789.';
+    if (!user) {
+      const tg = telegramId.trim();
+      const mail = email.trim();
+      if (!tg && !mail) local.telegram_id = 'Нужен хотя бы один способ входа: Telegram ID или почта.';
+      else if (tg && !/^\d{1,15}$/.test(tg)) local.telegram_id = 'Числовой Telegram ID, например 123456789.';
+      if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) local.email = 'Почта вида name@company.kz.';
+    }
     if (!fullName.trim()) local.full_name = 'Укажите имя и фамилию.';
     if (Object.keys(local).length) return setErrors(local);
+    if (user && !user.is_disabled && disabled && !confirmed) return setConfirmDisable(true);
+    setConfirmDisable(false);
 
     setBusy(true);
     onBusy?.(true);
@@ -170,7 +210,11 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
           ? await unwrap(api.PATCH('/api/v1/admin/users/{user_id}', { params: { path: { user_id: user.id } }, body }))
           : user;
       } else {
-        saved = await unwrap(api.POST('/api/v1/admin/users', { body: { ...fields, telegram_id: Number(telegramId.trim()) } }));
+        const tg = telegramId.trim();
+        const mail = email.trim();
+        saved = await unwrap(
+          api.POST('/api/v1/admin/users', { body: { ...fields, telegram_id: tg ? Number(tg) : null, email: mail || null } }),
+        );
       }
       onSaved(saved);
     } catch (err) {
@@ -188,27 +232,41 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
         <h2 id="user-form-title" className="user-form__title">
           {user ? user.full_name : 'Новый сотрудник'}
         </h2>
-        {user && (
-          <p className="muted">
-            {user.email ? `Почта: ${user.email} · ` : ''}Telegram ID: {user.telegram_id ?? 'не указан'}
-          </p>
-        )}
+        {user && <p className="muted">{loginWays(user)}</p>}
       </div>
       {!user && (
-        <label className="field">
-          <span className="field__label">Telegram ID</span>
-          <input
-            className="input"
-            inputMode="numeric"
-            value={telegramId}
-            onChange={(e) => setTelegramId(e.target.value)}
-            aria-invalid={!!errors.telegram_id}
-            data-autofocus
-          />
-          <span className="field__hint muted">
-            {errors.telegram_id ?? 'Числовой ID: сотрудник может узнать его у @userinfobot. По нему он войдёт в систему.'}
-          </span>
-        </label>
+        <div className="settings-grid">
+          <label className="field">
+            <span className="field__label">Telegram ID</span>
+            <input
+              className="input"
+              inputMode="numeric"
+              value={telegramId}
+              onChange={(e) => setTelegramId(e.target.value)}
+              aria-invalid={!!errors.telegram_id}
+              data-autofocus
+            />
+            <span className={errors.telegram_id ? 'field__hint error-text' : 'field__hint muted'}>
+              {errors.telegram_id ?? 'Числовой ID: сотрудник узнает его у @userinfobot.'}
+            </span>
+          </label>
+          <label className="field">
+            <span className="field__label">Рабочая почта</span>
+            <input
+              className="input"
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!errors.email}
+            />
+            <span className={errors.email ? 'field__hint error-text' : 'field__hint muted'}>
+              {errors.email ?? 'Для входа по паролю. Пароль выдадите сбросом после добавления.'}
+            </span>
+          </label>
+        </div>
       )}
       <div className="settings-grid">
         <label className="field">
@@ -258,6 +316,13 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
             </span>
             <input className="switch" type="checkbox" role="switch" checked={absent} onChange={(e) => setAbsent(e.target.checked)} />
           </label>
+        </div>
+      )}
+      {/* Сбрасывать можно только пароль от почты: у вошедших через Telegram его нет (409 conflict). */}
+      {user && <PasswordSection user={user} />}
+      {/* Отключение — отдельно от «Отсутствует» и с подтверждением: оно запрещает вход и сбрасывает сессии. */}
+      {user && (
+        <div className="user-form__toggles user-form__danger">
           <label className="toggle-row">
             <span className="toggle-row__text">
               <span className="toggle-row__title">Отключить доступ</span>
@@ -267,8 +332,6 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
           </label>
         </div>
       )}
-      {/* Сбрасывать можно только пароль от почты: у вошедших через Telegram его нет (409 conflict). */}
-      {user?.email && <ResetPassword userId={user.id} name={user.full_name} />}
       {error && (
         <p className="error-text" role="alert">
           {error}
@@ -282,6 +345,16 @@ function UserForm({ user, departments, onBusy, onSaved, onCancel }: UserFormProp
           {busy ? 'Сохраняем…' : user ? 'Сохранить' : 'Добавить'}
         </button>
       </div>
+      <Confirm
+        open={confirmDisable}
+        title={`Отключить доступ ${user?.full_name ?? ''}?`}
+        confirmLabel="Отключить доступ"
+        danger
+        onConfirm={() => void submit(undefined, true)}
+        onCancel={() => setConfirmDisable(false)}
+      >
+        <p>Сотрудник не сможет войти, открытые сессии на всех устройствах завершатся. Включить доступ можно здесь же.</p>
+      </Confirm>
     </form>
   );
 }

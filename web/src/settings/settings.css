@@ -197,6 +197,17 @@
   font-weight: 600;
 }
 
+.user-form__danger .toggle-row__title {
+  color: var(--danger);
+}
+
+.settings-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 .user-form__actions {
   display: flex;
   flex-wrap: wrap;

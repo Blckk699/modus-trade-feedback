@@ -6,6 +6,7 @@ import type { Schemas } from '../api/types';
 import { useDictionaries } from '../app/dictionaries';
 import { EmptyState } from '../app/EmptyState';
 import { Modal } from '../app/Modal';
+import { Confirm } from '../app/Confirm';
 import { Select } from '../app/Select';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -238,6 +239,7 @@ function InviteRow({ invite: inv, onChanged }: { invite: Invite; onChanged: (i: 
   const dict = useDictionaries();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [asking, setAsking] = useState(false);
   const active = inv.state === 'active';
 
   async function revoke() {
@@ -247,6 +249,7 @@ function InviteRow({ invite: inv, onChanged }: { invite: Invite; onChanged: (i: 
       onChanged(
         await unwrap(api.POST('/api/v1/admin/invites/{invite_id}/revoke', { params: { path: { invite_id: inv.id } } })),
       );
+      setAsking(false);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -270,12 +273,27 @@ function InviteRow({ invite: inv, onChanged }: { invite: Invite; onChanged: (i: 
       <div className="settings-row__badges">
         <span className={`badge${active ? ' badge--status-implemented' : ''}`}>{INVITE_STATE_LABEL[inv.state]}</span>
         {active && (
-          <button type="button" className="btn btn--ghost btn--danger" disabled={busy} onClick={revoke}>
+          <button type="button" className="btn btn--ghost btn--danger" disabled={busy} onClick={() => (setError(''), setAsking(true))}>
             Отозвать
           </button>
         )}
-        {error && <span className="error-text">{error}</span>}
       </div>
+      <Confirm
+        open={asking}
+        title="Отозвать приглашение?"
+        confirmLabel="Отозвать"
+        busyLabel="Отзываем…"
+        busy={busy}
+        error={error}
+        danger
+        onConfirm={revoke}
+        onCancel={() => setAsking(false)}
+      >
+        <p>
+          Ссылки перестанут работать: по ним больше никто не войдёт. Кто уже вошёл по приглашению, доступ сохранит. Отзыв не
+          отменить — понадобится новое приглашение.
+        </p>
+      </Confirm>
     </li>
   );
 }
