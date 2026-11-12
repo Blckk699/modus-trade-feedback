@@ -140,6 +140,8 @@ void main() {
             'session': null,
           }, 201),
     });
+    await tester.ensureVisible(find.byKey(const Key('open-register')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('open-register')));
     await tester.pumpAndSettle();
 
