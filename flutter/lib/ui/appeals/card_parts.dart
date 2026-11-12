@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:modus_api/api.dart';
 
@@ -31,14 +33,15 @@ class CardBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
+    // Material, а не DecoratedBox: ListTile внутри рисует отклик на своём Material.
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Material(
         color: ModusColors.of(context).card,
-        borderRadius: BorderRadius.circular(WebLook.cardRadius),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(WebLook.cardRadius)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (title != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -48,7 +51,9 @@ class CardBlock extends StatelessWidget {
             ]),
           ),
         ...children,
-      ]),
+          ]),
+        ),
+      ),
     );
   }
 }

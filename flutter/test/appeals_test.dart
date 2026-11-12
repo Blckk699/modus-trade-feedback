@@ -257,6 +257,10 @@ void main() {
     await tester.scrollUntilVisible(find.text('пример_заявки.pdf'), 200, scrollable: list);
     expect(find.text('180 КБ · Айгерим Нурланова'), findsOneWidget);
     expect(find.byKey(const Key('upload-attachment')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('history-toggle')), 200, scrollable: list);
+    expect(find.text('Статус изменён'), findsNothing, reason: 'история свёрнута по умолчанию');
+    await tester.tap(find.byKey(const Key('history-toggle')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Статус изменён'), 200, scrollable: list);
     expect(find.text('Новое → На рассмотрении'), findsOneWidget);
     expect(find.text('18 ноября 2026, 09:55'), findsWidgets, reason: 'срок в истории — датой, а не строкой ISO');
