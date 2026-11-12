@@ -247,7 +247,13 @@ class WebButton extends StatefulWidget {
     this.icon,
     this.busy = false,
     this.expand = true,
+    this.tint,
+    this.foreground,
   });
+
+  /// Свой фон и цвет текста поверх вида кнопки (например, «ждут ответа» на жёлтом).
+  final Color? tint;
+  final Color? foreground;
 
   final String label;
   final VoidCallback? onPressed;
@@ -267,12 +273,14 @@ class _WebButtonState extends State<WebButton> {
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (widget.kind) {
+    final base = switch (widget.kind) {
       WebButtonKind.primary => (scheme.primary, scheme.onPrimary),
       WebButtonKind.accent => (c.accent, c.onAccent),
       WebButtonKind.soft => (c.extra.surface3, c.heading),
       WebButtonKind.ghostDanger => (Colors.transparent, c.danger),
     };
+    final bg = widget.tint ?? base.$1;
+    final fg = widget.foreground ?? base.$2;
     final enabled = widget.onPressed != null && !widget.busy;
     final child = Row(
       mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,

@@ -12,6 +12,7 @@ import 'package:modus_feedback/ui/appeals/appeal_screen.dart';
 import 'package:modus_feedback/ui/discussions/discussion_screen.dart';
 import 'package:modus_feedback/ui/discussions/feed_screen.dart';
 
+import 'package:modus_feedback/ui/web/web_ui.dart';
 import 'fixtures.dart';
 
 Future<SessionController> signedIn(FakeServer server, [Map<String, dynamic>? me]) async {
@@ -53,7 +54,7 @@ void main() {
     await tester.pumpWidget(screen(session, const AppealScreen(appealId: 21)));
     await tester.pumpAndSettle();
 
-    await tapVisible(tester, find.byKey(const Key('action-publish_discussion')));
+    await tapAction(tester, 'publish_discussion');
     await tester.pumpAndSettle();
     final text = tester.widget<TextField>(find.byKey(const Key('discussion-text')));
     expect(text.controller!.text, 'В заявках на оборудование не хватает параметров', reason: 'подставлена суть');
@@ -211,8 +212,10 @@ void main() {
     final session = await signedIn(server, meJson(id: 3, role: 'head', permissions: headPermissions));
     await tester.pumpWidget(screen(session, const DiscussionScreen(discussionId: 9)));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('close-submit')), 200, scrollable: list);
-    expect(tester.widget<FilledButton>(find.byKey(const Key('close-submit'))).onPressed, isNull);
+    await tester.scrollUntilVisible(find.byKey(const Key('close-open')), 200, scrollable: list);
+    await tapVisible(tester, find.byKey(const Key('close-open')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<WebButton>(find.byKey(const Key('close-submit'))).onPressed, isNull);
     await tester.enterText(find.byKey(const Key('close-outcome')), 'Добавляем поля с 1 декабря.');
     await tester.pump();
     await tapVisible(tester, find.byKey(const Key('close-submit')));

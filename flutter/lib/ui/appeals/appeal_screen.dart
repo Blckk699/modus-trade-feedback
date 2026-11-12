@@ -225,11 +225,13 @@ class _AppealBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (!participant && canReadMessages(a)) ...[
-                      ChatEntry(key: ValueKey('chat-$version'), appeal: a, onAppealChanged: onChanged),
-                      const SizedBox(height: 8),
-                    ],
-                    ActionsPanel(appeal: a, onUpdated: onUpdated),
+                    ActionsPanel(
+                      appeal: a,
+                      onUpdated: onUpdated,
+                      chat: !participant && canReadMessages(a)
+                          ? ChatEntry(key: ValueKey('chat-$version'), appeal: a, onAppealChanged: onChanged)
+                          : null,
+                    ),
                   ],
                 ),
               ),
@@ -640,36 +642,17 @@ class ChatEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = ModusColors.of(context);
     final ask = appeal.allowedActions.contains(AppealAction.replyClarification);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: ask ? c.warnBg : c.extra.surface3,
-        shape: const StadiumBorder(),
-        child: InkWell(
-          key: const Key('chat-entry'),
-          customBorder: const StadiumBorder(),
-          onTap: () {
-            HapticFeedback.selectionClick();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ChatScreen(appeal: appeal, onAppealChanged: onAppealChanged),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(LucideIcons.messageCircle, size: 18, color: ask ? c.warn : c.heading),
-                const SizedBox(width: 10),
-                Text(
-                  ask ? 'Ответить на вопрос' : 'Переписка',
-                  style: TextStyle(color: ask ? c.warn : c.heading, fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
+    final fg = ask ? c.warn : c.heading;
+    return WebButton(
+      key: const Key('chat-entry'),
+      kind: WebButtonKind.soft,
+      tint: ask ? c.warnBg : null,
+      foreground: ask ? fg : null,
+      icon: const Icon(LucideIcons.messageCircle),
+      label: ask ? 'Ответить на вопрос' : 'Переписка',
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatScreen(appeal: appeal, onAppealChanged: onAppealChanged),
         ),
       ),
     );
