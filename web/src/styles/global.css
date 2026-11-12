@@ -632,6 +632,9 @@ svg {
 .content {
   width: 100%;
   flex: 1;
+  /* колонка: экран с пустым списком может занять всю высоту до низа окна */
+  display: flex;
+  flex-direction: column;
 }
 
 .content:focus {
@@ -1200,6 +1203,29 @@ svg {
   grid-template-columns: minmax(0, 1fr);
   gap: var(--gap);
   align-content: start;
+}
+
+/* Пустой список тянется до низа окна, а не висит куском посреди экрана.
+   Экран становится колонкой, пустая карточка забирает оставшуюся высоту. */
+.page:has(.empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(.empty) > .empty,
+.page:has(.empty) > :has(> .empty) {
+  flex: 1;
+}
+
+.page > :has(> .empty) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.page > :has(> .empty) > .empty {
+  flex: 1;
 }
 
 .toolbar {
@@ -2084,7 +2110,9 @@ textarea.input {
   justify-items: start;
 }
 
-/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки. */
+/* Пустой список — та же карточка, что и список с данными; значок и текст стоят по центру карточки.
+   На экране-списке карточка тянется до низа окна (см. .page:has(.empty)); min-height — нижняя граница,
+   когда над ней стоит высокий блок (загрузка записи в «Совещаниях»). */
 .empty {
   display: grid;
   place-content: center;
@@ -4746,6 +4774,8 @@ button.vote__option:not(.vote__option--mine):hover {
   }
 
   .stage {
+    /* на всю высоту окна: пустой список тянется до панели разделов */
+    min-height: 100dvh;
     padding: 0 12px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));
   }
 
