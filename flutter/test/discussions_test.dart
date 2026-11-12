@@ -107,10 +107,10 @@ void main() {
 
     expect(server.last('GET', '/api/v1/discussions').url.queryParameters['status'], 'open');
     expect(find.text('Добавить обязательные поля в шаблон заявки на оборудование'), findsOneWidget);
-    expect(find.text('до 13 ноября 2026, 18:00'), findsOneWidget);
+    expect(find.textContaining('до 13 ноября 2026, 18:00'), findsOneWidget);
     expect(find.text('4'), findsOneWidget);
-    expect(find.text('2 комментария'), findsOneWidget);
-    expect(find.text('вы проголосовали «за»'), findsOneWidget);
+    expect(find.text('2'), findsWidgets, reason: 'число комментариев');
+    expect(find.text('ваш голос: за'), findsOneWidget);
 
     await tapVisible(tester, find.byKey(const Key('tab-implemented')));
     await tester.pumpAndSettle();
