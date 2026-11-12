@@ -13,6 +13,7 @@ import 'duplicates_bitrix.dart';
 import '../discussions/discussion_screen.dart';
 import 'new_appeal_screen.dart' show FilesPicker, pickFilesFromDevice;
 import '../../theme/modus_theme.dart';
+import '../home/role_switch.dart';
 
 /// Карточка обращения: итог, сведения, описание, переписка, вложения, история.
 /// Действия показываются только из `allowed_actions`.
@@ -68,7 +69,7 @@ class _AppealScreenState extends State<AppealScreen> {
   Widget build(BuildContext context) {
     final appeal = _appeal;
     return Scaffold(
-      appBar: AppBar(title: Text(appeal?.number ?? 'Обращение')),
+      appBar: AppBar(title: Text(appeal?.number ?? 'Обращение'), actions: [RoleSwitchAction(appealId: widget.appealId)]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : appeal == null

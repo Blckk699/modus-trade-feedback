@@ -7,6 +7,7 @@ import '../../format.dart';
 import 'appeal_screen.dart';
 import 'badges.dart';
 import 'new_appeal_screen.dart';
+import '../home/role_switch.dart';
 
 /// «Мои обращения»: `GET /appeals?scope=mine&sort=created_desc`, по 20 на страницу.
 class MyAppealsScreen extends StatefulWidget {
@@ -105,7 +106,7 @@ class _MyAppealsScreenState extends State<MyAppealsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Мои обращения')),
+      appBar: AppBar(title: const Text('Мои обращения'), actions: const [RoleSwitchAction()]),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('new-appeal'),
         onPressed: _openNew,
