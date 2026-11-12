@@ -31,6 +31,8 @@ class UserOut(BaseModel):
     email: str | None = None
     # ID на портале Битрикс24 — тоже только администратору и самому пользователю.
     bitrix_user_id: int | None = None
+    # Задан ли пароль для входа по почте. Как и почта — только администратору и самому пользователю.
+    has_password: bool | None = None
     full_name: str
     position: str | None
     role: Role
