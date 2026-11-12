@@ -7,7 +7,7 @@ from datetime import datetime, time, timedelta, tzinfo
 from pathlib import Path
 
 from fastapi import UploadFile
-from sqlalchemy import Select, and_, func, or_, select, text
+from sqlalchemy import Select, and_, event, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.appeals import policy, routing
@@ -254,7 +254,10 @@ async def save_attachment(
 async def delete_attachment(
     session: AsyncSession, appeal: Appeal, attachment: Attachment, user: User, settings: Settings, now: datetime
 ) -> None:
-    """Удаляет запись и файл, в историю пишет «Файл удалён». Права проверяет вызывающий."""
+    """Удаляет запись и файл, в историю пишет «Файл удалён». Права проверяет вызывающий.
+
+    Файл убирается с диска только после фиксации транзакции: при откате запись остаётся — и файл тоже.
+    """
     path = Path(settings.attachments_dir) / attachment.storage_key
     record(
         session, appeal, HistoryKind.ATTACHMENT_REMOVED, now, user.id,
@@ -262,7 +265,7 @@ async def delete_attachment(
     )
     await session.delete(attachment)
     await session.flush()
-    remove_files(path)
+    event.listen(session.sync_session, "after_commit", lambda _session: remove_files(path), once=True)
 
 
 def count_query(query: Select) -> Select:

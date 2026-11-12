@@ -152,3 +152,19 @@ async def test_no_preview_for_other_files_and_broken_images(client, login_as, st
     assert broken["preview_url"] is not None
     assert (await client.get(broken["preview_url"], headers=author)).status_code == 404
     assert (await client.get(broken["download_url"], headers=author)).status_code == 200
+
+
+async def test_file_stays_on_disk_if_deletion_is_rolled_back(app, client, login_as, storage, clock) -> None:
+    """Файл убирается только после фиксации: откат транзакции оставляет и запись, и файл."""
+    from app.appeals import service
+    from app.models import Appeal, Attachment, User
+
+    author = await login_as(AUTHOR)
+    attachment = await upload(client, author, "скан.pdf", b"%PDF-1", "application/pdf")
+    async with app.state.sessionmaker() as session:
+        row = await session.get(Attachment, attachment["id"])
+        appeal = await session.get(Appeal, APPEAL)
+        user = await session.get(User, row.uploaded_by_id)
+        await service.delete_attachment(session, appeal, row, user, app.state.settings, clock.now())
+        await session.rollback()
+    assert (await client.get(attachment["download_url"], headers=author)).content == b"%PDF-1"
