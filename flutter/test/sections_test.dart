@@ -20,7 +20,7 @@ void main() {
     expect(startSectionFor(user), Section.home);
   });
 
-  test('собственник видит входящие, сводку и совещания', () {
+  test('собственник видит входящие, сводку, совещания и настройки доступа', () {
     final user = me(meJson(id: 1, role: 'owner', permissions: ownerPermissions));
     expect(sectionsFor(user), [
       Section.home,
@@ -29,6 +29,7 @@ void main() {
       Section.feed,
       Section.analytics,
       Section.meetings,
+      Section.settings,
       Section.profile,
     ]);
     expect(startSectionFor(user), Section.home);
