@@ -18,6 +18,7 @@ enum NotificationButtonType {
   replyClarification._(r'reply_clarification'),
   nameConsentShow._(r'name_consent_show'),
   nameConsentHide._(r'name_consent_hide'),
+  openAccessRequests._(r'open_access_requests'),
   ;
 
   /// Instantiate a new enum with the provided value.
@@ -83,6 +84,7 @@ class NotificationButtonTypeTypeTransformer {
         case r'reply_clarification': return NotificationButtonType.replyClarification;
         case r'name_consent_show': return NotificationButtonType.nameConsentShow;
         case r'name_consent_hide': return NotificationButtonType.nameConsentHide;
+        case r'open_access_requests': return NotificationButtonType.openAccessRequests;
         default:
           if (!allowNull) {
             throw ArgumentError('Unknown enum value to decode: $data');

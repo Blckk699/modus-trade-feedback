@@ -6,6 +6,7 @@
 """
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -160,6 +161,14 @@ for k, v in tokens['shadow'].items():
     lines.append(f'  static const double {camel(k)}Blur = {num(px(s["blur"]))};')
 lines += ['}', '']
 
+content = '\n'.join(lines)
+if '--check' in sys.argv:
+    # Для теста: файл должен совпадать с тем, что сгенерировалось бы сейчас.
+    if not OUT.exists() or OUT.read_text(encoding='utf-8') != content:
+        print(f'{OUT.relative_to(ROOT)} устарел: запустите python3 flutter/tool/generate_tokens.py')
+        sys.exit(1)
+    print('ok')
+    sys.exit(0)
 OUT.parent.mkdir(parents=True, exist_ok=True)
-OUT.write_text('\n'.join(lines), encoding='utf-8')
+OUT.write_text(content, encoding='utf-8')
 print(f'wrote {OUT.relative_to(ROOT)}')

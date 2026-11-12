@@ -17,7 +17,8 @@ class BotNotificationAllOfRecipient {
     required this.telegramId,
   });
 
-  int userId;
+  /// `null` — получатель ещё не пользователь (отказ по заявке на доступ)
+  int? userId;
 
   int telegramId;
 
@@ -29,7 +30,7 @@ class BotNotificationAllOfRecipient {
   @override
   int get hashCode =>
     // ignore: unnecessary_parenthesis
-    (userId.hashCode) +
+    (userId == null ? 0 : userId!.hashCode) +
     (telegramId.hashCode);
 
   @override
@@ -37,7 +38,11 @@ class BotNotificationAllOfRecipient {
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (this.userId != null) {
       json[r'user_id'] = this.userId;
+    } else {
+      json[r'user_id'] = null;
+    }
       json[r'telegram_id'] = this.telegramId;
     return json;
   }
@@ -54,14 +59,13 @@ class BotNotificationAllOfRecipient {
       // Note 2: this code is stripped in release mode!
       assert(() {
         assert(json.containsKey(r'user_id'), 'Required key "BotNotificationAllOfRecipient[user_id]" is missing from JSON.');
-        assert(json[r'user_id'] != null, 'Required key "BotNotificationAllOfRecipient[user_id]" has a null value in JSON.');
         assert(json.containsKey(r'telegram_id'), 'Required key "BotNotificationAllOfRecipient[telegram_id]" is missing from JSON.');
         assert(json[r'telegram_id'] != null, 'Required key "BotNotificationAllOfRecipient[telegram_id]" has a null value in JSON.');
         return true;
       }());
 
       return BotNotificationAllOfRecipient(
-        userId: mapValueOfType<int>(json, r'user_id')!,
+        userId: mapValueOfType<int>(json, r'user_id'),
         telegramId: mapValueOfType<int>(json, r'telegram_id')!,
       );
     }

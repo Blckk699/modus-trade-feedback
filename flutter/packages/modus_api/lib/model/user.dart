@@ -15,6 +15,8 @@ class User {
   User({
     required this.id,
     required this.telegramId,
+    this.email,
+    this.bitrixUserId,
     required this.fullName,
     required this.position,
     required this.role,
@@ -27,6 +29,12 @@ class User {
 
   /// Только для администратора и для самого пользователя
   int? telegramId;
+
+  /// Рабочая почта для входа. Только для администратора и для самого пользователя
+  String? email;
+
+  /// ID сотрудника на портале Битрикс24, если он входил через портал. Только для администратора и для самого пользователя 
+  int? bitrixUserId;
 
   String fullName;
 
@@ -45,6 +53,8 @@ class User {
   bool operator ==(Object other) => identical(this, other) || other is User &&
     other.id == id &&
     other.telegramId == telegramId &&
+    other.email == email &&
+    other.bitrixUserId == bitrixUserId &&
     other.fullName == fullName &&
     other.position == position &&
     other.role == role &&
@@ -57,6 +67,8 @@ class User {
     // ignore: unnecessary_parenthesis
     (id.hashCode) +
     (telegramId == null ? 0 : telegramId!.hashCode) +
+    (email == null ? 0 : email!.hashCode) +
+    (bitrixUserId == null ? 0 : bitrixUserId!.hashCode) +
     (fullName.hashCode) +
     (position == null ? 0 : position!.hashCode) +
     (role.hashCode) +
@@ -65,7 +77,7 @@ class User {
     (isDisabled.hashCode);
 
   @override
-  String toString() => 'User[id=$id, telegramId=$telegramId, fullName=$fullName, position=$position, role=$role, department=$department, isAbsent=$isAbsent, isDisabled=$isDisabled]';
+  String toString() => 'User[id=$id, telegramId=$telegramId, email=$email, bitrixUserId=$bitrixUserId, fullName=$fullName, position=$position, role=$role, department=$department, isAbsent=$isAbsent, isDisabled=$isDisabled]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -74,6 +86,16 @@ class User {
       json[r'telegram_id'] = this.telegramId;
     } else {
       json[r'telegram_id'] = null;
+    }
+    if (this.email != null) {
+      json[r'email'] = this.email;
+    } else {
+      json[r'email'] = null;
+    }
+    if (this.bitrixUserId != null) {
+      json[r'bitrix_user_id'] = this.bitrixUserId;
+    } else {
+      json[r'bitrix_user_id'] = null;
     }
       json[r'full_name'] = this.fullName;
     if (this.position != null) {
@@ -122,6 +144,8 @@ class User {
       return User(
         id: mapValueOfType<int>(json, r'id')!,
         telegramId: mapValueOfType<int>(json, r'telegram_id'),
+        email: mapValueOfType<String>(json, r'email'),
+        bitrixUserId: mapValueOfType<int>(json, r'bitrix_user_id'),
         fullName: mapValueOfType<String>(json, r'full_name')!,
         position: mapValueOfType<String>(json, r'position'),
         role: Role.fromJson(json[r'role'])!,

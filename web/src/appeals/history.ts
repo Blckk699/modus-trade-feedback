@@ -23,18 +23,23 @@ export function historyDays(events: HistoryEvent[]): HistoryDay[] {
 
 const KEY = 'modus.history_open';
 
+type Store = Pick<Storage, 'getItem' | 'setItem'>;
+
+/** Хранилище браузера. Само обращение к window.localStorage может бросить (песочница, запрет хранилища). */
+const browserStore = (): Store | null => (typeof window === 'undefined' ? null : window.localStorage);
+
 /** Раскрыта ли история: выбор запоминается, чтобы не раскрывать её в каждой карточке заново. */
-export function readHistoryOpen(storage: Pick<Storage, 'getItem'> | null): boolean {
+export function readHistoryOpen(store: () => Store | null = browserStore): boolean {
   try {
-    return storage?.getItem(KEY) === '1';
+    return store()?.getItem(KEY) === '1';
   } catch {
     return false;
   }
 }
 
-export function writeHistoryOpen(storage: Pick<Storage, 'setItem'> | null, open: boolean): void {
+export function writeHistoryOpen(open: boolean, store: () => Store | null = browserStore): void {
   try {
-    storage?.setItem(KEY, open ? '1' : '0');
+    store()?.setItem(KEY, open ? '1' : '0');
   } catch {
     /* хранилище недоступно — выбор живёт до закрытия карточки */
   }

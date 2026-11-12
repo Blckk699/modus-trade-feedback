@@ -17,25 +17,30 @@ describe('история обращения', () => {
 
   it('по умолчанию свёрнута, выбор запоминается', () => {
     const data = new Map<string, string>();
-    const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
-    expect(readHistoryOpen(storage)).toBe(false);
-    writeHistoryOpen(storage, true);
-    expect(readHistoryOpen(storage)).toBe(true);
-    writeHistoryOpen(storage, false);
-    expect(readHistoryOpen(storage)).toBe(false);
+    const store = () => ({ getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) });
+    expect(readHistoryOpen(store)).toBe(false);
+    writeHistoryOpen(true, store);
+    expect(readHistoryOpen(store)).toBe(true);
+    writeHistoryOpen(false, store);
+    expect(readHistoryOpen(store)).toBe(false);
   });
 
-  it('хранилище недоступно — история свёрнута, ошибок нет', () => {
-    const broken = {
-      getItem: () => {
+  it('хранилище бросает при чтении, записи или самом обращении к нему — история свёрнута, ошибок нет', () => {
+    const broken = () => ({
+      getItem: (): string | null => {
         throw new Error('нет доступа');
       },
       setItem: () => {
         throw new Error('нет доступа');
       },
+    });
+    const forbidden = () => {
+      throw new Error('SecurityError');
     };
     expect(readHistoryOpen(broken)).toBe(false);
-    expect(() => writeHistoryOpen(broken, true)).not.toThrow();
-    expect(readHistoryOpen(null)).toBe(false);
+    expect(() => writeHistoryOpen(true, broken)).not.toThrow();
+    expect(readHistoryOpen(forbidden)).toBe(false);
+    expect(() => writeHistoryOpen(true, forbidden)).not.toThrow();
+    expect(readHistoryOpen(() => null)).toBe(false);
   });
 });

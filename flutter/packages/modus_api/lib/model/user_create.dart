@@ -13,14 +13,17 @@ part of openapi.api;
 class UserCreate {
   /// Returns a new [UserCreate] instance.
   UserCreate({
-    required this.telegramId,
+    this.telegramId,
+    this.email,
     required this.fullName,
     this.position,
     required this.role,
     this.departmentId,
   });
 
-  int telegramId;
+  int? telegramId;
+
+  String? email;
 
   String fullName;
 
@@ -33,6 +36,7 @@ class UserCreate {
   @override
   bool operator ==(Object other) => identical(this, other) || other is UserCreate &&
     other.telegramId == telegramId &&
+    other.email == email &&
     other.fullName == fullName &&
     other.position == position &&
     other.role == role &&
@@ -41,18 +45,28 @@ class UserCreate {
   @override
   int get hashCode =>
     // ignore: unnecessary_parenthesis
-    (telegramId.hashCode) +
+    (telegramId == null ? 0 : telegramId!.hashCode) +
+    (email == null ? 0 : email!.hashCode) +
     (fullName.hashCode) +
     (position == null ? 0 : position!.hashCode) +
     (role.hashCode) +
     (departmentId == null ? 0 : departmentId!.hashCode);
 
   @override
-  String toString() => 'UserCreate[telegramId=$telegramId, fullName=$fullName, position=$position, role=$role, departmentId=$departmentId]';
+  String toString() => 'UserCreate[telegramId=$telegramId, email=$email, fullName=$fullName, position=$position, role=$role, departmentId=$departmentId]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+    if (this.telegramId != null) {
       json[r'telegram_id'] = this.telegramId;
+    } else {
+      json[r'telegram_id'] = null;
+    }
+    if (this.email != null) {
+      json[r'email'] = this.email;
+    } else {
+      json[r'email'] = null;
+    }
       json[r'full_name'] = this.fullName;
     if (this.position != null) {
       json[r'position'] = this.position;
@@ -79,8 +93,6 @@ class UserCreate {
       // Note 1: the values aren't checked for validity beyond being non-null.
       // Note 2: this code is stripped in release mode!
       assert(() {
-        assert(json.containsKey(r'telegram_id'), 'Required key "UserCreate[telegram_id]" is missing from JSON.');
-        assert(json[r'telegram_id'] != null, 'Required key "UserCreate[telegram_id]" has a null value in JSON.');
         assert(json.containsKey(r'full_name'), 'Required key "UserCreate[full_name]" is missing from JSON.');
         assert(json[r'full_name'] != null, 'Required key "UserCreate[full_name]" has a null value in JSON.');
         assert(json.containsKey(r'role'), 'Required key "UserCreate[role]" is missing from JSON.');
@@ -89,7 +101,8 @@ class UserCreate {
       }());
 
       return UserCreate(
-        telegramId: mapValueOfType<int>(json, r'telegram_id')!,
+        telegramId: mapValueOfType<int>(json, r'telegram_id'),
+        email: mapValueOfType<String>(json, r'email'),
         fullName: mapValueOfType<String>(json, r'full_name')!,
         position: mapValueOfType<String>(json, r'position'),
         role: Role.fromJson(json[r'role'])!,
@@ -141,7 +154,6 @@ class UserCreate {
 
   /// The list of required keys that must be present in a JSON.
   static const requiredKeys = <String>{
-    'telegram_id',
     'full_name',
     'role',
   };

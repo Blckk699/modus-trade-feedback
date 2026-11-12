@@ -17,6 +17,7 @@ Map<String, dynamic> summaryJson({Map<String, dynamic>? department, double? avg 
       'department': department,
       'generated_at': '2026-11-10T09:00:00+05:00',
       'total': 20,
+      'unassigned_count': 0,
       'closed_count': 6,
       'closed_share': 0.3,
       'avg_first_response_hours': avg,

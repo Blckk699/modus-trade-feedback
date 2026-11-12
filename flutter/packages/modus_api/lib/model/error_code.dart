@@ -10,18 +10,28 @@
 
 part of openapi.api;
 
-/// `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 · `not_found` 404 · `conflict` 409 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 · `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 · `too_many_requests` 429 · `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500 
+/// `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `invalid_credentials` 401 · `invalid_bitrix_auth` 401 · `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 · `access_request_pending` 403 · `access_request_rejected` 403 · `password_change_required` 403 · `not_found` 404 · `conflict` 409 · `already_registered` 409 · `email_taken` 409 · `telegram_taken` 409 · `last_login_method` 409 · `invite_invalid` 410 · `invalid_transition` 409 · `merge_not_allowed` 409 · `voting_closed` 409 · `file_too_large` 413 · `validation_error` 422 · `audio_empty` 422 · `audio_too_long` 422 · `too_many_requests` 429 · `bitrix_unavailable` 502 · `ai_unavailable` 503 · `internal_error` 500 
 enum ErrorCode {
   unauthorized._(r'unauthorized'),
   invalidTelegramAuth._(r'invalid_telegram_auth'),
   invalidLoginCode._(r'invalid_login_code'),
+  invalidCredentials._(r'invalid_credentials'),
+  invalidBitrixAuth._(r'invalid_bitrix_auth'),
   userNotRegistered._(r'user_not_registered'),
   userDisabled._(r'user_disabled'),
   devLoginDisabled._(r'dev_login_disabled'),
   forbidden._(r'forbidden'),
+  accessRequestPending._(r'access_request_pending'),
+  accessRequestRejected._(r'access_request_rejected'),
+  passwordChangeRequired._(r'password_change_required'),
   notFound._(r'not_found'),
   conflict._(r'conflict'),
   invalidTransition._(r'invalid_transition'),
+  alreadyRegistered._(r'already_registered'),
+  emailTaken._(r'email_taken'),
+  telegramTaken._(r'telegram_taken'),
+  lastLoginMethod._(r'last_login_method'),
+  inviteInvalid._(r'invite_invalid'),
   mergeNotAllowed._(r'merge_not_allowed'),
   votingClosed._(r'voting_closed'),
   fileTooLarge._(r'file_too_large'),
@@ -94,13 +104,23 @@ class ErrorCodeTypeTransformer {
         case r'unauthorized': return ErrorCode.unauthorized;
         case r'invalid_telegram_auth': return ErrorCode.invalidTelegramAuth;
         case r'invalid_login_code': return ErrorCode.invalidLoginCode;
+        case r'invalid_credentials': return ErrorCode.invalidCredentials;
+        case r'invalid_bitrix_auth': return ErrorCode.invalidBitrixAuth;
         case r'user_not_registered': return ErrorCode.userNotRegistered;
         case r'user_disabled': return ErrorCode.userDisabled;
         case r'dev_login_disabled': return ErrorCode.devLoginDisabled;
         case r'forbidden': return ErrorCode.forbidden;
+        case r'access_request_pending': return ErrorCode.accessRequestPending;
+        case r'access_request_rejected': return ErrorCode.accessRequestRejected;
+        case r'password_change_required': return ErrorCode.passwordChangeRequired;
         case r'not_found': return ErrorCode.notFound;
         case r'conflict': return ErrorCode.conflict;
         case r'invalid_transition': return ErrorCode.invalidTransition;
+        case r'already_registered': return ErrorCode.alreadyRegistered;
+        case r'email_taken': return ErrorCode.emailTaken;
+        case r'telegram_taken': return ErrorCode.telegramTaken;
+        case r'last_login_method': return ErrorCode.lastLoginMethod;
+        case r'invite_invalid': return ErrorCode.inviteInvalid;
         case r'merge_not_allowed': return ErrorCode.mergeNotAllowed;
         case r'voting_closed': return ErrorCode.votingClosed;
         case r'file_too_large': return ErrorCode.fileTooLarge;

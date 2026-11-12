@@ -1,5 +1,5 @@
 import { CardSkeleton } from '../app/CardSkeleton';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare, Users } from 'lucide-react';
 import { api, unwrap } from '../api/client';
@@ -86,6 +86,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const background = useBackground();
   const show = cardSections(a);
   const isAuthor = a.viewer_relations.includes('author');
+  // Кнопка переписки живёт в подвале карточки: подвал отдаёт место, раздел переписки кладёт туда кнопку.
+  const [chatSlot, setChatSlot] = useState<HTMLElement | null>(null);
 
   return (
     <article className="sheet">
@@ -182,12 +184,12 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
         {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
         {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
-        {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
+        {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} entryHost={chatSlot} />}
         {show.attachments && <AttachmentsSection appeal={a} />}
         {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
       </div>
 
-      <ActionsPanel appeal={a} onUpdated={onUpdated} />
+      <ActionsPanel appeal={a} onUpdated={onUpdated} chatSlot={show.messages ? setChatSlot : undefined} />
     </article>
   );
 }
