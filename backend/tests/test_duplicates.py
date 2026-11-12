@@ -10,7 +10,7 @@ from app.adapters.claude import DuplicateMatch
 # Категория 1 «Межотдельное взаимодействие» закреплена за руководителем закупок, как и A-001 и A-002.
 FORM = {"type": "problem", "category_id": 1, "priority": "medium", "text": "Секретный текст автора о сроках согласования."}
 HEAD = "head_procurement"
-A_001, A_002, A_003 = 1, 2, 3
+A_001, A_002, A_003, A_004 = 1, 2, 3, 4  # A-003 «В работе», A-004 «Реализовано»
 REASON = "Оба обращения о сроках согласования."
 
 
@@ -120,9 +120,37 @@ async def test_participant_gets_main_statuses_but_no_foreign_text_or_name(client
 
 async def test_merge_rejected_outside_allowed_statuses(client, login_as) -> None:
     owner = await login_as("owner")
-    response = await merge(client, owner, A_001, A_003)  # A-003 «В работе»
-    assert (response.status_code, response.json()["error"]["code"]) == (409, "merge_not_allowed")
-    assert (await merge(client, owner, A_001, A_001)).status_code == 409
+
+    def refusal(response) -> tuple:
+        error = response.json().get("error", {})
+        return response.status_code, error.get("code"), (error.get("details") or {}).get("reason")
+
+    # Повтор уже в работе — его не присоединяют; основное завершено — к нему не присоединяют.
+    assert refusal(await merge(client, owner, A_003, A_001)) == (409, "merge_not_allowed", "duplicate_status")
+    assert refusal(await merge(client, owner, A_001, A_004)) == (409, "merge_not_allowed", "main_finished")
+    assert refusal(await merge(client, owner, A_001, A_001)) == (409, "merge_not_allowed", "same_appeal")
+
+
+async def test_duplicate_joins_main_that_is_in_progress_or_awaits_info(client, login_as) -> None:
+    """B-25: по основному уже работают или ждут уточнения, а о том же пишут снова — повтор присоединяется."""
+    owner = await login_as("owner")
+    author = await login_as("employee_sales")
+    card = (await client.get(f"/api/v1/appeals/{A_003}", headers=owner)).json()
+    assert card["status"] == "in_progress"
+    first = await submit(client, author, FORM)
+    joined = await merge(client, owner, first["id"], A_003)
+    assert (joined.status_code, joined.json()["id"], joined.json()["status"]) == (200, A_003, "in_progress")
+
+    main = await submit(client, author, FORM)
+    assert (await client.post(f"/api/v1/appeals/{main['id']}/take", headers=owner, json={})).status_code == 200
+    asked = await client.post(f"/api/v1/appeals/{main['id']}/request-info", headers=owner, json={"question": "Какой склад?"})
+    assert asked.json()["status"] == "awaiting_info"
+    second = await submit(client, await login_as("employee_procurement"), FORM)
+    joined = await merge(client, owner, second["id"], main["id"])
+    assert (joined.status_code, joined.json()["status"]) == (200, "awaiting_info")
+    assert joined.json()["participants_count"] > main["participants_count"]
+    closed = (await client.get(f"/api/v1/appeals/{second['id']}", headers=owner)).json()
+    assert (closed["status"], closed["closed_reason"]) == ("closed", "merged")
 
 
 async def test_merge_requires_rights_on_both_appeals(client, login_as) -> None:
