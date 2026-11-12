@@ -216,6 +216,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Какие способы входа включены
+         * @description Публичный маршрут для экрана входа. `bitrix24=false` — кнопку «Войти через Битрикс24» не показывать:
+         *     на сервере не заданы `BITRIX24_CLIENT_ID`, `BITRIX24_CLIENT_SECRET` и `BITRIX24_PORTAL`.
+         *
+         */
+        get: operations["getAuthMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Начать вход через Битрикс24
+         * @description Клиент открывает этот адрес обычным переходом браузера (не `fetch`). Сервер отвечает `302` на
+         *     `https://<портал>/oauth/authorize/?client_id=…&state=…` и ставит cookie с `state`: он одноразовый,
+         *     живёт 10 минут и привязан к браузеру. После входа портал возвращает пользователя на
+         *     `GET /auth/bitrix/callback`. Вход через Битрикс24 не настроен — `404 not_found`.
+         *
+         */
+        get: operations["startBitrixLogin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Возврат с портала Битрикс24 (адрес возврата локального приложения)
+         * @description Этот адрес указывается в настройках локального приложения на портале. Клиент его не вызывает.
+         *     Сервер проверяет `state` (cookie, срок, одноразовость) и `domain`, меняет `code` на токен портала,
+         *     узнаёт пользователя через `user.current` и сопоставляет его с сотрудником: по `bitrix_user_id`,
+         *     затем по почте без учёта регистра (при совпадении запоминает `bitrix_user_id`). Токены портала не хранятся.
+         *
+         *     Ответ всегда `302` на страницу клиента `<веб>/auth/bitrix/done`:
+         *     - успех — `?code=<одноразовый код>`: клиент меняет его на сессию через `POST /auth/bitrix/exchange`.
+         *       Токена сессии в адресной строке нет; код живёт 60 секунд;
+         *     - отказ — `?error=<код ошибки>`: `access_request_pending` (незнакомому сотруднику создана заявка на доступ
+         *       с именем и почтой из портала, либо она уже на рассмотрении), `access_request_rejected`, `user_disabled`,
+         *       `invalid_bitrix_auth` (неверный или просроченный `state`, чужой портал, портал отклонил `code`),
+         *       `bitrix_unavailable` (портал не ответил).
+         *
+         */
+        get: operations["bitrixLoginCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/bitrix/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Обменять одноразовый код входа через Битрикс24 на сессию
+         * @description Страница `<веб>/auth/bitrix/done` берёт `code` из адреса и получает ту же сессию, что у остальных способов входа.
+         *     Код одноразовый и живёт 60 секунд; неверный, использованный или просроченный — `401 invalid_bitrix_auth`.
+         *
+         */
+        post: operations["exchangeBitrixLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/switch": {
         parameters: {
             query?: never;
@@ -695,11 +795,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Переназначить ответственного с причиной
+         * Назначить или переназначить ответственного
          * @description Руководитель (в своём подразделении), администратор, собственник. Если первого ответа ещё не было,
-         *     срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется. Причина пишется
-         *     в историю. Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
+         *     срок первого ответа отсчитывается заново; у отвеченного обращения срок не меняется.
+         *     Назначить можно действующего сотрудника, кроме администратора (`422`). Этим же маршрутом администратор
          *     назначает ответственного из очереди нераспределённых.
+         *
+         *     Причина (`reason`):
+         *     - у обращения уже есть ответственный (смена) — обязательна: без неё, с `null` или из одних пробелов —
+         *       `422` с полем `reason`. В историю пишется событие `reassigned`, причина — в `comment`;
+         *     - ответственного нет (первое назначение) — необязательна: поле можно не передавать или передать `null`.
+         *       В историю пишется событие `assigned`; `comment` — причина, если её передали, иначе `null`
+         *       (стандартный текст сервер не подставляет).
          *     Ответственному, сотруднику — `403`.
          *
          */
@@ -1321,6 +1428,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Живые обновления (WebSocket)
+         * @description Соединение WebSocket: `wss://<сервер>/api/v1/ws`. Сервер сам сообщает клиенту, что изменилось;
+         *     клиент перезапрашивает данные обычными маршрутами. Все сообщения — текстовые кадры с JSON-объектом,
+         *     у каждого есть поле `type`.
+         *
+         *     **Вход.** Токен в адресе не передаётся. Первым сообщением клиент отправляет
+         *     `{"type": "auth", "token": "<access_token сессии>"}` (`WsAuth`). Сервер отвечает `ready` (`WsReady`)
+         *     и после этого начинает слать события. Только сессия клиента: сервисный ключ бота не принимается.
+         *     До `ready` событий нет; любое другое первое сообщение закрывает соединение с кодом `4401`.
+         *
+         *     **События** (`WsEvent`) — только о том, что пользователь видит по текущим правам:
+         *
+         *     | `type` | Когда | Кому |
+         *     |---|---|---|
+         *     | `appeal.created` | подано обращение | всем, кто его видит: автор, ответственный, руководитель подразделения, собственник, администратор |
+         *     | `appeal.updated` | в историю обращения записано событие: статус, ответственный, срок, эскалация, вложение, склейка и т. д. | всем, кто видит обращение, включая участника склеенного повтора |
+         *     | `message.created` | новое сообщение в приватной переписке | тем, кто читает переписку: автор, ответственный, руководитель, собственник. Администратору — нет |
+         *     | `notification.created` | пользователю создано уведомление | только получателю, с актуальным счётчиком непрочитанного |
+         *     | `discussion.updated` | обсуждение опубликовано, в нём голос, комментарий, решение об имени или итог | всем подключённым |
+         *
+         *     В событии только идентификаторы и признак того, что поменялось. Текстов обращений, сообщений,
+         *     комментариев и уведомлений в событиях нет. Права проверяются в момент отправки: потерял доступ —
+         *     событий по обращению больше нет. Свои собственные действия пользователь тоже получает событием
+         *     (так обновляются другие его вкладки и устройства).
+         *
+         *     **Гарантии.** Событие отправляется после того, как изменение сохранено, обычно в пределах секунды.
+         *     Пропущенные события не досылаются и не хранятся: после подключения и после каждого переподключения
+         *     клиент сам перезапрашивает то, что показывает. Одно действие может дать несколько событий
+         *     (например, `appeal.updated` и `notification.created`); порядок между ними не гарантируется.
+         *     Неизвестный `type` и неизвестные поля клиент пропускает — список событий будет расширяться.
+         *
+         *     **Пинг.** Клиент может в любой момент отправить `{"type": "ping"}` и получит `{"type": "pong"}`;
+         *     рекомендуется раз в 30 секунд. Сервер, кроме того, шлёт служебные ping-кадры протокола WebSocket —
+         *     браузер отвечает на них сам. Переподключение — на клиенте, с нарастающей паузой.
+         *
+         *     **Коды закрытия:**
+         *
+         *     | Код | Причина | Что делать клиенту |
+         *     |---|---|---|
+         *     | `4401` | неверный или просроченный токен, первое сообщение не `auth`, сессия истекла или закрыта, доступ отключён | не переподключаться с тем же токеном; отправить пользователя на вход |
+         *     | `4408` | за 10 секунд после открытия не пришёл `auth` | переподключиться и сразу отправить `auth` |
+         *     | `4400` | сообщение не JSON-объект, без `type` или длиннее 4 КБ | исправить клиент |
+         *     | `4429` | у пользователя больше 10 одновременных соединений — закрывается самое старое | не переподключать закрытое |
+         *     | `1001`, `1012` | сервер перезапускается | переподключиться |
+         *
+         *     Маршрут описан как `GET`, потому что соединение открывается HTTP-запросом с `Upgrade: websocket`.
+         *     Мок-сервер Prism его не поддерживает.
+         *
+         */
+        get: operations["openLiveUpdates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/bot/notifications/pending": {
         parameters: {
             query?: never;
@@ -1786,6 +1959,7 @@ export interface components {
         };
         /**
          * @description `unauthorized` 401 · `invalid_telegram_auth` 401 · `invalid_login_code` 401 · `invalid_credentials` 401 ·
+         *     `invalid_bitrix_auth` 401 ·
          *     `user_not_registered` 403 · `user_disabled` 403 · `dev_login_disabled` 403 · `forbidden` 403 ·
          *     `access_request_pending` 403 · `access_request_rejected` 403 · `password_change_required` 403 ·
          *     `not_found` 404 · `conflict` 409 · `already_registered` 409 · `email_taken` 409 · `telegram_taken` 409 ·
@@ -1796,7 +1970,7 @@ export interface components {
          *
          * @enum {string}
          */
-        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "invalid_credentials" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "access_request_pending" | "access_request_rejected" | "password_change_required" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "email_taken" | "telegram_taken" | "last_login_method" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
+        ErrorCode: "unauthorized" | "invalid_telegram_auth" | "invalid_login_code" | "invalid_credentials" | "invalid_bitrix_auth" | "user_not_registered" | "user_disabled" | "dev_login_disabled" | "forbidden" | "access_request_pending" | "access_request_rejected" | "password_change_required" | "not_found" | "conflict" | "invalid_transition" | "already_registered" | "email_taken" | "telegram_taken" | "last_login_method" | "invite_invalid" | "merge_not_allowed" | "voting_closed" | "file_too_large" | "validation_error" | "audio_empty" | "audio_too_long" | "too_many_requests" | "bitrix_unavailable" | "ai_unavailable" | "internal_error";
         /**
          * @description employee — сотрудник, head — руководитель подразделения, admin — администратор, owner — собственник
          * @enum {string}
@@ -1929,6 +2103,13 @@ export interface components {
             telegram_id: number | null;
             /** @description Рабочая почта для входа. Только для администратора и для самого пользователя */
             email?: string | null;
+            /**
+             * Format: int64
+             * @description ID сотрудника на портале Битрикс24, если он входил через портал. Только для администратора
+             *     и для самого пользователя
+             *
+             */
+            bitrix_user_id?: number | null;
             full_name: string;
             /** @description Должность, например «Сотрудник закупок» */
             position: string | null;
@@ -2147,17 +2328,168 @@ export interface components {
             page: number;
             page_size: number;
         };
+        /**
+         * @description Вид события в истории обращения
+         * @enum {string}
+         */
+        HistoryKind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+        /** @example {
+         *       "type": "auth",
+         *       "token": "3fa1c0d2e4b54f6c8a7e9d0b1c2f3a4e"
+         *     } */
+        WsAuth: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "auth";
+            /** @description `access_token` сессии из `/auth/*` */
+            token: string;
+        };
+        /** @example {
+         *       "type": "ping"
+         *     } */
+        WsPing: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ping";
+        };
+        /** @description Сообщение клиента серверу */
+        WsClientMessage: components["schemas"]["WsAuth"] | components["schemas"]["WsPing"];
+        /**
+         * @description Вход принят, дальше идут события
+         * @example {
+         *       "type": "ready",
+         *       "user_id": 4,
+         *       "unread_count": 2,
+         *       "session_expires_at": "2026-12-12T09:00:00+05:00"
+         *     }
+         */
+        WsReady: {
+            /** @enum {string} */
+            type: "ready";
+            user_id: number;
+            /** @description Непрочитанные уведомления на момент подключения (то же, что `GET /notifications/unread-count`) */
+            unread_count: number;
+            /**
+             * Format: date-time
+             * @description Когда сессия истечёт и сервер закроет соединение с кодом `4401`
+             */
+            session_expires_at: string;
+        };
+        /** @example {
+         *       "type": "pong"
+         *     } */
+        WsPong: {
+            /** @enum {string} */
+            type: "pong";
+        };
+        /** @example {
+         *       "type": "appeal.created",
+         *       "appeal_id": 42,
+         *       "number": "MT-000042",
+         *       "status": "new"
+         *     } */
+        WsAppealCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "appeal.created";
+            appeal_id: number;
+            number: string;
+            status: components["schemas"]["AppealStatus"];
+        };
+        /** @example {
+         *       "type": "appeal.updated",
+         *       "appeal_id": 42,
+         *       "number": "MT-000042",
+         *       "status": "in_review",
+         *       "changed": [
+         *         "status_changed"
+         *       ]
+         *     } */
+        WsAppealUpdated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "appeal.updated";
+            appeal_id: number;
+            number: string;
+            /** @description Статус после изменения */
+            status: components["schemas"]["AppealStatus"];
+            /** @description Что записано в историю этим действием — те же значения, что `HistoryEvent.kind`:
+             *     `status_changed` — статус, `assigned` / `reassigned` — ответственный, `deadline_set` — срок,
+             *     `escalated` — эскалация, `attachment_added` — вложение и т. д. Подсказка, что перезапросить.
+             *      */
+            changed: components["schemas"]["HistoryKind"][];
+        };
+        /** @example {
+         *       "type": "message.created",
+         *       "appeal_id": 42,
+         *       "message_id": 318
+         *     } */
+        WsMessageCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "message.created";
+            appeal_id: number;
+            message_id: number;
+        };
+        /** @example {
+         *       "type": "notification.created",
+         *       "notification_id": 905,
+         *       "unread_count": 3
+         *     } */
+        WsNotificationCreated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "notification.created";
+            notification_id: number;
+            /** @description Счётчик непрочитанного вместе с этим уведомлением */
+            unread_count: number;
+        };
+        /** @example {
+         *       "type": "discussion.updated",
+         *       "discussion_id": 6,
+         *       "changed": "vote"
+         *     } */
+        WsDiscussionUpdated: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "discussion.updated";
+            discussion_id: number;
+            /**
+             * @description `published` — обсуждение появилось в ленте, `vote` — изменились итоги голосования,
+             *     `comment` — новый комментарий, `name_consent` — автор показал или скрыл имя, `closed` — зафиксирован итог
+             *
+             * @enum {string}
+             */
+            changed: "published" | "vote" | "comment" | "name_consent" | "closed";
+        };
+        /** @description Событие об изменении */
+        WsEvent: components["schemas"]["WsAppealCreated"] | components["schemas"]["WsAppealUpdated"] | components["schemas"]["WsMessageCreated"] | components["schemas"]["WsNotificationCreated"] | components["schemas"]["WsDiscussionUpdated"];
+        /** @description Сообщение сервера клиенту */
+        WsServerMessage: components["schemas"]["WsReady"] | components["schemas"]["WsPong"] | components["schemas"]["WsEvent"];
         HistoryEvent: {
             id: number;
             appeal_id: number;
-            /** @enum {string} */
-            kind: "created" | "assigned" | "reassigned" | "status_changed" | "deadline_set" | "clarification_requested" | "clarification_answered" | "escalated" | "merged" | "participant_added" | "attachment_added" | "discussion_published" | "discussion_closed" | "bitrix_task_created" | "field_changed";
+            kind: components["schemas"]["HistoryKind"];
             /** @description null — система */
             actor: components["schemas"]["UserBrief"] | null;
             field: string | null;
             old_value: string | null;
             new_value: string | null;
-            /** @description Причина переназначения, текст решения и т. п. */
+            /** @description Причина переназначения, текст решения и т. п. У первого назначения без причины — null */
             comment: string | null;
             /** Format: date-time */
             created_at: string;
@@ -2598,6 +2930,10 @@ export interface components {
             full_name?: string | null;
             /** @description Только бот */
             telegram_username?: string | null;
+        };
+        AuthMethods: {
+            /** @description Вход через Битрикс24 настроен на сервере */
+            bitrix24: boolean;
         };
         EmailRegister: {
             full_name: string;
@@ -3115,6 +3451,105 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+        };
+    };
+    getAuthMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Способы входа */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMethods"];
+                };
+            };
+        };
+    };
+    startBitrixLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Переход на страницу входа портала */
+            302: {
+                headers: {
+                    /** @description `https://<портал>/oauth/authorize/?client_id=…&state=…` */
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    bitrixLoginCallback: {
+        parameters: {
+            query?: {
+                /** @description Авторизационный код портала, живёт 30 секунд */
+                code?: string;
+                state?: string;
+                /** @description Домен портала */
+                domain?: string;
+                member_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Переход на `<веб>/auth/bitrix/done?code=…` или `?error=…` */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exchangeBitrixLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /** @example {
+                 *       "code": "7Jq0mYw3n2c1VbXkT9sLrA"
+                 *     } */
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            200: components["responses"]["Session"];
+            /** @description Код неверный, уже использован или истёк (`invalid_bitrix_auth`) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            403: components["responses"]["LoginForbidden"];
+            422: components["responses"]["ValidationError"];
         };
     };
     switchAccount: {
@@ -3800,13 +4235,10 @@ export interface operations {
         };
         requestBody: {
             content: {
-                /** @example {
-                 *       "assignee_id": 13,
-                 *       "reason": "Вопрос про синхронизацию систем — в зоне IT."
-                 *     } */
                 "application/json": {
                     assignee_id: number;
-                    reason: string;
+                    /** @description Обязательна, если у обращения уже есть ответственный */
+                    reason?: string | null;
                 };
             };
         };
@@ -4767,6 +5199,25 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    openLiveUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Соединение переведено на WebSocket. От клиента — `WsClientMessage`, от сервера — `WsServerMessage`.
+             *      */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listPendingNotifications: {

@@ -1,73 +1,65 @@
 import { describe, expect, it } from 'vitest';
-import { maySound, parseEvent, react, retryDelay, SOUND_GAP_MS } from './events';
+import { closeAction, maySound, parseMessage, react, retryDelay, SOUND_GAP_MS } from './events';
 
-const me = { id: 4, openChatAppealId: null };
-
-describe('разбор событий', () => {
-  it('знакомые события проходят, строка JSON разбирается', () => {
-    expect(parseEvent('{"type":"message.created","appeal_id":28}')).toEqual({ type: 'message.created', appeal_id: 28 });
-    expect(parseEvent({ type: 'discussion.updated', discussion_id: 1 })).toEqual({ type: 'discussion.updated', discussion_id: 1 });
-    expect(parseEvent({ type: 'notification.created', unread_count: 3 })).toEqual({ type: 'notification.created', unread_count: 3 });
+describe('разбор кадров сокета', () => {
+  it('ready, pong и события контракта проходят, строка JSON разбирается', () => {
+    const ready = { type: 'ready', user_id: 4, unread_count: 2, session_expires_at: '2026-12-12T09:00:00+05:00' };
+    expect(parseMessage(JSON.stringify(ready))).toEqual(ready);
+    expect(parseMessage({ type: 'pong' })).toEqual({ type: 'pong' });
+    expect(parseMessage('{"type":"message.created","appeal_id":42,"message_id":318}')).toEqual({ type: 'message.created', appeal_id: 42, message_id: 318 });
+    expect(parseMessage({ type: 'discussion.updated', discussion_id: 6, changed: 'vote' })).toMatchObject({ discussion_id: 6 });
+    expect(parseMessage({ type: 'notification.created', notification_id: 905, unread_count: 0 })).toMatchObject({ unread_count: 0 });
   });
 
-  it('незнакомое, битое и без id — отбрасывается', () => {
-    expect(parseEvent('не json')).toBeNull();
-    expect(parseEvent({ type: 'pong' })).toBeNull();
-    expect(parseEvent({ type: 'appeal.updated' })).toBeNull();
-    expect(parseEvent({ type: 'appeal.updated', appeal_id: '28' })).toBeNull();
-    expect(parseEvent(null)).toBeNull();
+  it('незнакомое, битое и без обязательных id — отбрасывается', () => {
+    expect(parseMessage('не json')).toBeNull();
+    expect(parseMessage({ type: 'appeal.archived', appeal_id: 1 })).toBeNull();
+    expect(parseMessage({ type: 'appeal.updated' })).toBeNull();
+    expect(parseMessage({ type: 'appeal.updated', appeal_id: '28' })).toBeNull();
+    expect(parseMessage({ type: 'notification.created', unread_count: 3 })).toBeNull();
+    expect(parseMessage({ type: 'ready', user_id: 4 })).toBeNull();
+    expect(parseMessage(null)).toBeNull();
   });
 });
 
 describe('что делать по событию', () => {
-  it('чужое сообщение: перезапрос переписки и списков, тост с переходом, звук', () => {
-    expect(react({ type: 'message.created', appeal_id: 28, number: 'A-028', actor_id: 3 }, me)).toEqual({
+  it('обращение: карточка и списки, без счётчика и уведомления', () => {
+    expect(react({ type: 'appeal.updated', appeal_id: 7, number: 'MT-000007', status: 'in_progress', changed: ['status_changed'] })).toEqual({
+      topics: ['appeals', 'appeal:7'],
+      unreadCount: null,
+      notificationId: null,
+    });
+    expect(react({ type: 'appeal.created', appeal_id: 8, number: 'MT-000008', status: 'new' }).topics).toEqual(['appeals', 'appeal:8']);
+  });
+
+  it('сообщение: переписка и списки; тоста и звука нет — своё сообщение сервер тоже присылает', () => {
+    expect(react({ type: 'message.created', appeal_id: 28, message_id: 318 })).toEqual({
       topics: ['appeals', 'messages:28'],
       unreadCount: null,
-      refreshUnread: true,
-      toast: { text: 'Новое сообщение по A-028', to: '/appeals/28' },
-      sound: true,
+      notificationId: null,
     });
   });
 
-  it('своё сообщение: данные обновляются, тоста и звука нет', () => {
-    const r = react({ type: 'message.created', appeal_id: 28, actor_id: 4 }, me);
-    expect(r).toMatchObject({ topics: ['appeals', 'messages:28'], toast: null, sound: false, refreshUnread: false });
-  });
-
-  it('чат этого обращения открыт: звук есть, тоста нет', () => {
-    const r = react({ type: 'message.created', appeal_id: 28, actor_id: 3 }, { id: 4, openChatAppealId: 28 });
-    expect(r).toMatchObject({ toast: null, sound: true });
-  });
-
-  it('номер обращения в событии не пришёл — тост без номера', () => {
-    expect(react({ type: 'message.created', appeal_id: 28 }, me).toast).toEqual({ text: 'Новое сообщение по обращению', to: '/appeals/28' });
-  });
-
-  it('смена статуса: карточка и списки, без тоста и звука', () => {
-    expect(react({ type: 'appeal.updated', appeal_id: 7, status: 'in_progress', actor_id: 3 }, me)).toMatchObject({
-      topics: ['appeals', 'appeal:7'],
-      toast: null,
-      sound: false,
-    });
-  });
-
-  it('уведомление: счётчик из события, звук; без счётчика — перезапросить', () => {
-    expect(react({ type: 'notification.created', unread_count: 5 }, me)).toMatchObject({
-      topics: ['notifications', 'appeals'],
+  it('уведомление: счётчик из события и id для тоста', () => {
+    expect(react({ type: 'notification.created', notification_id: 905, unread_count: 5 })).toEqual({
+      topics: ['notifications'],
       unreadCount: 5,
-      refreshUnread: false,
-      sound: true,
+      notificationId: 905,
     });
-    expect(react({ type: 'notification.created' }, me)).toMatchObject({ unreadCount: null, refreshUnread: true });
   });
 
   it('обсуждение: лента и открытое обсуждение', () => {
-    expect(react({ type: 'discussion.updated', discussion_id: 1 }, me).topics).toEqual(['discussions', 'discussion:1']);
+    expect(react({ type: 'discussion.updated', discussion_id: 1, changed: 'comment' }).topics).toEqual(['discussions', 'discussion:1']);
   });
 });
 
-describe('переподключение и звук', () => {
+describe('закрытие, переподключение и звук', () => {
+  it('4401 — на вход, 4429 и 4400 — не переподключаться, остальное — повтор', () => {
+    expect(closeAction(4401)).toBe('relogin');
+    expect([4429, 4400].map(closeAction)).toEqual(['stop', 'stop']);
+    expect([4408, 1001, 1012, 1006, 1000].map(closeAction)).toEqual(['retry', 'retry', 'retry', 'retry', 'retry']);
+  });
+
   it('пауза растёт вдвое и останавливается на 30 секундах', () => {
     expect([0, 1, 2, 3, 4, 5, 9].map(retryDelay)).toEqual([1000, 2000, 4000, 8000, 16000, 30000, 30000]);
   });

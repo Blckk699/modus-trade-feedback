@@ -1,6 +1,6 @@
 import { tokenStore } from '../auth/tokenStore';
 import { config } from '../config';
-import { parseEvent, retryDelay, type LiveEvent } from './events';
+import { closeAction, parseMessage, PING_MS, retryDelay, type LiveEvent, type ServerMessage } from './events';
 
 /** Адрес сокета на том же хосте, что и API: http → ws, https → wss. Токена в адресе нет. */
 export function socketUrl(apiBaseUrl: string = config.apiBaseUrl): string {
@@ -9,22 +9,43 @@ export function socketUrl(apiBaseUrl: string = config.apiBaseUrl): string {
 
 const MOCK_CHANNEL = 'modus-live-mock';
 
-/** Для локальной проверки: послать событие во все вкладки с VITE_LIVE_MOCK=true. */
-export function emitMock(event: LiveEvent) {
-  new BroadcastChannel(MOCK_CHANNEL).postMessage(event);
+/** Для локальной проверки: послать сообщение сервера во все вкладки с VITE_LIVE_MOCK=true. */
+export function emitMock(message: ServerMessage) {
+  new BroadcastChannel(MOCK_CHANNEL).postMessage(message);
+}
+
+export interface LiveHandlers {
+  onEvent: (event: LiveEvent) => void;
+  /**
+   * Сервер принял вход. `reconnected` — это не первое подключение: пропущенные события сервер
+   * не досылает, экранам пора перечитать данные.
+   */
+  onReady: (unreadCount: number, reconnected: boolean) => void;
 }
 
 /**
  * Подписка на живые обновления (B-24). Возвращает функцию закрытия.
- * Соединение рвётся — переподключаемся с растущей паузой; сервер без сокета (до выкладки B-24)
- * просто не отвечает, и приложение работает как раньше: опросом и перезапросом при действиях.
+ * Первым сообщением уходит `auth` с токеном сессии, события идут после `ready`. Соединение рвётся —
+ * переподключаемся с растущей паузой; код 4401 значит, что сессии больше нет, и ведёт на вход.
+ * Сервер без сокета просто не отвечает, и приложение работает как раньше: опросом и перезапросом при действиях.
  */
-export function connectLive(onEvent: (event: LiveEvent) => void): () => void {
+export function connectLive({ onEvent, onReady }: LiveHandlers): () => void {
+  const dispatch = (raw: unknown, wasReady: boolean): boolean => {
+    const msg = parseMessage(raw);
+    if (!msg || msg.type === 'pong') return false;
+    if (msg.type === 'ready') {
+      onReady(msg.unread_count, wasReady);
+      return true;
+    }
+    onEvent(msg);
+    return false;
+  };
+
   if (config.liveMock) {
     const ch = new BroadcastChannel(MOCK_CHANNEL);
+    let ready = false;
     ch.onmessage = (m) => {
-      const ev = parseEvent(m.data);
-      if (ev) onEvent(ev);
+      if (dispatch(m.data, ready)) ready = true;
     };
     return () => ch.close();
   }
@@ -32,30 +53,51 @@ export function connectLive(onEvent: (event: LiveEvent) => void): () => void {
   let closed = false;
   let ws: WebSocket | null = null;
   let timer: number | undefined;
+  let ping: number | undefined;
   let attempt = 0;
+  let everReady = false;
 
   const open = () => {
     const token = tokenStore.get();
     if (closed || !token || typeof WebSocket === 'undefined') return;
+    let socket: WebSocket;
     try {
-      ws = new WebSocket(socketUrl());
+      socket = new WebSocket(socketUrl());
     } catch {
       return schedule();
     }
-    ws.onopen = () => {
+    ws = socket;
+    socket.onopen = () => {
       // Токен идёт первым сообщением, а не в адресе: адреса попадают в журналы.
-      ws?.send(JSON.stringify({ type: 'auth', token }));
+      socket.send(JSON.stringify({ type: 'auth', token }));
     };
-    ws.onmessage = (m) => {
-      attempt = 0;
-      const ev = parseEvent(m.data);
-      if (ev) onEvent(ev);
+    socket.onmessage = (m) => {
+      if (dispatch(m.data, everReady)) {
+        everReady = true;
+        attempt = 0;
+        window.clearInterval(ping);
+        ping = window.setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }));
+        }, PING_MS);
+      }
     };
-    ws.onclose = () => {
-      ws = null;
-      schedule();
+    socket.onclose = (e) => {
+      window.clearInterval(ping);
+      if (ws === socket) ws = null;
+      if (closed) return;
+      const action = closeAction(e.code);
+      if (action === 'relogin') {
+        closed = true;
+        // Как на 401 от API: сессии нет, выходим на экран входа. Токен уже сменился (другой вход
+        // в этой вкладке) — значит, закрыли прежнюю сессию, новую не трогаем.
+        if (tokenStore.get() === token) tokenStore.set(null);
+      } else if (action === 'stop') {
+        closed = true;
+      } else {
+        schedule();
+      }
     };
-    ws.onerror = () => ws?.close();
+    socket.onerror = () => socket.close();
   };
 
   const schedule = () => {
@@ -77,6 +119,7 @@ export function connectLive(onEvent: (event: LiveEvent) => void): () => void {
   return () => {
     closed = true;
     window.clearTimeout(timer);
+    window.clearInterval(ping);
     document.removeEventListener('visibilitychange', onVisible);
     ws?.close();
   };

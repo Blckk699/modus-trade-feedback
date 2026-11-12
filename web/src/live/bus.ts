@@ -16,6 +16,11 @@ export function publish(topics: Topic[]) {
   }
 }
 
+/** Перечитать всё, что сейчас на экране: после переподключения сервер пропущенное не досылает. */
+export function publishAll() {
+  publish([...listeners.keys()]);
+}
+
 function subscribe(topic: Topic, l: Listener) {
   let set = listeners.get(topic);
   if (!set) listeners.set(topic, (set = new Set()));

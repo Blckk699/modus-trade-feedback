@@ -1,10 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { api, unwrap } from '../api/client';
 import { useToast } from '../app/Toast';
 import { useUnread } from '../app/unread';
 import { useMe } from '../auth';
-import { publish } from './bus';
+import { publish, publishAll } from './bus';
 import { react } from './events';
+import { noticeFor } from './notice';
 import { connectLive } from './socket';
 import { playNotify } from './sound';
 
@@ -18,7 +20,8 @@ const Ctx = createContext<LiveValue>({ setOpenChat: () => {} });
 /**
  * Живые обновления (W-16): подписка после входа, закрытие при выходе и смене роли (провайдер стоит
  * внутри части приложения, привязанной к id пользователя). По событию экраны тихо перезапрашивают
- * свои данные, обновляется счётчик на колокольчике, на чужие события — тост и короткий звук.
+ * свои данные; по уведомлению обновляется счётчик на колокольчике, звучит короткий сигнал и
+ * появляется тост с переходом. После переподключения всё, что на экране, перечитывается.
  */
 export function LiveProvider({ children }: { children: ReactNode }) {
   const me = useMe();
@@ -31,26 +34,48 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const latest = useRef({ unread, toast, navigate, location });
   latest.current = { unread, toast, navigate, location };
 
-  useEffect(
-    () =>
-      connectLive((event) => {
-        const r = react(event, { id: me.id, openChatAppealId: openChat.current });
-        const now = latest.current;
-        publish(r.topics);
-        if (r.unreadCount !== null) now.unread.setCount(r.unreadCount);
-        else if (r.refreshUnread) now.unread.refresh();
-        if (r.toast) {
-          const { to, text } = r.toast;
+  useEffect(() => {
+    let alive = true;
+
+    // В событии только id уведомления: текст и адрес берём из списка непрочитанного.
+    const announce = (id: number) => {
+      unwrap(api.GET('/api/v1/notifications', { params: { query: { unread_only: true, page_size: 10 } } }))
+        .then((page) => {
+          const n = page.items.find((x) => x.id === id);
+          if (!alive || !n) return;
+          const now = latest.current;
+          const notice = noticeFor(n, { pathname: now.location.pathname, openChatAppealId: openChat.current });
+          if (!notice) return;
+          const { to } = notice;
           // Карточка откроется поверх текущего экрана, как из списка.
           const background = (now.location.state as { background?: unknown } | null)?.background ?? now.location;
-          if (now.location.pathname !== to) {
-            now.toast(text, 'info', { label: 'Открыть', run: () => now.navigate(to, { state: { background } }) });
-          }
+          now.toast(notice.text, 'info', to ? { label: 'Открыть', run: () => now.navigate(to, { state: { background } }) } : undefined);
+        })
+        .catch(() => {
+          /* тост не критичен: счётчик на колокольчике уже обновлён */
+        });
+    };
+
+    const close = connectLive({
+      onReady: (unreadCount, reconnected) => {
+        latest.current.unread.setCount(unreadCount);
+        if (reconnected) publishAll();
+      },
+      onEvent: (event) => {
+        const r = react(event);
+        publish(r.topics);
+        if (r.unreadCount !== null) latest.current.unread.setCount(r.unreadCount);
+        if (r.notificationId !== null) {
+          playNotify();
+          announce(r.notificationId);
         }
-        if (r.sound) playNotify();
-      }),
-    [me.id],
-  );
+      },
+    });
+    return () => {
+      alive = false;
+      close();
+    };
+  }, [me.id]);
 
   const value = useMemo<LiveValue>(() => ({ setOpenChat: (id) => (openChat.current = id) }), []);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
