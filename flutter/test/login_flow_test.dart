@@ -27,7 +27,9 @@ void main() {
     expect(find.byKey(const Key('login-email')), findsOneWidget, reason: 'основной способ — почта');
     expect(find.byKey(const Key('dev-login')), findsNothing, reason: 'dev-вход выключен на сервере');
 
-    await tester.tap(find.text('Код из Telegram'));
+    await tester.ensureVisible(find.byKey(const Key('login-code-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('login-code-mode')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('login-code')), '482913');
     await tester.pump();
