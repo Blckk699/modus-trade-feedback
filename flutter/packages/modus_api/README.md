@@ -143,7 +143,7 @@ Class | Method | HTTP request | Description
 *AppealActionsApi* | [**acceptFeedback**](doc//AppealActionsApi.md#acceptfeedback) | **POST** /api/v1/appeals/{appeal_id}/accept-feedback | Принять положительный отзыв одним действием (Новое → Закрыто)
 *AppealActionsApi* | [**implementAppeal**](doc//AppealActionsApi.md#implementappeal) | **POST** /api/v1/appeals/{appeal_id}/implement | Зафиксировать результат (В работе → Реализовано)
 *AppealActionsApi* | [**mergeAppeal**](doc//AppealActionsApi.md#mergeappeal) | **POST** /api/v1/appeals/{appeal_id}/merge | Присоединить это обращение как повтор к основному
-*AppealActionsApi* | [**reassignAppeal**](doc//AppealActionsApi.md#reassignappeal) | **POST** /api/v1/appeals/{appeal_id}/reassign | Переназначить ответственного с причиной
+*AppealActionsApi* | [**reassignAppeal**](doc//AppealActionsApi.md#reassignappeal) | **POST** /api/v1/appeals/{appeal_id}/reassign | Назначить или переназначить ответственного
 *AppealActionsApi* | [**rejectAppeal**](doc//AppealActionsApi.md#rejectappeal) | **POST** /api/v1/appeals/{appeal_id}/reject | Отклонить с обязательной причиной (На рассмотрении → Отклонено)
 *AppealActionsApi* | [**requestInfo**](doc//AppealActionsApi.md#requestinfo) | **POST** /api/v1/appeals/{appeal_id}/request-info | Задать автору уточняющий вопрос (На рассмотрении → Ожидает уточнения)
 *AppealActionsApi* | [**startWork**](doc//AppealActionsApi.md#startwork) | **POST** /api/v1/appeals/{appeal_id}/start-work | Принять решение и перевести в работу (На рассмотрении → В работе)

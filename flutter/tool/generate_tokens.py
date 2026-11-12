@@ -67,7 +67,12 @@ lines += [f'  final Color {camel(n)};' for n in names]
 lines += ['  final Map<String, StatusColor> status;', '']
 lines.append('  const ModusPalette({')
 lines += [f'    required this.{camel(n)},' for n in names]
-lines += ['    required this.status,', '  });', '}', '']
+lines += ['    required this.status,', '  });', '']
+lines.append('  ModusPalette copyWith({')
+lines += [f'    Color? {camel(n)},' for n in names]
+lines += ['    Map<String, StatusColor>? status,', '  }) =>', '      ModusPalette(']
+lines += [f'        {camel(n)}: {camel(n)} ?? this.{camel(n)},' for n in names]
+lines += ['        status: status ?? this.status,', '      );', '}', '']
 lines += [
     '/// Цвета бейджа статуса: текст и подложка.',
     'class StatusColor {',

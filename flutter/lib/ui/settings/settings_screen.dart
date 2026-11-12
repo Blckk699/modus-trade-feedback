@@ -5,6 +5,7 @@ import 'deadlines_tab.dart';
 import 'departments_tab.dart';
 import 'unassigned_tab.dart';
 import 'users_tab.dart';
+import '../home/role_switch.dart';
 
 /// Настройки администратора (истории 64–70). Раздел в навигации виден только при
 /// `Me.permissions.can_manage_settings`; права на сами операции проверяет бэкенд.
@@ -18,6 +19,7 @@ class SettingsScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Настройки'),
+          actions: const [RoleSwitchAction()],
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,

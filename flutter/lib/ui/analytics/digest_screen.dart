@@ -7,6 +7,7 @@ import '../../format.dart';
 import '../appeals/appeal_screen.dart';
 import '../appeals/badges.dart';
 import '../../theme/modus_theme.dart';
+import '../home/role_switch.dart';
 
 /// «12 ч», «1,5 д» — как `formatHours` в вебе.
 String formatHours(double h) {
@@ -100,6 +101,7 @@ class _DigestScreenState extends State<DigestScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          const RoleSwitchAction(),
           IconButton(
             key: const Key('digest-filters'),
             tooltip: 'Фильтры',
