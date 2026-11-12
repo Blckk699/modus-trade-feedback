@@ -8,6 +8,7 @@ import '../appeals/appeal_screen.dart';
 import '../appeals/badges.dart';
 import '../../theme/modus_theme.dart';
 import '../home/role_switch.dart';
+import '../sheet_header.dart';
 
 /// «12 ч», «1,5 д» — как `formatHours` в вебе.
 String formatHours(double h) {
@@ -446,7 +447,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
       padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('Фильтры', style: Theme.of(context).textTheme.titleLarge),
+          const SheetHeader('Фильтры'),
           const SizedBox(height: 16),
           if (_departments != null) ...[
             FutureBuilder<List<Department>>(

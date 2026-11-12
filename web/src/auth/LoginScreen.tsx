@@ -15,6 +15,7 @@ import {
   type NewPasswordForm,
 } from './email/forms';
 import { PasswordField } from './email/PasswordField';
+import { BitrixLoginButton, useBitrixLogin } from './bitrix/BitrixLogin';
 import { authMethods } from './methods';
 
 /**
@@ -26,6 +27,8 @@ export function LoginScreen() {
   const { state, acceptSession, failLogin, needAccess } = useAuth();
   const notice = state.status === 'anonymous' ? state.notice : undefined;
   const methods = authMethods.filter((m) => m.LoginButton && m.isAvailable());
+  // Битрикс24 (W-15): кнопка видна, только если сервер включил этот вход.
+  const bitrix = useBitrixLogin();
   // Бот отправляет незнакомый Telegram-аккаунт на /profile. Адрес при входе не меняется,
   // поэтому после входа откроется профиль с кнопкой «Привязать Telegram»; здесь объясняем, зачем входить.
   const toProfile = useLocation().pathname === '/profile';
@@ -53,12 +56,13 @@ export function LoginScreen() {
       <EmailLoginForm onSession={acceptSession} onTemporary={setTemporary} />
       <p className="auth__hint">Забыли пароль? Его сбросит администратор.</p>
 
-      {methods.length > 0 && (
+      {(methods.length > 0 || bitrix) && (
         <>
           <p className="auth__or" role="separator">
             или
           </p>
           <div className="auth__sso">
+            {bitrix && <BitrixLoginButton />}
             {methods.map((m) => {
               const Button = m.LoginButton!;
               return <Button key={m.id} onSession={acceptSession} onError={failLogin} onUnregistered={needAccess} />;
