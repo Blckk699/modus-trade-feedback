@@ -15,10 +15,12 @@ const auth: Middleware = {
     }
     return request;
   },
-  onResponse({ response, schemaPath }) {
+  onResponse({ request, response, schemaPath }) {
     // Истёкшая или отозванная сессия: выходим. Маршруты входа сами отвечают 401 на неверные данные,
     // как и привязка Telegram (POST /me/telegram: 401 — Telegram не подтвердил подпись, сессия при этом жива).
-    const ownAuthError = schemaPath.startsWith('/api/v1/auth/') || schemaPath === '/api/v1/me/telegram';
+    // Отвязка (DELETE того же пути) — обычный запрос: её 401 значит, что сессии больше нет.
+    const ownAuthError =
+      schemaPath.startsWith('/api/v1/auth/') || (schemaPath === '/api/v1/me/telegram' && request.method === 'POST');
     if (response.status === 401 && !ownAuthError) {
       tokenStore.set(null);
     }

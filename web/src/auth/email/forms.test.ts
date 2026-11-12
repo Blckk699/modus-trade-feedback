@@ -139,6 +139,8 @@ describe('профиль: отвязка Telegram', () => {
   it('единственный способ входа отвязать нельзя; у сотрудника без почты пароль не сбросить', () => {
     expect(unlinkTelegramProblem(apiError(409, CODES.lastLoginMethod))).toContain('единственный способ входа');
     expect(resetPasswordProblem(apiError(409, 'conflict'))).toContain('нет почты');
+    // 404 у сброса пароля — контрактный «сотрудник не найден», а не «вход по почте не включён»
+    expect(resetPasswordProblem(apiError(404, 'not_found'))).toBe('текст сервера');
   });
 });
 
