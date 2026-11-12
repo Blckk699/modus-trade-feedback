@@ -72,7 +72,7 @@ export function InvitesTab() {
       {s.status === 'error' && <p className="error-text">{s.message}</p>}
       {s.status === 'ready' && s.data.length === 0 && (
         <EmptyState icon="inbox" title="Приглашений пока нет">
-          Нажмите «Создать приглашение» — по ссылке человек сразу получит доступ с заданной ролью.
+          Создайте первое и отправьте ссылку человеку.
         </EmptyState>
       )}
       {s.status === 'ready' && s.data.length > 0 && (
@@ -150,7 +150,7 @@ function CreateInvite({ departments, onCreated, onCancel, onBusy }: CreateInvite
         </label>
         <label className="field">
           <span className="field__label">
-            Имя <span className="muted">— необязательно</span>
+            Имя <span className="muted">· необязательно</span>
           </span>
           <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} data-autofocus />
         </label>
@@ -194,7 +194,7 @@ function CreatedLinks({ invite, onClose }: { invite: Created; onClose: () => voi
           <h2 id="invite-title" className="upload-modal__title">
             Приглашение создано
           </h2>
-          <p className="muted">Скопируйте ссылку сейчас — потом её не показать.</p>
+          <p className="muted">Скопируйте ссылку сейчас. Позже её посмотреть нельзя.</p>
         </div>
       </div>
       <CopyLink label="Через бота в Telegram" value={invite.bot_link} />

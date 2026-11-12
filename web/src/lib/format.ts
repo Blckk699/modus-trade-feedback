@@ -10,6 +10,17 @@ const dateTime = new Intl.DateTimeFormat('ru-RU', {
 });
 const dateOnly = new Intl.DateTimeFormat('ru-RU', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' });
 
+const dayShort = new Intl.DateTimeFormat('ru-RU', { timeZone: TZ, day: 'numeric', month: 'short' });
+const dayShortYear = new Intl.DateTimeFormat('ru-RU', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric' });
+const yearOf = new Intl.DateTimeFormat('ru-RU', { timeZone: TZ, year: 'numeric' });
+
+/** Короткая дата для строк списков: «12 нояб.», а для прошлых лет — «12 нояб. 2025 г.». */
+export function formatDay(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return yearOf.format(d) === yearOf.format(now) ? dayShort.format(d) : dayShortYear.format(d);
+}
+
 export function formatDateTime(iso: string | null | undefined): string {
   return iso ? dateTime.format(new Date(iso)) : '—';
 }

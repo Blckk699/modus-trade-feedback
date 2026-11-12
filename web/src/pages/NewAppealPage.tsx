@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, Check, Paperclip, X } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { fieldErrors } from '../api/fieldErrors';
 import { uploadAttachment } from '../api/files';
 import type { Schemas } from '../api/types';
+import { useBackground } from '../app/background';
 import { useDictionaries } from '../app/dictionaries';
+import { PageHead } from '../app/PageHead';
+import { Select } from '../app/Select';
+import { TypeIcon } from '../appeals/TypeIcon';
 import { formatDateTime, formatSize } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
-import { Select } from '../app/Select';
-import { useCardLock } from './CardModal';
+import { useCardLock, useInCard } from './CardModal';
 
 type AppealType = Schemas['AppealType'];
 type Priority = Schemas['Priority'];
@@ -20,8 +24,23 @@ interface Created {
   failedFiles: { name: string; message: string }[];
 }
 
+/** Подсказка под названием типа: помогает выбрать, не читая инструкцию. */
+const TYPE_HINT: Record<AppealType, string> = {
+  problem: 'Что-то мешает работать',
+  suggestion: 'Есть идея, как сделать лучше',
+  praise: 'Отметить хорошую работу',
+};
+
+const TEXT_PLACEHOLDER: Record<AppealType, string> = {
+  problem: 'Что происходит, где и как часто',
+  suggestion: 'Что предлагаете изменить и что это даст',
+  praise: 'Что получилось хорошо и кого отметить',
+};
+
+/** Подача обращения. Из приложения открывается окном поверх экрана, по прямой ссылке — отдельной страницей. */
 export function NewAppealPage() {
   const dict = useDictionaries();
+  const inCard = useInCard();
   const categories = useAsync(() => unwrap(api.GET('/api/v1/categories')), []);
 
   const [type, setType] = useState<AppealType>('problem');
@@ -42,7 +61,7 @@ export function NewAppealPage() {
     setError('');
     setErrors({});
     if (!text.trim()) {
-      setErrors({ text: 'Опишите проблему или предложение.' });
+      setErrors({ text: 'Напишите хотя бы пару слов.' });
       return;
     }
     setBusy(true);
@@ -77,160 +96,171 @@ export function NewAppealPage() {
     }
   }
 
-  if (created) return <CreatedPanel {...created} />;
-
   const activeCategories = categories.state.status === 'ready' ? categories.state.data.filter((c) => c.is_active) : [];
 
-  return (
-    <section className="page">
-      <Link to="/my" className="back-link">
-        ← Мои обращения
-      </Link>
-      <h1 className="page__title">Новое обращение</h1>
+  const body = created ? (
+    <CreatedPanel {...created} />
+  ) : (
+    <form className="compose" onSubmit={submit} noValidate>
+      <header className="compose__head">
+        {/* На отдельной странице заголовок уже стоит в шапке. */}
+        {inCard && <h1 className="compose__title">Новое обращение</h1>}
+        <p className="muted">Его получит ответственный за тему и ответит в срок.</p>
+      </header>
 
-      <form className="form" onSubmit={submit} noValidate>
-        <fieldset className="field">
-          <legend className="field__label">Тип</legend>
-          <div className="segmented">
-            {(dict.data?.appeal_types ?? []).map((t) => (
-              <label key={t.code} className="segmented__item">
-                <input
-                  type="radio"
-                  name="type"
-                  value={t.code}
-                  checked={type === t.code}
-                  onChange={() => setType(t.code as AppealType)}
-                />
-                <span>{t.label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="form__row">
-          <label className="field">
-            <span className="field__label">Категория</span>
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Не знаю — распределит администратор</option>
-              {activeCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-            {categories.state.status === 'error' && (
-              <span className="error-text field__hint">Категории не загрузились: {categories.state.message}</span>
-            )}
-            {errors.category_id && <span className="error-text field__hint">{errors.category_id}</span>}
-          </label>
-
-          <label className="field">
-            <span className="field__label">Приоритет</span>
-            <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-              {(dict.data?.priorities ?? []).map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.label}
-                </option>
-              ))}
-            </Select>
-          </label>
+      <fieldset className="field">
+        <legend className="field__label">О чём</legend>
+        <div className="choice">
+          {(dict.data?.appeal_types ?? []).map((t) => (
+            <label key={t.code} className="choice__item">
+              <input type="radio" name="type" value={t.code} checked={type === t.code} onChange={() => setType(t.code as AppealType)} />
+              <span className="choice__box">
+                <TypeIcon type={t.code as AppealType} />
+                <span className="choice__text">
+                  <span className="choice__label">{t.label}</span>
+                  <span className="choice__hint">{TYPE_HINT[t.code as AppealType]}</span>
+                </span>
+              </span>
+            </label>
+          ))}
         </div>
+      </fieldset>
 
+      <label className="field">
+        <span className="field__label">Описание</span>
+        <textarea
+          className="input"
+          rows={5}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={TEXT_PLACEHOLDER[type]}
+          aria-invalid={Boolean(errors.text)}
+          data-autofocus
+        />
+        {errors.text && <span className="error-text field__hint">{errors.text}</span>}
+      </label>
+
+      {type !== 'praise' && (
         <label className="field">
-          <span className="field__label">Описание</span>
-          <textarea
-            className="input"
-            rows={6}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={type === 'praise' ? 'Что работает хорошо и кого отметить' : 'Что происходит, где и как часто'}
-            aria-invalid={Boolean(errors.text)}
-          />
-          {errors.text && <span className="error-text field__hint">{errors.text}</span>}
+          <span className="field__label">
+            Как это можно решить <span className="muted">· необязательно</span>
+          </span>
+          <textarea className="input" rows={2} value={solution} onChange={(e) => setSolution(e.target.value)} />
+        </label>
+      )}
+
+      <div className="form__row">
+        <label className="field">
+          <span className="field__label">Категория</span>
+          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">Пусть решит администратор</option>
+            {activeCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          {categories.state.status === 'error' && (
+            <span className="error-text field__hint">Категории не загрузились: {categories.state.message}</span>
+          )}
+          {errors.category_id && <span className="error-text field__hint">{errors.category_id}</span>}
         </label>
 
-        {type !== 'praise' && (
-          <label className="field">
-            <span className="field__label">
-              Предлагаемое решение <span className="muted">— необязательно</span>
-            </span>
-            <textarea className="input" rows={3} value={solution} onChange={(e) => setSolution(e.target.value)} />
-          </label>
-        )}
+        <label className="field">
+          <span className="field__label">Приоритет</span>
+          <Select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+            {(dict.data?.priorities ?? []).map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.label}
+              </option>
+            ))}
+          </Select>
+        </label>
+      </div>
 
-        <div className="field">
-          <span className="field__label">
-            Вложения <span className="muted">— до 20 МБ на файл</span>
+      {files.length > 0 && (
+        <ul className="file-list" aria-label="Выбранные файлы">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`}>
+              <span>{f.name}</span>
+              <span className="muted">{formatSize(f.size)}</span>
+              <button
+                type="button"
+                className="file-list__remove"
+                aria-label={`Убрать файл ${f.name}`}
+                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="compose__foot">
+        <label className="file-pick">
+          <input
+            type="file"
+            multiple
+            aria-label="Приложить файлы, до 20 МБ каждый"
+            onChange={(e) => {
+              // Копируем список до сброса поля: updater setFiles выполнится позже.
+              const picked = Array.from(e.target.files ?? []);
+              setFiles((prev) => [...prev, ...picked]);
+              e.target.value = '';
+            }}
+          />
+          <span className="btn btn--soft">
+            <Paperclip size={16} aria-hidden="true" /> Приложить файл
           </span>
-          <label className="file-pick">
-            <input
-              type="file"
-              multiple
-              onChange={(e) => {
-                // Копируем список до сброса поля: updater setFiles выполнится позже.
-                const picked = Array.from(e.target.files ?? []);
-                setFiles((prev) => [...prev, ...picked]);
-                e.target.value = '';
-              }}
-            />
-            <span className="btn btn--soft">Выбрать файлы</span>
-          </label>
-          {files.length > 0 && (
-            <ul className="file-list">
-              {files.map((f, i) => (
-                <li key={`${f.name}-${i}`}>
-                  <span>{f.name}</span>
-                  <span className="muted">{formatSize(f.size)}</span>
-                  <button
-                    type="button"
-                    className="link-btn"
-                    onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
-                  >
-                    Убрать
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        </label>
+        <span className="muted compose__limit">до 20 МБ</span>
+        <button type="submit" className="btn btn--accent compose__send" disabled={busy}>
+          {busy ? 'Отправляем…' : 'Отправить'}
+        </button>
+      </div>
+    </form>
+  );
 
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="form__actions">
-          <button type="submit" className="btn btn--accent" disabled={busy}>
-            {busy ? 'Отправляем…' : 'Отправить'}
-          </button>
-        </div>
-      </form>
+  if (inCard) return body;
+  return (
+    <section className="solo">
+      <PageHead over="Мои обращения" title="Новое обращение" />
+      <Link to="/my" className="back-link">
+        <ArrowLeft size={16} aria-hidden="true" /> Мои обращения
+      </Link>
+      <div className="card solo__card solo__card--pad">{body}</div>
     </section>
   );
 }
 
 function CreatedPanel({ appeal, failedFiles }: Created) {
   const due = appeal.first_response_due_at;
+  const background = useBackground();
+  const inCard = useInCard();
   // После подачи фокус на заголовке: диктор объявит результат, а не «тело страницы».
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => title.current?.focus(), []);
   return (
-    <section className="page created">
-      <div className="upload-modal__top" role="status">
-        <span className="upload-modal__done" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7.5" />
-          </svg>
-        </span>
-        <div className="upload-modal__head">
-          <h1 ref={title} tabIndex={-1} className="upload-modal__title">
-            Обращение {appeal.number} подано
-          </h1>
-          <p className="muted">{due ? `Первый ответ придёт до ${formatDateTime(due)}.` : 'Статусы будут приходить в бот и сюда.'}</p>
-        </div>
-      </div>
+    <div className="created">
+      <span className="created__mark" aria-hidden="true">
+        <Check size={26} strokeWidth={2.5} />
+      </span>
+      <h1 ref={title} tabIndex={-1} className="compose__title" role="status">
+        Обращение {appeal.number} подано
+      </h1>
+      <p className="muted">
+        {due ? `Первый ответ придёт до ${formatDateTime(due)}. ` : ''}Обо всех изменениях напишем в Telegram и покажем
+        здесь.
+      </p>
 
-      <dl className="created__facts">
+      <dl className="facts">
         <div>
           <dt>Ответственный</dt>
           <dd>{appeal.assignee ? appeal.assignee.full_name : 'Назначит администратор'}</dd>
@@ -242,8 +272,9 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
       </dl>
 
       {failedFiles.length > 0 && (
-        <div className="error-text" role="alert">
-          Не все файлы загрузились — приложите их из карточки обращения:
+        <div className="notice notice--danger" role="alert">
+          <p className="notice__title">Не все файлы загрузились</p>
+          <p>Приложите их ещё раз из карточки обращения.</p>
           <ul>
             {failedFiles.map((f) => (
               <li key={f.name}>
@@ -258,10 +289,10 @@ function CreatedPanel({ appeal, failedFiles }: Created) {
         <Link to="/my" replace className="btn btn--soft">
           К моим обращениям
         </Link>
-        <Link to={`/appeals/${appeal.id}`} replace className="btn">
+        <Link to={`/appeals/${appeal.id}`} replace state={inCard ? { background } : undefined} className="btn">
           Открыть обращение
         </Link>
       </div>
-    </section>
+    </div>
   );
 }

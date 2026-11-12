@@ -1,27 +1,37 @@
 import { useEffect } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, MessagesSquare, Users } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { ApiError } from '../api/errors';
 import type { Schemas } from '../api/types';
+import { useBackground } from '../app/background';
 import { useDictionaries } from '../app/dictionaries';
+import { PageHead } from '../app/PageHead';
 import { useUnread } from '../app/unread';
 import { ActionsPanel } from '../appeals/ActionsPanel';
 import { AttachmentsSection } from '../appeals/AttachmentsSection';
+import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { BitrixSection } from '../appeals/BitrixSection';
 import { cardSections } from '../appeals/cardSections';
 import { DuplicatesSection } from '../appeals/DuplicatesSection';
-import { DueBadge, StatusBadge } from '../appeals/Badges';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
 import { MessagesSection } from '../appeals/MessagesSection';
+import { TypeIcon } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
+import { useInCard } from './CardModal';
 
 type Appeal = Schemas['Appeal'];
 
+/**
+ * Карточка обращения. Из списка открывается панелью справа поверх экрана; по прямой ссылке
+ * (уведомление бота, адресная строка) — отдельной страницей с тем же содержимым.
+ */
 export function AppealPage() {
   const id = Number(useParams().id);
+  const inCard = useInCard();
   const appeal = useAsync(() => unwrap(api.GET('/api/v1/appeals/{appeal_id}', { params: { path: { appeal_id: id } } })), [id]);
   const { markAppealRead } = useUnread();
 
@@ -30,41 +40,38 @@ export function AppealPage() {
   }, [appeal.state.status, id, markAppealRead]);
 
   const s = appeal.state;
-  if (s.status === 'loading') return <p className="muted">Загружаем…</p>;
-  if (s.status === 'error') {
-    const notFound = s.error instanceof ApiError && (s.error.status === 404 || s.error.status === 403);
-    return (
-      <section className="page">
-        <BackLink />
-        <div className="notice">
-          <p className="error-text">{notFound ? 'Обращение не найдено или у вас нет к нему доступа.' : s.message}</p>
-          {!notFound && (
-            <button type="button" className="btn btn--ghost" onClick={appeal.reload}>
-              Повторить
-            </button>
-          )}
-        </div>
-      </section>
+  let body;
+  if (s.status === 'loading') {
+    body = (
+      <div className="sheet sheet--state" role="status">
+        <span className="spinner" aria-hidden="true" /> Открываем обращение…
+      </div>
     );
+  } else if (s.status === 'error') {
+    const notFound = s.error instanceof ApiError && (s.error.status === 404 || s.error.status === 403);
+    body = (
+      <div className="sheet sheet--state">
+        <p className="error-text">{notFound ? 'Обращение не найдено или у вас нет к нему доступа.' : s.message}</p>
+        {!notFound && (
+          <button type="button" className="btn btn--soft" onClick={appeal.reload}>
+            Повторить
+          </button>
+        )}
+      </div>
+    );
+  } else {
+    body = <AppealCard appeal={s.data} onChanged={appeal.reload} onUpdated={appeal.set} />;
   }
 
-  return <AppealCard appeal={s.data} onChanged={appeal.reload} onUpdated={appeal.set} />;
-}
-
-const BACK: Record<string, { path: string; label: string }> = {
-  '/my': { path: '/my', label: 'Мои обращения' },
-  '/queue': { path: '/queue', label: 'Обработка' },
-  '/digest': { path: '/digest', label: 'Сводка' },
-};
-
-/** Назад туда, откуда пришли: в очередь, сводку или свои обращения. */
-function BackLink() {
-  const from = (useLocation().state as { from?: string } | null)?.from;
-  const back = BACK[from ?? ''] ?? BACK['/my'];
+  if (inCard) return body;
   return (
-    <Link to={back.path} className="back-link">
-      ← {back.label}
-    </Link>
+    <section className="solo">
+      <PageHead over="Обращение" title={s.status === 'ready' ? s.data.number : 'Обращение'} />
+      <Link to="/" className="back-link">
+        <ArrowLeft size={16} aria-hidden="true" /> На главный экран
+      </Link>
+      <div className="card solo__card">{body}</div>
+    </section>
   );
 }
 
@@ -76,108 +83,120 @@ interface CardProps {
 
 function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const dict = useDictionaries();
+  const background = useBackground();
   const show = cardSections(a);
+  const isAuthor = a.viewer_relations.includes('author');
 
   return (
-    <section className="page appeal">
-      <BackLink />
-      <header className="appeal__head">
-        <h1 className="page__title">
-          {a.number}
-          {a.summary ? ` · ${a.summary}` : ''}
-        </h1>
-        <div className="appeal-row__meta" role="group" aria-label="Состояние обращения">
+    <article className="sheet">
+      <header className="sheet__head">
+        <div className="sheet__state" role="group" aria-label="Состояние обращения">
           <StatusBadge status={a.status} />
           {a.status !== 'closed' && <DueBadge state={a.due_state} dueAt={a.first_response_due_at} />}
           {show.participantsCounter && (
             <span className="badge badge--people">
-              Об этом сказали {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])}
+              <Users size={13} aria-hidden="true" />
+              {a.participants_count} {plural(a.participants_count, ['человек', 'человека', 'человек'])} об этом
             </span>
           )}
         </div>
       </header>
 
-      {show.participantNotice && (
-        <div className="notice">
-          Вы видите это обращение, потому что ваше присоединили к нему как повтор. Статусы и итог приходят вам, текст
-          и автор основного обращения скрыты.
-        </div>
-      )}
-
-      <Outcome appeal={a} />
-
-      {/* Суть обращения — сразу под заголовком, до кнопок действий: сначала читают, потом решают. */}
-      {/* Описание — просто текст под заголовком, без карточки; решение — строкой с подписью. */}
-      {(a.text || a.proposed_solution) && (
-        <div className="appeal__body">
-          {/* Видимого заголовка нет, но диктору нужен: иначе текст отнесётся к разделу «Результат» или «Причина отказа». */}
-          <h2 className="sr-only">Описание</h2>
-          {a.text && <p className="prose appeal__text">{a.text}</p>}
-          {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
-          {a.proposed_solution && (
-            <p className="prose">
-              <span className="muted">Предлагаемое решение: </span>
-              {a.proposed_solution}
+      <div className="sheet__scroll">
+        <div className="sheet__lead">
+          <TypeIcon type={a.type} size="lg" />
+          <div>
+            <h1 className="sheet__title">{a.summary ?? `Обращение ${a.number}`}</h1>
+            <p className="sheet__sub">
+              {a.number} · {dict.typeLabel(a.type)} · {a.category?.name ?? 'без категории'} · приоритет {dict.priorityLabel(a.priority).toLowerCase()}
             </p>
-          )}
+          </div>
         </div>
-      )}
+
+        {show.participantNotice && (
+          <div className="notice">
+            Вы видите это обращение, потому что ваше присоединили к нему как повтор. Статусы и итог придут вам. Текст и
+            автор основного обращения скрыты.
+          </div>
+        )}
+
+        <Outcome appeal={a} />
+
+        {(a.text || a.proposed_solution) && (
+          <section className="sheet__text" aria-label="Описание">
+            {a.text && <p className="prose">{a.text}</p>}
+            {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
+            {a.proposed_solution && (
+              <div className="solution">
+                <p className="solution__label">Что предлагает автор</p>
+                <p className="prose">{a.proposed_solution}</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        <dl className="facts">
+          {a.author && !isAuthor && (
+            <div>
+              <dt>Автор</dt>
+              <dd>
+                {a.author.full_name}
+                {a.author.department && <span className="muted"> · {a.author.department.name}</span>}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt>Ответственный</dt>
+            <dd>{a.assignee?.full_name ?? 'Назначит администратор'}</dd>
+          </div>
+          <div>
+            <dt>Срок первого ответа</dt>
+            <dd>{a.first_response_due_at ? formatDateTime(a.first_response_due_at) : 'Без срока'}</dd>
+          </div>
+          {a.first_response_at && (
+            <div>
+              <dt>Первый ответ</dt>
+              <dd>{formatDateTime(a.first_response_at)}</dd>
+            </div>
+          )}
+          <div>
+            <dt>Подано</dt>
+            <dd>{formatDateTime(a.created_at)}</dd>
+          </div>
+        </dl>
+
+        {a.discussion && (
+          <Link to={`/discussions/${a.discussion.id}`} state={{ background }} className="jump">
+            <span className="jump__icon" aria-hidden="true">
+              <MessagesSquare size={18} />
+            </span>
+            <span className="jump__text">
+              <strong>{a.discussion.status === 'open' ? 'Идёт общее обсуждение' : 'Общее обсуждение завершено'}</strong>
+              <span>Голоса и комментарии сотрудников</span>
+            </span>
+            <span className="pill-action">Открыть</span>
+          </Link>
+        )}
+
+        {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
+        {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
+        {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
+        {show.attachments && <AttachmentsSection appeal={a} />}
+        {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
+      </div>
 
       <ActionsPanel appeal={a} onUpdated={onUpdated} />
-
-      {a.discussion && (
-        <div className="notice">
-          {a.discussion.status === 'open' ? 'Вынесено на общее обсуждение. ' : 'Общее обсуждение завершено. '}
-          <Link to={`/discussions/${a.discussion.id}`}>Открыть обсуждение</Link>
-        </div>
-      )}
-
-      {show.duplicates && <DuplicatesSection appeal={a} onMerged={() => onChanged()} />}
-      {show.bitrix && <BitrixSection appeal={a} onUpdated={onUpdated} />}
-
-      <dl className="facts">
-        <dt>Тип</dt>
-        <dd>{dict.typeLabel(a.type)}</dd>
-        <dt>Категория</dt>
-        <dd>{a.category?.name ?? 'Не указана'}</dd>
-        <dt>Приоритет</dt>
-        <dd>{dict.priorityLabel(a.priority)}</dd>
-        {a.author && !a.viewer_relations.includes('author') && (
-          <>
-            <dt>Автор</dt>
-            <dd>
-              {a.author.full_name}
-              {a.author.department ? ` · ${a.author.department.name}` : ''}
-            </dd>
-          </>
-        )}
-        <dt>Ответственный</dt>
-        <dd>{a.assignee?.full_name ?? 'Назначит администратор'}</dd>
-        <dt>Срок первого ответа</dt>
-        <dd>{a.first_response_due_at ? formatDateTime(a.first_response_due_at) : 'Без срока'}</dd>
-        {a.first_response_at && (
-          <>
-            <dt>Первый ответ</dt>
-            <dd>{formatDateTime(a.first_response_at)}</dd>
-          </>
-        )}
-        <dt>Подано</dt>
-        <dd>{formatDateTime(a.created_at)}</dd>
-      </dl>
-
-      {show.messages && <MessagesSection appeal={a} onAppealChanged={onChanged} />}
-      {show.attachments && <AttachmentsSection appeal={a} />}
-      {show.history && <HistorySection appealId={a.id} version={a.updated_at} />}
-    </section>
+    </article>
   );
 }
 
 /** Итог по обращению: решение, причина отказа, результат, причина закрытия. */
 function Outcome({ appeal: a }: { appeal: Appeal }) {
+  const background = useBackground();
   if (a.status === 'rejected' && a.rejection_reason) {
     return (
-      <div className="notice notice--danger">
-        <h2 className="block__title">Причина отказа</h2>
+      <div className="notice notice--danger" role="region" aria-label="Причина отказа">
+        <h2 className="notice__title">Причина отказа</h2>
         <p className="prose">{a.rejection_reason}</p>
       </div>
     );
@@ -185,15 +204,15 @@ function Outcome({ appeal: a }: { appeal: Appeal }) {
   if (a.status === 'implemented' && a.result) {
     return (
       <div className="notice notice--success" role="region" aria-label="Результат">
-        <h2 className="block__title">Результат</h2>
+        <h2 className="notice__title">Что сделано</h2>
         <p className="prose">{a.result}</p>
       </div>
     );
   }
   if (a.status === 'in_progress' && a.decision) {
     return (
-      <div className="notice">
-        <h2 className="block__title">Принятое решение</h2>
+      <div className="notice" role="region" aria-label="Принятое решение">
+        <h2 className="notice__title">Что решили</h2>
         <p className="prose">{a.decision}</p>
       </div>
     );
@@ -201,17 +220,20 @@ function Outcome({ appeal: a }: { appeal: Appeal }) {
   if (a.status === 'closed' && a.closed_reason) {
     return (
       <div className="notice">
-        {closedReasonLabel[a.closed_reason]}
+        <h2 className="notice__title">{closedReasonLabel[a.closed_reason]}</h2>
         {a.merged_into && (
           <>
-            {': '}
-            <Link to={`/appeals/${a.merged_into.id}`}>{a.merged_into.number}</Link>
-            {a.merged_into.summary ? ` · ${a.merged_into.summary}` : ''}
-            <div className="appeal-row__meta">
-              <span className="muted">Статус основного:</span>
+            <p>
+              <Link to={`/appeals/${a.merged_into.id}`} state={{ background }}>
+                {a.merged_into.number}
+              </Link>
+              {a.merged_into.summary ? ` · ${a.merged_into.summary}` : ''}
+            </p>
+            <p className="notice__row">
+              <span className="muted">Основное обращение:</span>
               <StatusBadge status={a.merged_into.status} />
-            </div>
-            <p className="muted">Статусы основного обращения будут приходить вам.</p>
+            </p>
+            <p className="muted">Его статусы будут приходить вам.</p>
           </>
         )}
       </div>

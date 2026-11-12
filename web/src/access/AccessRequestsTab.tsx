@@ -147,7 +147,7 @@ function RequestRow({
           {rejecting && (
             <label className="field">
               <span className="field__label">
-                Причина отказа <span className="muted">— необязательно, бот передаст её заявителю</span>
+                Причина отказа <span className="muted">· необязательно, придёт заявителю в Telegram</span>
               </span>
               <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} />
             </label>

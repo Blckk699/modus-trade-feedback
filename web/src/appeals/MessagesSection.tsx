@@ -1,14 +1,16 @@
 import { useState, type FormEvent } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
+import { Avatar } from '../app/Avatar';
 import { useMe } from '../auth';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 
 type Appeal = Schemas['Appeal'];
 
-/** Приватная переписка. Писать можно, если в allowed_actions есть send_message или reply_clarification. */
+/** Закрытая переписка автора и ответственного. Писать можно, если в allowed_actions есть send_message или reply_clarification. */
 export function MessagesSection({ appeal, onAppealChanged }: { appeal: Appeal; onAppealChanged: () => void }) {
   const me = useMe();
   const list = useAsync(
@@ -53,55 +55,70 @@ export function MessagesSection({ appeal, onAppealChanged }: { appeal: Appeal; o
 
   const messages = list.state.status === 'ready' ? list.state.data : [];
   const lastQuestion = [...messages].reverse().find((m) => m.is_clarification_question);
+  const label = replying ? 'Ответ на вопрос' : 'Сообщение';
 
   return (
-    <div className="block">
-      <h2 className="block__title">Переписка</h2>
+    <section className="section">
+      <h2 className="section__title">
+        Переписка
+        {messages.length > 0 && <span className="section__count">{messages.length}</span>}
+      </h2>
       {replying && lastQuestion && (
         <div className="notice notice--warn">
-          <strong>Вопрос от {lastQuestion.author.full_name}:</strong> {lastQuestion.text}
+          <p className="notice__title">{lastQuestion.author.full_name} спрашивает</p>
+          <p>{lastQuestion.text}</p>
         </div>
       )}
-      {list.state.status === 'loading' && <p className="muted">Загружаем…</p>}
+      {list.state.status === 'loading' && <p className="muted section__empty">Загружаем…</p>}
       {list.state.status === 'error' && <p className="error-text">{list.state.message}</p>}
-      {list.state.status === 'ready' && messages.length === 0 && <p className="muted">Сообщений пока нет.</p>}
+      {list.state.status === 'ready' && messages.length === 0 && (
+        <p className="muted section__empty">
+          {canWrite ? 'Сообщений пока нет. Переписку видят только автор и ответственный.' : 'Сообщений нет.'}
+        </p>
+      )}
       {messages.length > 0 && (
         <ul className="thread">
-          {messages.map((m) => (
-            <li
-              key={m.id}
-              className={`thread__msg${m.author.id === me.id ? ' thread__msg--mine' : ''}${
-                m.is_clarification_question ? ' thread__msg--question' : ''
-              }`}
-            >
-              <div className="thread__meta">
-                <span>{m.author.full_name}</span>
-                {m.is_clarification_question && <span className="badge badge--due-due_soon">Уточняющий вопрос</span>}
-                <span className="muted">{formatDateTime(m.created_at)}</span>
-              </div>
-              <p className="prose">{m.text}</p>
-            </li>
-          ))}
+          {messages.map((m) => {
+            const mine = m.author.id === me.id;
+            return (
+              <li key={m.id} className={mine ? 'msg msg--mine' : 'msg'}>
+                {!mine && <Avatar name={m.author.full_name} size="sm" />}
+                <div className={m.is_clarification_question ? 'msg__bubble msg__bubble--question' : 'msg__bubble'}>
+                  <div className="msg__meta">
+                    <span className="msg__author">{mine ? 'Вы' : m.author.full_name}</span>
+                    {m.is_clarification_question && <span className="msg__tag">уточняющий вопрос</span>}
+                    <span className="msg__time">{formatDateTime(m.created_at)}</span>
+                  </div>
+                  <p className="prose">{m.text}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
       {canWrite && (
         <form className="composer" onSubmit={send}>
           <textarea
-            className="input"
-            rows={3}
+            className="composer__input"
+            rows={2}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={replying ? 'Ответ на вопрос' : 'Сообщение ответственному'}
-            aria-label={replying ? 'Ответ на вопрос' : 'Сообщение'}
+            onKeyDown={(e) => {
+              // Ctrl/⌘ + Enter отправляет сообщение.
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.currentTarget.form?.requestSubmit();
+            }}
+            placeholder={replying ? 'Ответьте на вопрос' : 'Напишите сообщение'}
+            aria-label={label}
           />
-          <div className="form__actions">
-            <button type="submit" className="btn" disabled={busy || !text.trim()}>
+          <div className="composer__foot">
+            {error ? <span className="error-text">{error}</span> : <span className="composer__hint">Ctrl + Enter, чтобы отправить</span>}
+            <button type="submit" className="btn btn--sm composer__send" disabled={busy || !text.trim()}>
               {busy ? 'Отправляем…' : replying ? 'Ответить' : 'Отправить'}
+              <ArrowUp size={15} aria-hidden="true" />
             </button>
-            {error && <span className="error-text">{error}</span>}
           </div>
         </form>
       )}
-    </div>
+    </section>
   );
 }

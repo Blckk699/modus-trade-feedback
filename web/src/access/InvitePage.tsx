@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas, Session } from '../api/types';
-import { BrandLogo } from '../app/BrandLogo';
 import { useDictionaries } from '../app/dictionaries';
 import { useAuth, type TelegramIdentity } from '../auth';
+import { AuthFrame } from '../auth/AuthFrame';
 import { TelegramWidget, unregisteredFromWidget } from '../auth/methods/telegramWidget';
 import { config } from '../config';
 import { formatDateTime } from '../lib/format';
@@ -52,10 +52,7 @@ export function InvitePage() {
   const invalid = p.status === 'error' && p.error instanceof ApiError && p.error.status === 410;
 
   return (
-    <main className="login">
-      <BrandLogo className="login__logo" />
-      <div className="login__card">
-        <h1 className="login__title">Приглашение</h1>
+    <AuthFrame title="Приглашение">
 
         {state.status === 'authenticated' && (
           <>
@@ -70,8 +67,8 @@ export function InvitePage() {
 
         {state.status !== 'authenticated' && invalid && (
           <>
-            <div className="notice notice--danger">Приглашение недействительно: срок истёк, его отозвали или оно уже использовано.</div>
-            <p className="muted">Войдите через Telegram — и подайте заявку на доступ.</p>
+            <div className="notice notice--danger">Приглашение не действует: срок истёк, его отозвали или им уже воспользовались.</div>
+            <p className="muted">Войдите через Telegram и оставьте заявку на доступ.</p>
             {webApp ? (
               <button
                 type="button"
@@ -106,7 +103,7 @@ export function InvitePage() {
         {state.status !== 'authenticated' && p.status === 'error' && !invalid && (
           <>
             <p className="error-text">{p.message}</p>
-            <button type="button" className="btn btn--ghost" onClick={preview.reload}>
+            <button type="button" className="btn btn--soft" onClick={preview.reload}>
               Повторить
             </button>
           </>
@@ -114,8 +111,8 @@ export function InvitePage() {
 
         {state.status !== 'authenticated' && p.status === 'ready' && (
           <>
-            <p>Вас приглашают в систему обращений Модус Трейд.</p>
-            <dl className="facts">
+            <p>Вас приглашают в систему обращений «Модус Трейд».</p>
+            <dl className="facts facts--flat">
               {p.data.full_name && (
                 <>
                   <dt>Для</dt>
@@ -154,7 +151,6 @@ export function InvitePage() {
             {error}
           </p>
         )}
-      </div>
-    </main>
+    </AuthFrame>
   );
 }

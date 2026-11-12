@@ -3,10 +3,10 @@ import { accessRequestBody, accessView, draftFrom, type Draft } from '../access/
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import { fieldErrors } from '../api/fieldErrors';
-import { BrandLogo } from '../app/BrandLogo';
 import { Select } from '../app/Select';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
+import { AuthFrame } from './AuthFrame';
 import { useAuth } from './AuthProvider';
 import type { Unregistered } from './types';
 
@@ -23,10 +23,7 @@ export function AccessRequestScreen({ who }: { who: Unregistered }) {
   const view = s.status === 'ready' ? accessView(s.data) : null;
 
   return (
-    <main className="login">
-      <BrandLogo className="login__logo" />
-      <div className="login__card">
-        <h1 className="login__title">Доступ к системе обращений</h1>
+    <AuthFrame title="Заявка на доступ">
         {s.status === 'loading' && <p className="muted">Проверяем заявку…</p>}
         {s.status === 'error' && (
           <>
@@ -40,8 +37,8 @@ export function AccessRequestScreen({ who }: { who: Unregistered }) {
         {view?.kind === 'form' && (
           <>
             <p className="muted">
-              Вашего аккаунта Telegram пока нет среди сотрудников. Подайте заявку — администратор или собственник
-              назначит роль и подразделение.
+              Вашего аккаунта Telegram пока нет среди сотрудников. Оставьте заявку: администратор или собственник
+              откроет доступ и назначит подразделение.
             </p>
             {view.rejectReason !== null && (
               <div className="notice notice--danger">
@@ -55,9 +52,9 @@ export function AccessRequestScreen({ who }: { who: Unregistered }) {
         {view?.kind === 'pending' && !editing && (
           <>
             <div className="notice notice--warn" role="status">
-              Заявка отправлена {formatDateTime(view.request.updated_at)} и ждёт решения. Бот пришлёт ответ в Telegram.
+              Заявка отправлена {formatDateTime(view.request.updated_at)} и ждёт решения. Ответ придёт в Telegram.
             </div>
-            <dl className="facts">
+            <dl className="facts facts--flat">
               <dt>Имя</dt>
               <dd>{view.request.full_name}</dd>
               <dt>Подразделение</dt>
@@ -73,7 +70,7 @@ export function AccessRequestScreen({ who }: { who: Unregistered }) {
               <button type="button" className="btn" onClick={status.reload}>
                 Проверить статус
               </button>
-              <button type="button" className="btn btn--ghost" onClick={() => setEditing(true)}>
+              <button type="button" className="btn btn--soft" onClick={() => setEditing(true)}>
                 Изменить заявку
               </button>
             </div>
@@ -93,14 +90,13 @@ export function AccessRequestScreen({ who }: { who: Unregistered }) {
         {view?.kind === 'registered' && <RegisteredBlock who={who} loginAs={loginAs} />}
 
         {view?.kind === 'disabled' && (
-          <div className="notice notice--danger">Доступ отключён, обратитесь к администратору.</div>
+          <div className="notice notice--danger">Доступ отключён. Обратитесь к администратору.</div>
         )}
 
         <button type="button" className="link-btn" onClick={logout}>
           Войти другим аккаунтом
         </button>
-      </div>
-    </main>
+    </AuthFrame>
   );
 }
 
@@ -109,7 +105,7 @@ function RegisteredBlock({ who, loginAs }: { who: Unregistered; loginAs: (w: Unr
   const [error, setError] = useState('');
   return (
     <>
-      <div className="notice notice--success">Доступ открыт. Можно входить.</div>
+      <div className="notice notice--success">Доступ открыт, можно входить.</div>
       <div className="form__actions">
         <button
           type="button"
@@ -192,13 +188,13 @@ function RequestForm({ who, initial, onDone }: { who: Unregistered; initial: Dra
       </label>
       <label className="field">
         <span className="field__label">
-          Должность или комментарий <span className="muted">— необязательно</span>
+          Должность или комментарий <span className="muted">· необязательно</span>
         </span>
         <textarea className="input" rows={2} value={draft.comment} onChange={(e) => set({ comment: e.target.value })} />
       </label>
       <div className="form__actions">
         <button type="submit" className="btn" disabled={busy}>
-          {busy ? 'Отправляем…' : initial ? 'Отправить заявку' : 'Подать заявку'}
+          {busy ? 'Отправляем…' : 'Отправить заявку'}
         </button>
         {error && (
           <span className="error-text" role="alert">

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { useBackground } from '../app/background';
+import { PageHead } from '../app/PageHead';
+import { TypeIcon } from '../appeals/TypeIcon';
+import { useInCard } from '../pages/CardModal';
 import { api, unwrap } from '../api/client';
 import { ApiError, errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
@@ -38,25 +43,33 @@ export function MeetingPage() {
   }, [processing, id, set]);
 
   const s = meeting.state;
+  const inCard = useInCard();
+  const body =
+    s.status === 'loading' ? (
+      <div className="sheet sheet--state" role="status">
+        <span className="spinner" aria-hidden="true" /> Открываем совещание…
+      </div>
+    ) : s.status === 'error' ? (
+      <div className="sheet sheet--state">
+        <p className="error-text">{s.error instanceof ApiError && s.error.status === 404 ? 'Совещание не найдено.' : s.message}</p>
+        {!(s.error instanceof ApiError && s.error.status === 404) && (
+          <button type="button" className="btn btn--soft" onClick={meeting.reload}>
+            Повторить
+          </button>
+        )}
+      </div>
+    ) : (
+      <MeetingView meeting={s.data} onChange={meeting.set} />
+    );
+
+  if (inCard) return body;
   return (
-    <section className="page">
+    <section className="solo">
+      <PageHead over="Совещания" title="Совещание" />
       <Link to="/meetings" className="back-link">
-        ← Совещания
+        <ArrowLeft size={16} aria-hidden="true" /> Совещания
       </Link>
-      {s.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {s.status === 'error' && (
-        <div className="notice">
-          <p className="error-text">
-            {s.error instanceof ApiError && s.error.status === 404 ? 'Совещание не найдено.' : s.message}
-          </p>
-          {!(s.error instanceof ApiError && s.error.status === 404) && (
-            <button type="button" className="btn btn--ghost" onClick={meeting.reload}>
-              Повторить
-            </button>
-          )}
-        </div>
-      )}
-      {s.status === 'ready' && <MeetingView meeting={s.data} onChange={meeting.set} />}
+      <div className="card solo__card">{body}</div>
     </section>
   );
 }
@@ -66,52 +79,61 @@ function MeetingView({ meeting: m, onChange }: { meeting: Meeting; onChange: (m:
   const pending = m.drafts.filter((d) => d.status === 'pending').length;
 
   return (
-    <>
-      <header className="appeal__head">
-        <h1 className="page__title">{m.title}</h1>
-        <div className="appeal-row__meta">
+    <article className="sheet">
+      <header className="sheet__head">
+        <div className="sheet__state">
           <MeetingStatusBadge status={m.status} />
-          <span className="muted">Загружено {formatDateTime(m.created_at)}</span>
         </div>
       </header>
-
-      {m.status === 'processing' && (
-        <div className="notice" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" /> Расшифровываем запись и ищем вопросы. Это займёт пару минут —
-          страница обновится сама.
-        </div>
-      )}
-      {m.status === 'failed' && (
-        <div className="notice notice--danger" role="alert">
-          {m.error ?? 'Не удалось обработать запись.'} Попробуйте загрузить её ещё раз.
-        </div>
-      )}
-
-      {m.status === 'ready' && (
-        <>
-          <p className="muted">
-            {m.drafts.length === 0
-              ? 'В записи не нашлось вопросов для обращений.'
-              : pending > 0
-                ? `Черновиков: ${m.drafts.length}. Ждут решения: ${pending}.`
-                : `Все черновики разобраны (${m.drafts.length}).`}
+      <div className="sheet__scroll">
+        <div>
+          <h1 className="sheet__title">{m.title}</h1>
+          <p className="sheet__sub">
+            Загружено {formatDateTime(m.created_at)}
+            {m.status === 'ready' &&
+              (m.drafts.length === 0
+                ? ''
+                : pending > 0
+                  ? ` · ${pending} из ${m.drafts.length} ждут решения`
+                  : ` · все ${m.drafts.length} разобраны`)}
           </p>
-          <ul className="drafts">
-            {m.drafts.map((d) => (
-              <li key={d.id}>
-                <DraftCard draft={d} onUpdated={updateDraft} />
-              </li>
-            ))}
-          </ul>
-          {m.transcript && (
-            <details className="block">
-              <summary className="block__title">Расшифровка</summary>
-              <p className="prose transcript">{m.transcript}</p>
-            </details>
-          )}
-        </>
-      )}
-    </>
+        </div>
+
+        {m.status === 'processing' && (
+          <div className="notice" role="status" aria-live="polite">
+            <p>
+              <span className="spinner" aria-hidden="true" />
+              Расшифровываем запись и ищем вопросы. Обычно это пара минут, экран обновится сам.
+            </p>
+          </div>
+        )}
+        {m.status === 'failed' && (
+          <div className="notice notice--danger" role="alert">
+            <p className="notice__title">Запись не обработалась</p>
+            <p>{m.error ?? 'Причина неизвестна.'} Попробуйте загрузить её ещё раз.</p>
+          </div>
+        )}
+
+        {m.status === 'ready' && (
+          <>
+            {m.drafts.length === 0 && <p className="muted">В записи не нашлось вопросов для обращений.</p>}
+            <ul className="drafts">
+              {m.drafts.map((d) => (
+                <li key={d.id}>
+                  <DraftCard draft={d} onUpdated={updateDraft} />
+                </li>
+              ))}
+            </ul>
+            {m.transcript && (
+              <details className="transcript">
+                <summary>Расшифровка целиком</summary>
+                <p className="prose">{m.transcript}</p>
+              </details>
+            )}
+          </>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -151,6 +173,7 @@ function toUpdate(f: Form): DraftUpdate {
 
 function DraftCard({ draft: d, onUpdated }: { draft: Draft; onUpdated: (d: Draft) => void }) {
   const dict = useDictionaries();
+  const background = useBackground();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Form>(() => toForm(d));
   const [busy, setBusy] = useState(false);
@@ -201,65 +224,69 @@ function DraftCard({ draft: d, onUpdated }: { draft: Draft; onUpdated: (d: Draft
     });
 
   return (
-    <article className={`block draft draft--${d.status}`}>
-      <div className="appeal-row__top">
-        <span className="badge">{dict.typeLabel(editing ? form.type : d.type)}</span>
-        <span className="muted">
-          {d.category?.name ?? 'Без категории'} · {dict.priorityLabel(d.priority)}
+    <article className={`draft draft--${d.status}`}>
+      <div className="draft__top">
+        <TypeIcon type={editing ? form.type : d.type} />
+        <span className="draft__meta">
+          {dict.typeLabel(editing ? form.type : d.type)} · {d.category?.name ?? 'без категории'} · приоритет{' '}
+          {dict.priorityLabel(d.priority).toLowerCase()}
         </span>
-        <span className="appeal-row__date">
-          {d.status === 'confirmed' && <span className="badge badge--status-implemented">Подтверждён</span>}
-          {d.status === 'discarded' && <span className="badge">Отброшен</span>}
-        </span>
+        {d.status === 'confirmed' && <span className="badge badge--dot badge--status-implemented">Подтверждён</span>}
+        {d.status === 'discarded' && <span className="badge">Отброшен</span>}
       </div>
-
-      <blockquote className="quote">{d.quote}</blockquote>
 
       {!editing && (
         <>
           <h3 className="draft__summary">{d.summary}</h3>
           <p className="prose">{d.text}</p>
-          {d.proposed_solution && <p className="muted">Предлагаемое решение: {d.proposed_solution}</p>}
-          <p className="muted">Автор: {d.author?.full_name ?? 'вы (загрузивший запись)'}</p>
+          {d.proposed_solution && (
+            <p className="muted">
+              Как решить: {d.proposed_solution}
+            </p>
+          )}
         </>
       )}
+
+      <blockquote className="quote">{d.quote}</blockquote>
+
+      {!editing && <p className="draft__author">Автор: {d.author?.full_name ?? 'вы, как загрузивший запись'}</p>}
 
       {editing && d.status === 'pending' && <DraftForm form={form} set={set} />}
 
       {d.status === 'confirmed' && d.appeal && (
-        <p>
-          Создано обращение <Link to={`/appeals/${d.appeal.id}`}>{d.appeal.number}</Link>
-        </p>
+        <Link to={`/appeals/${d.appeal.id}`} state={{ background }} className="more-link">
+          Обращение {d.appeal.number} <ArrowRight size={15} aria-hidden="true" />
+        </Link>
       )}
 
       {d.status === 'pending' && (
-        <div className="form__actions">
-          <button type="button" className="btn" disabled={busy || !valid} onClick={confirm}>
-            Подтвердить
+        <div className="draft__actions">
+          <button type="button" className="btn btn--sm" disabled={busy || !valid} onClick={confirm}>
+            {editing ? 'Сохранить и подтвердить' : 'Подтвердить'}
           </button>
           {editing ? (
             <>
-              <button type="button" className="btn btn--ghost" disabled={busy || !valid} onClick={save}>
-                Сохранить правки
+              <button type="button" className="btn btn--soft btn--sm" disabled={busy || !valid} onClick={save}>
+                Сохранить
               </button>
               <button
                 type="button"
-                className="btn btn--ghost"
+                className="btn btn--text btn--sm"
                 disabled={busy}
                 onClick={() => {
                   setForm(toForm(d));
                   setEditing(false);
                 }}
               >
-                Отменить
+                Отмена
               </button>
             </>
           ) : (
-            <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setEditing(true)}>
+            <button type="button" className="btn btn--soft btn--sm" disabled={busy} onClick={() => setEditing(true)}>
               Поправить
             </button>
           )}
-          <button type="button" className="btn btn--ghost btn--danger" disabled={busy} onClick={discard}>
+          <button type="button" className="btn btn--text btn--danger btn--sm draft__discard" disabled={busy} onClick={discard}>
             Отбросить
           </button>
           {error && (
@@ -280,7 +307,7 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
 
   return (
     <div className="draft__form">
-      <div className="filters">
+      <div className="form__row">
         <label className="field">
           <span className="field__label">Тип</span>
           <Select value={form.type} onChange={(e) => set({ type: e.target.value as Form['type'] })}>
@@ -318,7 +345,7 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
         <label className="field">
           <span className="field__label">Автор</span>
           <Select value={form.authorId} onChange={(e) => set({ authorId: e.target.value })}>
-            <option value="">Я (загрузивший)</option>
+            <option value="">Я, как загрузивший запись</option>
             {users.state.status === 'ready' &&
               users.state.data
                 .filter((u) => !u.is_disabled)
@@ -341,7 +368,7 @@ function DraftForm({ form, set }: { form: Form; set: (p: Partial<Form>) => void 
       </label>
       <label className="field">
         <span className="field__label">
-          Предлагаемое решение <span className="muted">— необязательно</span>
+          Как это можно решить <span className="muted">· необязательно</span>
         </span>
         <textarea className="input" rows={2} value={form.proposedSolution} onChange={(e) => set({ proposedSolution: e.target.value })} />
       </label>

@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import { AccessRequestsTab } from '../access/AccessRequestsTab';
 import { InvitesTab } from '../access/InvitesTab';
+import { PageHead } from '../app/PageHead';
 import { useMe } from '../auth';
 import { CategoriesTab } from './CategoriesTab';
 import { DeadlinesTab } from './DeadlinesTab';
@@ -15,7 +16,7 @@ const TABS = {
   departments: { label: 'Подразделения', Component: DepartmentsTab, need: 'settings' },
   categories: { label: 'Категории', Component: CategoriesTab, need: 'settings' },
   deadlines: { label: 'Сроки', Component: DeadlinesTab, need: 'settings' },
-  unassigned: { label: 'Нераспределённые', Component: UnassignedTab, need: 'settings' },
+  unassigned: { label: 'Без ответственного', Component: UnassignedTab, need: 'settings' },
   requests: { label: 'Заявки', Component: AccessRequestsTab, need: 'access' },
   invites: { label: 'Приглашения', Component: InvitesTab, need: 'access' },
 } as const;
@@ -37,15 +38,13 @@ export function SettingsPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title sr-only">Настройки</h1>
-      <div className="segmented settings-tabs" role="tablist" aria-label="Разделы настроек">
+      <PageHead over={p.can_manage_settings ? 'Люди, подразделения, категории и сроки' : 'Кто получает доступ'} title="Настройки" />
+      <div className="segmented settings-tabs" role="radiogroup" aria-label="Разделы настроек">
         {visible.map((id) => (
           <label key={id} className="segmented__item">
             <input
               type="radio"
               name="settings-tab"
-              role="tab"
-              aria-selected={tab === id}
               checked={tab === id}
               onChange={() => setParams(id === visible[0] ? {} : { tab: id }, { replace: true })}
             />

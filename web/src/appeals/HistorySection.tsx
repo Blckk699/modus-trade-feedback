@@ -16,8 +16,8 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
   );
 
   return (
-    <div className="block">
-      <h2 className="block__title">История</h2>
+    <section className="section">
+      <h2 className="section__title">История</h2>
       {history.state.status === 'loading' && <p className="muted">Загружаем…</p>}
       {history.state.status === 'error' && <p className="error-text">{history.state.message}</p>}
       {history.state.status === 'ready' && (
@@ -27,7 +27,7 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
           ))}
         </ol>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -43,11 +43,11 @@ function HistoryItem({ ev }: { ev: HistoryEvent }) {
     <li className="timeline__item">
       <div className="timeline__head">
         <span className="timeline__title">{historyKindLabel[ev.kind] ?? ev.kind}</span>
-        <span className="muted">{formatDateTime(ev.created_at)}</span>
+        <span className="timeline__time">{formatDateTime(ev.created_at)}</span>
       </div>
-      {change && <div>{change}</div>}
-      {ev.comment && <div className="muted">{ev.comment}</div>}
-      <div className="muted timeline__actor">{ev.actor ? ev.actor.full_name : 'Система'}</div>
+      {change && <div className="timeline__change">{change}</div>}
+      {ev.comment && <div className="timeline__comment">{ev.comment}</div>}
+      <div className="timeline__actor">{ev.actor ? ev.actor.full_name : 'Система'}</div>
     </li>
   );
 }

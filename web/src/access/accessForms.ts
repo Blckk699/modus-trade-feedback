@@ -33,8 +33,8 @@ export const INVITE_DEFAULTS: InviteForm = { role: 'employee', departmentId: '',
 export function inviteFormError(f: InviteForm): string | null {
   const days = Number(f.days);
   const uses = Number(f.uses);
-  if (!Number.isInteger(days) || days < 1 || days > 30) return 'Срок действия — от 1 до 30 дней.';
-  if (!Number.isInteger(uses) || uses < 1 || uses > 100) return 'Число использований — от 1 до 100.';
+  if (!Number.isInteger(days) || days < 1 || days > 30) return 'Срок действия: от 1 до 30 дней.';
+  if (!Number.isInteger(uses) || uses < 1 || uses > 100) return 'Число использований: от 1 до 100.';
   return null;
 }
 

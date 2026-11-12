@@ -1,5 +1,10 @@
 import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AudioLines, ChevronRight, Upload } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useBackground } from '../app/background';
+import { LoadError, RowsSkeleton } from '../app/ListStates';
+import { PageHead } from '../app/PageHead';
+import { plural } from '../lib/plural';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { uploadMeeting } from '../api/files';
@@ -59,7 +64,7 @@ function titleFromName(name: string): string {
 /** Режим «совещание»: загрузка записи и список своих совещаний (истории 48, 62). */
 export function MeetingsPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const background = useBackground();
   const list = useAsync(() => unwrap(api.GET('/api/v1/meetings')), []);
   useReloadOnCardClose(list.reload);
   const [file, setFile] = useState<File | null>(null);
@@ -97,7 +102,10 @@ export function MeetingsPage() {
     setError('');
     try {
       const m = await uploadMeeting(file, title.trim());
-      navigate(`/meetings/${m.id}`);
+      setFile(null);
+      setBusy(false);
+      list.reload();
+      navigate(`/meetings/${m.id}`, { state: { background } });
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -106,81 +114,82 @@ export function MeetingsPage() {
 
   return (
     <section className="page">
-      <h1 className="page__title sr-only">Совещания</h1>
-      <p className="muted">
-        Загрузите запись встречи: система расшифрует её и предложит черновики обращений с цитатами. Без вашего
-        подтверждения обращения не создаются.
-      </p>
+      <PageHead over="Запись встречи превращается в черновики обращений" title="Совещания" />
 
-      <div className="upload">
-          <label
-            className={dragging ? 'dropzone dropzone--over' : 'dropzone'}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
+      <div className="card upload">
+        <label
+          className={dragging ? 'dropzone dropzone--over' : 'dropzone'}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+        >
+          <input
+            type="file"
+            accept={ACCEPT}
+            onChange={(e) => {
+              pick(e.target.files?.[0]);
+              e.target.value = '';
             }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-          >
-            <input
-              type="file"
-              accept={ACCEPT}
-              onChange={(e) => {
-                pick(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
-            <span className="btn btn--ghost dropzone__btn">
-              <span aria-hidden="true" className="dropzone__icon">↑</span>
-              Выбрать запись
-            </span>
-            <span className="muted">или перетащите файл сюда</span>
-            <span className="dropzone__hint">mp3, m4a, wav, ogg, webm · до 200 МБ</span>
-          </label>
-          {error && !file && (
-            <span className="error-text" role="alert">
-              {error}
-            </span>
-          )}
+          />
+          <span className="dropzone__icon" aria-hidden="true">
+            <AudioLines size={26} />
+          </span>
+          <span className="dropzone__title">Перетащите запись сюда</span>
+          <span className="dropzone__hint">mp3, m4a, wav, ogg, webm · до 200 МБ</span>
+          <span className="btn dropzone__btn">
+            <Upload size={16} aria-hidden="true" /> Выбрать файл
+          </span>
+        </label>
+        <ol className="steps">
+          <li>
+            <strong>Расшифруем</strong>
+            <span>Запись станет текстом за пару минут.</span>
+          </li>
+          <li>
+            <strong>Найдём вопросы</strong>
+            <span>Каждую проблему и идею оформим черновиком с цитатой.</span>
+          </li>
+          <li>
+            <strong>Вы решаете</strong>
+            <span>Обращением станет только то, что вы подтвердите.</span>
+          </li>
+        </ol>
+        {error && !file && (
+          <p className="error-text upload__error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
 
       <Modal open={file !== null} onClose={reset} labelledBy="upload-title" locked={busy}>
         {file && (
-          <form className="upload-modal" onSubmit={submit}>
-            <div className="upload-modal__top">
-              <span className="upload-modal__done" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
-              </span>
-              <div className="upload-modal__head">
-                <h2 id="upload-title" className="upload-modal__title">
-                  Запись добавлена
-                </h2>
-              </div>
-            </div>
+          <form className="dialog-form" onSubmit={submit}>
+            <h2 id="upload-title" className="dialog-form__title">
+              Загрузить запись
+            </h2>
 
-            <div className="upload-card__file">
-              <span className="upload-card__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M4 10v4M8 6v12M12 9v6M16 4v16M20 10v4" />
-                </svg>
+            <div className="audio-file">
+              <span className="audio-file__icon" aria-hidden="true">
+                <AudioLines size={20} />
               </span>
-              <span className="upload-card__meta">
-                <span className="upload-card__name" title={file.name}>
+              <span className="audio-file__meta">
+                <span className="audio-file__name" title={file.name}>
                   {file.name}
                 </span>
-                <span className="upload-card__sub">
+                <span className="audio-file__sub">
                   {formatSize(file.size)}
                   {duration !== null && ` · ${formatDuration(duration)}`}
                 </span>
               </span>
             </div>
 
-            <label className="upload-card__field">
-              <span className="upload-card__label">Название совещания</span>
+            <label className="field">
+              <span className="field__label">Название совещания</span>
               <input
-                className="input input--soft"
+                className="input"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Например, планёрка закупок"
@@ -189,16 +198,16 @@ export function MeetingsPage() {
             </label>
 
             {error && (
-              <span className="error-text" role="alert">
+              <p className="error-text" role="alert">
                 {error}
-              </span>
+              </p>
             )}
 
-            <div className="upload-modal__actions">
+            <div className="dialog-form__actions">
               <button type="button" className="btn btn--soft" onClick={reset} disabled={busy}>
                 Отмена
               </button>
-              <button type="submit" className="btn btn--accent" disabled={busy}>
+              <button type="submit" className="btn" disabled={busy}>
                 {busy ? 'Загружаем…' : 'Загрузить и расшифровать'}
               </button>
             </div>
@@ -206,36 +215,44 @@ export function MeetingsPage() {
         )}
       </Modal>
 
-      <h2 className="block__title">Загруженные записи</h2>
-      {list.state.status === 'loading' && <p className="muted">Загружаем…</p>}
-      {list.state.status === 'error' && <p className="error-text">{list.state.message}</p>}
+      {list.state.status === 'loading' && <RowsSkeleton rows={2} />}
+      {list.state.status === 'error' && <LoadError message={list.state.message} onRetry={list.reload} />}
       {list.state.status === 'ready' && list.state.data.length === 0 && (
-        <EmptyState icon="audio" title="Вы ещё не загружали записи">
-          Загруженные совещания и черновики обращений из них появятся здесь.
+        <EmptyState icon="audio" title="Записей пока нет">
+          Загруженные совещания и черновики из них появятся здесь.
         </EmptyState>
       )}
       {list.state.status === 'ready' && list.state.data.length > 0 && (
-        <ul className="appeal-list">
-          {list.state.data.map((m) => (
-            <li key={m.id}>
-              <Link to={`/meetings/${m.id}`} state={{ background: location }} className="appeal-row">
-                <div className="appeal-row__top">
-                  <span className="appeal-row__number">{m.title}</span>
-                  <span className="muted appeal-row__date">{formatDateTime(m.created_at)}</span>
-                </div>
-                <div className="appeal-row__meta">
-                  <MeetingStatusBadge status={m.status} />
-                  {m.status === 'ready' && (
-                    <span className="muted">
-                      Черновиков: {m.drafts_total}
-                      {m.drafts_pending > 0 ? `, ждут решения: ${m.drafts_pending}` : ', все разобраны'}
+        <article className="card">
+          <header className="card__head">
+            <h2 className="card__title">Загруженные записи</h2>
+          </header>
+          <ul className="rows">
+            {list.state.data.map((m) => (
+              <li key={m.id}>
+                <Link to={`/meetings/${m.id}`} state={{ background }} className="row">
+                  <span className="type-icon type-icon--audio" aria-hidden="true">
+                    <AudioLines size={18} />
+                  </span>
+                  <span className="row__main">
+                    <span className="row__title">{m.title}</span>
+                    <span className="row__meta">
+                      {formatDateTime(m.created_at)}
+                      {m.status === 'ready' &&
+                        ` · ${m.drafts_total} ${plural(m.drafts_total, ['черновик', 'черновика', 'черновиков'])}${
+                          m.drafts_pending > 0 ? `, ${m.drafts_pending} ждут решения` : ', все разобраны'
+                        }`}
                     </span>
-                  )}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  </span>
+                  <span className="row__side">
+                    <MeetingStatusBadge status={m.status} />
+                  </span>
+                  <ChevronRight className="row__chev" size={18} aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </article>
       )}
     </section>
   );

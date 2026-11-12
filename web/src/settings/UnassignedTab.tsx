@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import type { Schemas } from '../api/types';
+import { useBackground } from '../app/background';
 import { useDictionaries } from '../app/dictionaries';
 import { formatDateTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
@@ -51,7 +52,7 @@ export function UnassignedTab() {
         </p>
       ))}
       {page.items.length === 0 ? (
-        <EmptyState icon="inbox" title="Нераспределённых обращений нет">
+        <EmptyState icon="inbox" title="Обращений без ответственного нет">
           Сюда попадают обращения без категории или из категории без ответственного.
         </EmptyState>
       ) : (
@@ -67,6 +68,7 @@ export function UnassignedTab() {
 
 function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[]; onAssigned: (i: Item, name: string) => void }) {
   const dict = useDictionaries();
+  const background = useBackground();
   const [assigneeId, setAssigneeId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -76,7 +78,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
     e.preventDefault();
     setError('');
     if (!assigneeId) return setError('Выберите ответственного.');
-    if (!reason.trim()) return setError('Укажите причину — она попадёт в историю обращения.');
+    if (!reason.trim()) return setError('Укажите причину. Она попадёт в историю обращения.');
     setBusy(true);
     try {
       const appeal = await unwrap(
@@ -97,7 +99,7 @@ function UnassignedRow({ item, people, onAssigned }: { item: Item; people: User[
       <form className="form settings-form" onSubmit={submit} noValidate>
         <div className="settings-row__main">
           <span>
-            <Link to={`/appeals/${item.id}`} className="appeal-row__number">
+            <Link to={`/appeals/${item.id}`} state={{ background }}>
               {item.number}
             </Link>{' '}
             <span className="muted">
