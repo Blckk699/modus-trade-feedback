@@ -288,7 +288,7 @@ class _TodayScreenState extends State<TodayScreen> {
               WebCardHead(
                 title: 'Входящие',
                 sub: 'Сначала те, где ждут первого ответа',
-                action: WebChip(label: 'Все', onTap: () => widget.onOpenSection(Section.processing)),
+                action: WebHeadLink(onTap: () => widget.onOpenSection(Section.processing)),
               ),
               for (var i = 0; i < d.queue.take(5).length; i++) ...[
                 if (i > 0) Divider(height: 1, color: ModusColors.of(context).palette.border),
@@ -322,7 +322,7 @@ class _TodayScreenState extends State<TodayScreen> {
               WebCardHead(
                 title: 'Мои обращения',
                 sub: d.mineTotal > 0 ? 'Последние поданные' : null,
-                action: WebChip(label: 'Все', onTap: () => widget.onOpenSection(Section.myAppeals)),
+                action: WebHeadLink(onTap: () => widget.onOpenSection(Section.myAppeals)),
               ),
               if (d.mine.isEmpty)
                 const _Quiet(
@@ -421,8 +421,6 @@ class _BriefCard extends StatelessWidget {
       if (d.assignedOverdue > 0 && sections.contains(Section.processing)) ('Просроченные', Section.processing),
       if ((d.unassignedTotal ?? 0) > 0 && sections.contains(Section.processing)) ('Без ответственного', Section.processing),
       if ((d.accessRequests ?? 0) > 0 && sections.contains(Section.settings)) ('Заявки на доступ', Section.settings),
-      if (sections.contains(Section.myAppeals)) ('Мои обращения', Section.myAppeals),
-      ('Обсуждения', Section.feed),
     ];
     return WebCard(
       child: Column(
@@ -447,8 +445,6 @@ class _BriefCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              WebChip(label: 'Обновить', icon: LucideIcons.refreshCw, onTap: onReload),
             ],
           ),
           const SizedBox(height: 18),
@@ -457,12 +453,15 @@ class _BriefCard extends StatelessWidget {
             key: const Key('today-brief'),
             style: TextStyle(color: c.heading, fontSize: 19, fontWeight: FontWeight.w500, height: 1.34, letterSpacing: -0.42),
           ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [for (final (label, section) in chips) WebChip(label: label, onTap: () => onOpenSection(section))],
-          ),
+          // Только то, что требует внимания; разделы и так в нижней панели.
+          if (chips.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [for (final (label, section) in chips) WebChip(label: label, onTap: () => onOpenSection(section))],
+            ),
+          ],
           if (s != null || sections.contains(Section.processing)) ...[
             const SizedBox(height: 12),
             Align(
@@ -565,9 +564,10 @@ class _FocusCardState extends State<_FocusCard> {
           WebCardHead(
             title: 'Ждёт вас',
             count: items.length,
-            action: WebChip(label: 'Все', onTap: () => widget.onOpenSection(all)),
+            action: WebHeadLink(onTap: () => widget.onOpenSection(all)),
           ),
           _FocusItem(
+            onTap: () => widget.onOpen(top.id),
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -592,6 +592,11 @@ class _FocusCardState extends State<_FocusCard> {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(LucideIcons.chevronRight, size: 18, color: c.faint),
+                  ),
                 ],
               ),
               Container(
@@ -606,26 +611,16 @@ class _FocusCardState extends State<_FocusCard> {
                   ),
                 ),
               ),
-              if (canTake)
-                Row(
-                  children: [
-                    Expanded(
-                      child: WebButton(label: _busy ? 'Берём…' : 'Взять в работу', busy: _busy, onPressed: () => _take(top)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: WebButton(kind: WebButtonKind.soft, label: 'Открыть', onPressed: () => widget.onOpen(top.id)),
-                    ),
-                  ],
-                )
-              else
+              // Кнопка — только для действия; просто открыть — тапом по карточке.
+              if (canTake || asAuthor || noAssignee)
                 WebButton(
-                  label: asAuthor
+                  label: canTake
+                      ? (_busy ? 'Берём…' : 'Взять в работу')
+                      : asAuthor
                       ? 'Ответить'
-                      : noAssignee
-                      ? 'Назначить'
-                      : 'Открыть',
-                  onPressed: () => widget.onOpen(top.id),
+                      : 'Назначить',
+                  busy: _busy,
+                  onPressed: canTake ? () => _take(top) : () => widget.onOpen(top.id),
                 ),
             ],
           ),
@@ -655,19 +650,25 @@ class _FocusCardState extends State<_FocusCard> {
 
 /// `.focus__item`: поверхность, радиус 18, отступ 16, промежутки 12.
 class _FocusItem extends StatelessWidget {
-  const _FocusItem({required this.children});
+  const _FocusItem({required this.children, this.onTap});
 
   final List<Widget> children;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: ModusColors.of(context).surface, borderRadius: BorderRadius.circular(Web.rTile)),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[if (i > 0) const SizedBox(height: 12), children[i]],
-      ],
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: Container(
+      key: const Key('focus-item'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: ModusColors.of(context).surface, borderRadius: BorderRadius.circular(Web.rTile)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[if (i > 0) const SizedBox(height: 12), children[i]],
+        ],
+      ),
     ),
   );
 }
@@ -723,7 +724,7 @@ class _DiscussionsCard extends StatelessWidget {
             title: 'Обсуждения',
             sub: d.discussionsTotal > 0 ? 'Идеи, по которым собирают мнения' : null,
             count: d.discussionsTotal,
-            action: WebChip(label: 'Все', onTap: () => onOpenSection(Section.feed)),
+            action: WebHeadLink(onTap: () => onOpenSection(Section.feed)),
           ),
           if (d.discussions.isEmpty)
             const _Quiet(title: 'Открытых обсуждений нет', text: 'Когда идею вынесут на общее обсуждение, она появится здесь.'),
@@ -734,51 +735,39 @@ class _DiscussionsCard extends StatelessWidget {
                   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DiscussionScreen(discussionId: d.discussions[i].id))),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      d.discussions[i].publicText,
-                      style: TextStyle(color: c.heading, fontSize: 15, fontWeight: FontWeight.w600, height: 1.4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d.discussions[i].publicText,
+                            style: TextStyle(color: c.heading, fontSize: 15, fontWeight: FontWeight.w600, height: 1.4),
+                          ),
+                          const SizedBox(height: 2),
+                          Text.rich(
+                            TextSpan(children: [
+                              if (d.discussions[i].canVote && d.discussions[i].myVote == null)
+                                TextSpan(text: 'Ждёт вашего голоса · ', style: TextStyle(color: c.accent, fontWeight: FontWeight.w600)),
+                              TextSpan(
+                                text:
+                                    'за ${d.discussions[i].votesFor} · против ${d.discussions[i].votesAgainst} · до ${DateFormat('d MMMM, HH:mm', 'ru').format(d.discussions[i].deadline.toUtc().add(const Duration(hours: 5)))}',
+                              ),
+                            ]),
+                            style: TextStyle(color: c.muted, fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'за ${d.discussions[i].votesFor} · против ${d.discussions[i].votesAgainst} · до ${DateFormat('d MMM., HH:mm', 'ru').format(d.discussions[i].deadline.toUtc().add(const Duration(hours: 5)))}',
-                      style: TextStyle(color: c.muted, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    _PillAction(
-                      primary: d.discussions[i].canVote && d.discussions[i].myVote == null,
-                      label: d.discussions[i].canVote && d.discussions[i].myVote == null ? 'Голосовать' : 'Открыть',
-                    ),
+                    const SizedBox(width: 8),
+                    Icon(LucideIcons.chevronRight, size: 18, color: c.faint),
                   ],
                 ),
               ),
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// `.pill-action`: маленькая пилюля 13 / 600 на --surface-3 или --primary.
-class _PillAction extends StatelessWidget {
-  const _PillAction({required this.label, this.primary = false});
-
-  final String label;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = ModusColors.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(color: primary ? scheme.primary : c.extra.surface3, borderRadius: BorderRadius.circular(99)),
-      child: Text(
-        label,
-        style: TextStyle(color: primary ? scheme.onPrimary : c.heading, fontSize: 13, fontWeight: FontWeight.w600, height: 1.2),
       ),
     );
   }
@@ -801,7 +790,7 @@ class _DoneCard extends StatelessWidget {
           WebCardHead(
             title: 'Сделано',
             sub: 'По предложениям сотрудников',
-            action: WebChip(label: 'Вся лента', onTap: () => onOpenSection(Section.feed)),
+            action: WebHeadLink(label: 'Вся лента', onTap: () => onOpenSection(Section.feed)),
           ),
           for (var i = 0; i < items.length; i++) ...[
             if (i > 0) const SizedBox(height: 10),

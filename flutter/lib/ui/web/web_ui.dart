@@ -769,6 +769,34 @@ class WebMoreLink extends StatelessWidget {
   }
 }
 
+/// Ссылка в шапке карточки («Все ›»): акцентный текст без подложки, чтобы не плодить кнопки.
+class WebHeadLink extends StatelessWidget {
+  const WebHeadLink({super.key, this.label = 'Все', required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = ModusColors.of(context);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: TextStyle(color: c.muted, fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 2),
+          Icon(LucideIcons.chevronRight, size: 16, color: c.muted),
+        ]),
+      ),
+    );
+  }
+}
+
 /// `.fab` на телефоне: красный круг 56 с тенью `--shadow-fab`.
 class WebFab extends StatelessWidget {
   const WebFab({super.key, required this.onTap, this.tooltip = 'Подать обращение'});
