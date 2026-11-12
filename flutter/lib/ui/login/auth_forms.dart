@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../api/app_error.dart';
 import '../../theme/modus_theme.dart';
+import '../web/web_ui.dart';
 
 /// Пароль — от 8 символов (SPEC, «Пароль»).
 const minPassword = 8;
@@ -126,25 +128,23 @@ class _PasswordFieldState extends State<PasswordField> {
   bool _visible = false;
 
   @override
-  Widget build(BuildContext context) => TextField(
+  Widget build(BuildContext context) => WebInput(
+        label: widget.label,
         controller: widget.controller,
         enabled: widget.enabled,
-        obscureText: !_visible,
+        obscure: !_visible,
         autocorrect: false,
-        enableSuggestions: false,
         autofillHints: widget.autofillHints,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          helperText: widget.hint,
-          errorText: widget.error,
-          suffixIcon: IconButton(
-            tooltip: _visible ? 'Скрыть пароль' : 'Показать пароль',
-            icon: Icon(_visible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-            onPressed: () => setState(() => _visible = !_visible),
-          ),
-        ),
+        helper: widget.hint,
+        error: widget.error,
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
+        suffix: IconButton(
+          tooltip: _visible ? 'Скрыть пароль' : 'Показать пароль',
+          color: ModusColors.of(context).muted,
+          icon: Icon(_visible ? LucideIcons.eyeOff : LucideIcons.eye, size: 20),
+          onPressed: () => setState(() => _visible = !_visible),
+        ),
       );
 }
 
