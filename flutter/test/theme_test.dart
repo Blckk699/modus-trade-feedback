@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:modus_api/api.dart';
 import 'package:modus_feedback/theme/modus_theme.dart';
 import 'package:modus_feedback/theme/tokens.g.dart';
+import 'package:modus_feedback/theme/web_palette.dart';
 
 Color _hex(String v) {
   final h = v.substring(1);
@@ -53,10 +54,12 @@ void main() {
   test('тема: primary тёмно-синий, красный только у FAB и главной кнопки; шрифты из токенов', () {
     for (final b in Brightness.values) {
       final theme = modusTheme(b);
-      final p = b == Brightness.light ? lightPalette : darkPalette;
+      final p = b == Brightness.light ? webLightPalette : webDarkPalette;
       expect(theme.brightness, b);
       expect(theme.colorScheme.primary, p.primary);
       expect(theme.colorScheme.primary, isNot(p.accent), reason: 'красный не красит выбранные элементы');
+      expect(theme.colorScheme.secondary, isNot(p.accent), reason: 'secondary тоже не красный (замечание ревью #115)');
+      expect(theme.inputDecorationTheme.filled, isTrue, reason: 'поля без рамок, заливкой — как в вебе');
       expect(theme.floatingActionButtonTheme.backgroundColor, p.accent);
       expect(theme.scaffoldBackgroundColor, p.bg);
       expect(theme.textTheme.titleLarge!.fontFamily, 'Montserrat');
