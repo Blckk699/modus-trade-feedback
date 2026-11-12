@@ -3610,6 +3610,12 @@ button.chat-entry--ask[aria-expanded='true'] {
   gap: 18px;
 }
 
+/* Описание в отзыве выше ровно на поле «Как это можно решить» (подпись 20 + отступ 6 + поле 84)
+   и отступ формы 18: при смене типа кнопки внизу остаются на месте. 5lh + 20px — высота пяти строк. */
+textarea.compose__text--tall {
+  min-height: calc(5lh + 20px + 128.25px);
+}
+
 .compose__head {
   display: grid;
   gap: 4px;
