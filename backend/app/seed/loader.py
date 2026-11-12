@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, tzinfo
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.passwords import hash_password
 from app.domain.business_days import add_business_days, business_days_between, subtract_business_days
 from app.domain.enums import AppealStatus, AppealType, ClosedReason, HistoryKind, Role
 from app.models import (
@@ -107,6 +108,8 @@ async def load_demo(session: AsyncSession, now: datetime, tz: tzinfo, accounts: 
         account = accounts.get(su.key)
         user = User(
             telegram_id=account.telegram_id if account else None,
+            email=account.email if account else None,
+            password_hash=hash_password(account.password) if account and account.password else None,
             full_name=(account.full_name if account and account.full_name else su.full_name),
             position=su.position,
             role=su.role,
@@ -149,7 +152,7 @@ async def load_demo(session: AsyncSession, now: datetime, tz: tzinfo, accounts: 
     report.users = len(users)
     report.categories = len(categories)
     report.appeals = len(data.APPEALS)
-    with_login = {u.role for u in users.values() if u.telegram_id is not None}
+    with_login = {u.role for u in users.values() if u.telegram_id is not None or u.email is not None}
     report.roles_without_login = [role for role in Role if role not in with_login]
     return report
 

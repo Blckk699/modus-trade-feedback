@@ -129,6 +129,45 @@ class AlreadyRegistered(Conflict):
     message = "Вы уже есть в системе. Войдите."
 
 
+class InvalidCredentials(AppError):
+    status_code = 401
+    code = "invalid_credentials"
+    message = "Неверная почта или пароль."
+
+
+class AccessRequestPending(AppError):
+    status_code = 403
+    code = "access_request_pending"
+    message = "Заявка на рассмотрении. Войти можно после одобрения."
+
+
+class AccessRequestRejected(AppError):
+    status_code = 403
+    code = "access_request_rejected"
+    message = "Заявка на доступ отклонена."
+
+
+class PasswordChangeRequired(AppError):
+    status_code = 403
+    code = "password_change_required"
+    message = "Это временный пароль. Задайте новый."
+
+
+class EmailTaken(Conflict):
+    code = "email_taken"
+    message = "Эта почта уже зарегистрирована. Войдите или попросите администратора сбросить пароль."
+
+
+class TelegramTaken(Conflict):
+    code = "telegram_taken"
+    message = "Этот Telegram уже привязан к другому сотруднику."
+
+
+class LastLoginMethod(Conflict):
+    code = "last_login_method"
+    message = "Сначала задайте почту и пароль — иначе вы не сможете войти."
+
+
 class InviteInvalid(AppError):
     status_code = 410
     code = "invite_invalid"

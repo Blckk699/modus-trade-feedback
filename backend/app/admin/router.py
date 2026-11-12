@@ -20,7 +20,8 @@ from app.api.schemas import UserOut
 from app.appeals.policy import NOT_FINAL
 from app.appeals.routing import can_be_assignee
 from app.appeals.views import Directory
-from app.auth.service import revoke_user_sessions
+from app.auth.passwords import hash_password, normalize_email, temporary_password
+from app.auth.service import clear_password_failures, revoke_user_sessions
 from app.directory.router import CategoryOut, DepartmentOut
 from app.domain.enums import Priority, Role
 from app.errors import Conflict, Forbidden, NotFound, ValidationFailed
@@ -48,7 +49,8 @@ def field_error(field: str, message: str) -> ValidationFailed:
 
 
 class UserCreate(BaseModel):
-    telegram_id: int = Field(gt=0)
+    telegram_id: int | None = Field(default=None, gt=0)
+    email: str | None = Field(default=None, max_length=254)
     full_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
     position: str | None = Field(default=None, max_length=200)
     role: Role
@@ -130,6 +132,7 @@ def _user_out(user: User, directory: Directory) -> UserOut:
     return UserOut(
         id=user.id,
         telegram_id=user.telegram_id,
+        email=user.email,
         full_name=user.full_name,
         position=user.position,
         role=user.role,
@@ -163,11 +166,17 @@ async def _unique(session: AsyncSession, model, name: str, exclude_id: int | Non
 
 @router.post("/users", response_model=UserOut, status_code=201, summary="Добавить сотрудника по Telegram ID")
 async def create_user(body: UserCreate, _: AdminDep, session: SessionDep, clock: ClockDep) -> UserOut:
-    if await session.scalar(select(User.id).where(User.telegram_id == body.telegram_id)):
+    if body.telegram_id is None and not body.email:
+        raise field_error("email", "Укажите почту или Telegram ID — хотя бы один способ входа")
+    email = normalize_email(body.email) if body.email else None
+    if body.telegram_id is not None and await session.scalar(select(User.id).where(User.telegram_id == body.telegram_id)):
         raise Conflict("Сотрудник с таким Telegram ID уже есть")
+    if email is not None and await session.scalar(select(User.id).where(User.email == email)):
+        raise Conflict("Сотрудник с такой почтой уже есть")
     await _department(session, body.department_id)
     user = User(
         telegram_id=body.telegram_id,
+        email=email,
         full_name=body.full_name.strip(),
         position=(body.position or "").strip() or None,
         role=body.role,
@@ -217,6 +226,26 @@ async def update_user(user_id: int, body: UserUpdate, admin: AdminDep, session: 
     if data.get("is_disabled"):
         await revoke_user_sessions(session, user.id, clock.now())
     return _user_out(user, await Directory.load(session))
+
+
+class TemporaryPasswordOut(BaseModel):
+    temporary_password: str
+
+
+@router.post("/users/{user_id}/reset-password", response_model=TemporaryPasswordOut, summary="Сбросить пароль сотруднику")
+async def reset_password(user_id: int, _: AdminDep, session: SessionDep, clock: ClockDep) -> TemporaryPasswordOut:
+    """Временный пароль показывается один раз; при входе с ним сотрудник задаёт новый. Сессии сотрудника закрываются."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise NotFound("Сотрудник не найден")
+    if user.email is None:
+        raise Conflict("У сотрудника нет почты: сначала добавьте её или входите через Telegram")
+    password = temporary_password()
+    user.password_hash = hash_password(password)
+    user.must_change_password = True
+    await clear_password_failures(session, user.email)
+    await revoke_user_sessions(session, user.id, clock.now())
+    return TemporaryPasswordOut(temporary_password=password)
 
 
 # --- подразделения ---------------------------------------------------------------------------------------

@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     access_request_window_seconds: int = 3600
     # Перебор токенов приглашений: неудачные попытки с одного IP (у бота — с одного Telegram ID) за окно -> 429.
     invite_max_failures: int = 10
+    # Вход по паролю: 5 неудач подряд по почте — блок на 5 минут; общий порог адреса выше (офис за NAT).
+    password_max_failures: int = 5
+    password_lock_seconds: int = 300
+    password_max_failures_per_ip: int = 50
+    password_ip_window_seconds: int = 900
     # За NAT офиса все сотрудники на одном адресе: порог адреса выше порога одного человека.
     invite_max_failures_per_ip: int = 100
     invite_failure_window_seconds: int = 900

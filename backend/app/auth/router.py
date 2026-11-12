@@ -20,10 +20,25 @@ from app.api.deps import (
 from app.api.schemas import UserBrief
 from app.auth import service
 from app.auth.me import MeOut, build_me, user_brief
+from app.auth.passwords import hash_password, normalize_email, verify_password
 from app.auth.telegram import verify_login_widget, verify_mini_app
 from app.clock import LocalDatetime
-from app.errors import DevLoginDisabled, Forbidden, InvalidLoginCode, NotFound
-from app.models import User
+from app.errors import (
+    AccessRequestPending,
+    AccessRequestRejected,
+    DevLoginDisabled,
+    EmailTaken,
+    Forbidden,
+    InvalidCredentials,
+    InvalidLoginCode,
+    LastLoginMethod,
+    NotFound,
+    PasswordChangeRequired,
+    TelegramTaken,
+    UserDisabled,
+    ValidationFailed,
+)
+from app.models import AccessRequest, User
 
 router = APIRouter(tags=["auth"])
 
@@ -61,6 +76,26 @@ class LoginCodeOut(BaseModel):
 
 class DevLoginIn(BaseModel):
     user_id: int
+
+
+Password = Annotated[str, Field(min_length=8, max_length=128)]
+
+
+class EmailLoginIn(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+    new_password: Password | None = None
+
+
+class CredentialsUpdateIn(BaseModel):
+    email: str | None = Field(default=None, max_length=254)
+    new_password: Password | None = None
+    current_password: str | None = Field(default=None, max_length=128)
+
+
+def _field(field: str, message: str) -> ValidationFailed:
+    # Только имя поля и пояснение: значение пароля в ответ и в журналы не попадает.
+    return ValidationFailed(message, details={"fields": [{"field": field, "message": message}]})
 
 
 async def _session_for(
@@ -143,4 +178,97 @@ async def logout(credentials: CredentialsDep, _: CurrentUserDep, session: Sessio
 
 @router.get("/me", response_model=MeOut, summary="Кто я")
 async def me(user: CurrentUserDep, session: SessionDep) -> MeOut:
+    return await build_me(session, user)
+
+
+@router.post("/auth/login", response_model=SessionOut, summary="Вход по почте и паролю")
+async def login_email(
+    body: EmailLoginIn, request: Request, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> SessionOut:
+    now = clock.now()
+    email = normalize_email(body.email)
+    keys = service.password_attempt_keys(email, request.client.host if request.client else "unknown", settings)
+    await service.check_password_attempts(session, keys, now)
+
+    user = await service.user_by_email(session, email)
+    if user is not None and verify_password(body.password, user.password_hash):
+        await service.clear_password_failures(session, email)
+        if user.is_disabled:
+            raise UserDisabled()
+        if user.must_change_password:
+            if body.new_password is None:
+                raise PasswordChangeRequired()
+            user.password_hash = hash_password(body.new_password)
+            user.must_change_password = False
+            await service.revoke_user_sessions(session, user.id, now)
+        return await _session_for(session, user, "password", clock, settings)
+
+    if user is None:
+        # Про заявку говорим, только если пароль верный: по одной почте не узнать, подавалась ли она.
+        latest = await session.scalar(
+            select(AccessRequest)
+            .where(AccessRequest.email == email)
+            .order_by(AccessRequest.created_at.desc(), AccessRequest.id.desc())
+            .limit(1)
+        )
+        if latest is not None and verify_password(body.password, latest.password_hash):
+            if latest.status == "pending":
+                raise AccessRequestPending()
+            if latest.status == "rejected":
+                raise AccessRequestRejected(details={"reason": latest.reject_reason})
+
+    # Транзакция запроса откатится вместе с ошибкой — неудачу пишем отдельной.
+    async with request.app.state.sessionmaker() as failures, failures.begin():
+        service.record_password_failure(failures, keys, now)
+    raise InvalidCredentials()
+
+
+@router.put("/me/credentials", response_model=MeOut, summary="Задать или сменить почту и пароль")
+async def update_credentials(
+    body: CredentialsUpdateIn, credentials: CredentialsDep, user: CurrentUserDep, session: SessionDep, clock: ClockDep
+) -> MeOut:
+    now = clock.now()
+    if user.password_hash is not None:
+        if not body.current_password or not verify_password(body.current_password, user.password_hash):
+            raise _field("current_password", "Неверный текущий пароль")
+    else:
+        if body.new_password is None:
+            raise _field("new_password", "Задайте пароль не короче 8 символов")
+        if body.email is None and user.email is None:
+            raise _field("email", "Укажите почту")
+    if body.email is not None:
+        email = normalize_email(body.email)
+        owner = await service.user_by_email(session, email)
+        if owner is not None and owner.id != user.id:
+            raise EmailTaken("Эта почта уже у другого сотрудника.")
+        user.email = email
+    if body.new_password is not None:
+        user.password_hash = hash_password(body.new_password)
+        user.must_change_password = False
+        keep = credentials.token if credentials.kind == "bearer" else None
+        await service.revoke_other_sessions(session, user.id, keep, now)
+    await session.flush()
+    return await build_me(session, user)
+
+
+@router.post("/me/telegram", response_model=MeOut, summary="Привязать Telegram")
+async def link_telegram(
+    body: WidgetLoginIn, user: CurrentUserDep, session: SessionDep, clock: ClockDep, settings: SettingsDep
+) -> MeOut:
+    max_age = timedelta(seconds=settings.telegram_widget_max_age_seconds)
+    telegram_id = verify_login_widget(body.model_dump(), settings.telegram_bot_token, clock.now(), max_age)
+    owner = await service.user_by_telegram_id(session, telegram_id)
+    if owner is not None and owner.id != user.id:
+        raise TelegramTaken()
+    user.telegram_id = telegram_id
+    await session.flush()
+    return await build_me(session, user)
+
+
+@router.delete("/me/telegram", response_model=MeOut, summary="Отвязать Telegram")
+async def unlink_telegram(user: CurrentUserDep, session: SessionDep) -> MeOut:
+    if user.email is None or user.password_hash is None:
+        raise LastLoginMethod()
+    user.telegram_id = None
+    await session.flush()
     return await build_me(session, user)

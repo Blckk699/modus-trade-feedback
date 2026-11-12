@@ -27,6 +27,8 @@ class UserBrief(BaseModel):
 class UserOut(BaseModel):
     id: int
     telegram_id: int | None
+    # Почта для входа — как telegram_id, только администратору и самому пользователю.
+    email: str | None = None
     full_name: str
     position: str | None
     role: Role

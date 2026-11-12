@@ -11,12 +11,17 @@ from app.db import Base
 
 
 class User(Base):
-    """Сотрудник. Войти может только тот, у кого задан `telegram_id` и не отключён доступ."""
+    """Сотрудник. Входит по почте и паролю или через Telegram; нужен хотя бы один способ и включённый доступ."""
 
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
+    # Почта хранится в нижнем регистре — уникальна без учёта регистра.
+    email: Mapped[str | None] = mapped_column(String(254), unique=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Временный пароль от администратора: при входе с ним нужно задать новый.
+    must_change_password: Mapped[bool] = mapped_column(default=False)
     full_name: Mapped[str] = mapped_column(String(200))
     position: Mapped[str | None] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20))  # app.domain.enums.Role
