@@ -87,10 +87,25 @@ async def find_duplicates(ctx: JobContext, payload: dict[str, Any]) -> None:
         )
 
 
+def _merge_obstacle(appeal: Appeal, main: Appeal) -> tuple[str, str] | None:
+    """Почему повтор `appeal` нельзя присоединить к `main`: (причина для клиента, текст) или None.
+
+    Повтор — ещё не разобранное обращение («Новое», «На рассмотрении»). Основное — любое незавершённое:
+    по нему уже могут ждать уточнения или вести работу, а новые сообщения о том же продолжают приходить.
+    """
+    if appeal.id == main.id:
+        return "same_appeal", "Обращение нельзя присоединить к самому себе"
+    if AppealType.PRAISE in (appeal.type, main.type):
+        return "praise", "Положительный отзыв нельзя склеить: он принимается одним действием"
+    if AppealStatus(appeal.status) not in MERGEABLE:
+        return "duplicate_status", "Присоединить как повтор можно только обращение в статусах «Новое» и «На рассмотрении»"
+    if AppealStatus(main.status).is_final:
+        return "main_finished", "Основное обращение уже завершено — присоединить к нему повтор нельзя"
+    return None
+
+
 def _both_mergeable(appeal: Appeal, main: Appeal) -> bool:
-    if appeal.id == main.id or AppealType.PRAISE in (appeal.type, main.type):
-        return False
-    return AppealStatus(appeal.status) in MERGEABLE and AppealStatus(main.status) in MERGEABLE
+    return _merge_obstacle(appeal, main) is None
 
 
 @router.get("/appeals/{appeal_id}/similar", response_model=list[DuplicateSuggestionOut], summary="Подсказки о похожих обращениях")
@@ -176,13 +191,12 @@ async def merge(appeal_id: int, body: MergeIn, user: CurrentUserDep, session: Se
     duplicate, main = locked[appeal_id], locked[body.main_appeal_id]
     await _require_processor(session, duplicate, user)
     await _require_processor(session, main, user)
-    if not _both_mergeable(duplicate, main):
-        message = None
-        if duplicate.id == main.id:
-            message = "Обращение нельзя присоединить к самому себе"
-        elif AppealType.PRAISE in (duplicate.type, main.type):
-            message = "Положительный отзыв нельзя склеить: он принимается одним действием"
-        raise MergeNotAllowed(message, details={"appeal_status": duplicate.status, "main_appeal_status": main.status})
+    obstacle = _merge_obstacle(duplicate, main)
+    if obstacle is not None:
+        reason, message = obstacle
+        raise MergeNotAllowed(
+            message, details={"reason": reason, "appeal_status": duplicate.status, "main_appeal_status": main.status}
+        )
 
     inherited = list(await session.scalars(select(AppealParticipant.user_id).where(AppealParticipant.appeal_id == duplicate.id)))
     newcomers = {duplicate.author_id, *inherited}
