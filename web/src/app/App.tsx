@@ -77,7 +77,8 @@ function AuthGate() {
   const nav = buildNav(state.me);
   const p = state.me.permissions;
   return (
-    <UnreadProvider>
+    // key по пользователю: смена роли (W-14) перемонтирует вошедшую часть, и все экраны перечитывают данные.
+    <UnreadProvider key={state.me.id}>
       <Routes location={background ?? location}>
         <Route element={<Shell />}>
           {nav.map((item) => (

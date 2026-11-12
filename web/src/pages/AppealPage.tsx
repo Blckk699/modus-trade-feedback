@@ -22,6 +22,7 @@ import { TypeIcon } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
+import { RoleSwitch } from '../auth/switch/RoleSwitch';
 import { useInCard } from './CardModal';
 
 type Appeal = Schemas['Appeal'];
@@ -87,6 +88,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
   const background = useBackground();
   const show = cardSections(a);
   const isAuthor = a.viewer_relations.includes('author');
+  const inCard = useInCard();
 
   return (
     <article className="sheet">
@@ -101,6 +103,9 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
             </span>
           )}
         </div>
+        {/* Карточка-панель закрывает шапку приложения, поэтому смена роли (W-14) продублирована здесь:
+            одну заявку ведут через все роли, не закрывая её. */}
+        {inCard && <RoleSwitch compact />}
       </header>
 
       <div className="sheet__scroll">

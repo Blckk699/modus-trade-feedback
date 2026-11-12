@@ -18,6 +18,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useAuth, useMe } from '../auth';
+import { RoleSwitch, RoleSwitchItems } from '../auth/switch/RoleSwitch';
 import { Avatar } from './Avatar';
 import { useBackground } from './background';
 import { BrandMark } from './BrandLogo';
@@ -114,6 +115,7 @@ export function Shell() {
           <div className="head__text" ref={setSlot} />
           <div className="head__tools">
             <CommandBar nav={nav} canCreate={canCreate} />
+            <RoleSwitch />
             <NotificationsBell />
             <UserMenu name={me.full_name} who={who} themeChoice={theme.choice} onTheme={theme.next} onLogout={logout} />
           </div>
@@ -222,6 +224,7 @@ function UserMenu(props: { name: string; who: string; themeChoice: ThemeChoice; 
             <strong>{props.name}</strong>
             <span>{props.who}</span>
           </div>
+          <RoleSwitchItems onPick={() => menu.setOpen(false)} />
           <Link to="/profile" className="pop__item" role="menuitem" onClick={() => menu.setOpen(false)}>
             <UserRound size={18} aria-hidden="true" />
             Профиль
