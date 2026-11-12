@@ -12,3 +12,14 @@ export function TypeIcon({ type, size = 'md' }: { type: Schemas['AppealType']; s
     </span>
   );
 }
+
+/** Тип обращения чипом в ряду статусов карточки: значок и подпись, без отдельного кружка у заголовка. */
+export function TypeChip({ type, label }: { type: Schemas['AppealType']; label: string }) {
+  const Icon = ICON[type] ?? CircleAlert;
+  return (
+    <span className={`badge badge--type badge--type-${type}`}>
+      <Icon size={13} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}

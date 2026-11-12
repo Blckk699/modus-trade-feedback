@@ -19,7 +19,7 @@ import { DuplicatesSection } from '../appeals/DuplicatesSection';
 import { HistorySection } from '../appeals/HistorySection';
 import { closedReasonLabel } from '../appeals/labels';
 import { MessagesSection } from '../appeals/MessagesSection';
-import { TypeIcon } from '../appeals/TypeIcon';
+import { TypeChip } from '../appeals/TypeIcon';
 import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
@@ -93,6 +93,7 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
     <article className="sheet">
       <header className="sheet__head">
         <div className="sheet__state" role="group" aria-label="Состояние обращения">
+          <TypeChip type={a.type} label={dict.typeLabel(a.type)} />
           <StatusBadge status={a.status} />
           {a.status !== 'closed' && <DueBadge state={a.due_state} dueAt={a.first_response_due_at} />}
           {show.participantsCounter && (
@@ -109,11 +110,10 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
       <div className="sheet__scroll">
         <div className="sheet__lead">
-          <TypeIcon type={a.type} size="lg" />
           <div>
             <h1 className="sheet__title">{a.summary ?? `Обращение ${a.number}`}</h1>
             <p className="sheet__sub">
-              {a.number} · {dict.typeLabel(a.type)} · {a.category?.name ?? 'без категории'} · приоритет {dict.priorityLabel(a.priority).toLowerCase()}
+              {a.number} · {a.category?.name ?? 'без категории'} · приоритет {dict.priorityLabel(a.priority).toLowerCase()}
             </p>
           </div>
         </div>

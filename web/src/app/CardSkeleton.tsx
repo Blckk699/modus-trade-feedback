@@ -7,12 +7,12 @@ export function CardSkeleton({ label }: { label: string }) {
     <div className="sheet card-skeleton" role="status">
       <span className="sr-only">{label}</span>
       <div className="sheet__head" aria-hidden="true">
-        <span className="bone bone--pill" style={{ width: 96 }} />
+        <span className="bone bone--pill" style={{ width: 104 }} />
+        <span className="bone bone--pill" style={{ width: 82 }} />
         <span className="bone bone--pill" style={{ width: 148 }} />
       </div>
       <div className="sheet__scroll" aria-hidden="true">
         <div className="card-skeleton__lead">
-          <span className="bone bone--round" />
           <div className="card-skeleton__title">
             <span className="bone bone--title" style={{ width: '88%' }} />
             <span className="bone bone--title" style={{ width: '56%' }} />

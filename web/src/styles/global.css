@@ -1651,6 +1651,20 @@ svg {
   height: 46px;
 }
 
+/* Тип обращения чипом — теми же цветами, что значок типа в списках */
+.badge--type-problem {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.badge--type-suggestion {
+  background: var(--status-in_progress-bg);
+  color: var(--status-in_progress);
+}
+.badge--type-praise {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
 .type-icon--problem {
   background: var(--warn-bg);
   color: var(--warn);
