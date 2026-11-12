@@ -14,7 +14,7 @@
   --surface-3: #e6eaf0;
   --line: #e2e6ec;
   --line-strong: #c9d0da;
-  /* граница полей ввода: не меньше 3:1 к фону (WCAG 1.4.11), как border-input в design/tokens.json */
+  /* дорожка выключенного переключателя: не меньше 3:1 к фону (WCAG 1.4.11). У полей рамок нет: заливка и мягкая тень */
   --field-line: #848fa0;
 
   --text: #323a47;
@@ -689,12 +689,13 @@ svg {
   padding: 0 8px 0 14px;
   border-radius: var(--r-pill);
   background: var(--surface);
-  box-shadow: var(--shadow-raised), inset 0 0 0 1px var(--field-line);
-  transition: box-shadow 0.15s;
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 .cmd__field:focus-within {
-  box-shadow: var(--shadow-raised), 0 0 0 2px var(--focus);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .cmd__glass {
@@ -1623,30 +1624,33 @@ svg {
   border: 0;
   border-radius: var(--r-ctl);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: var(--shadow-raised);
   color: var(--text);
   font-size: 15px;
   line-height: 1.45;
-  transition: box-shadow 0.15s;
+  transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 .input::placeholder {
   color: var(--muted);
 }
 
-.input:hover {
-  box-shadow: inset 0 0 0 1px var(--muted);
+.select__button:hover {
+  background: var(--surface-2);
 }
 
 .input:focus,
 .input:focus-visible,
 .select__button[aria-expanded='true'] {
+  /* Фокус поля — заливка плотнее, без кольца: так же отмечен выбранный тип обращения */
   outline: none;
-  box-shadow: inset 0 0 0 2px var(--focus);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .input[aria-invalid='true'] {
-  box-shadow: inset 0 0 0 2px var(--danger);
+  background: var(--danger-bg);
+  box-shadow: none;
 }
 
 .input:disabled {
@@ -1712,12 +1716,17 @@ textarea.input {
 
 .select--pill .select__button:focus-visible,
 .select--pill .select__button[aria-expanded='true'] {
-  box-shadow: var(--shadow-raised), 0 0 0 2px var(--focus);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .select--pill[data-set='true'] .select__button {
   background: var(--primary);
   color: var(--primary-text);
+}
+
+.select--pill[data-set='true'] .select__button:is(:focus-visible, [aria-expanded='true']) {
+  background: var(--primary-hover);
 }
 
 .select--pill[data-set='true'] :is(.select__prefix, .select__chevron) {
@@ -2941,12 +2950,13 @@ a.tile:hover .tile__go {
   padding: 4px;
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
-  transition: box-shadow 0.15s;
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 .composer:focus-within {
-  box-shadow: inset 0 0 0 2px var(--focus);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .composer--with-avatar {
@@ -2958,6 +2968,7 @@ a.tile:hover .tile__go {
 }
 
 .composer--with-avatar:focus-within {
+  background: none;
   box-shadow: none;
 }
 
@@ -2966,11 +2977,13 @@ a.tile:hover .tile__go {
   padding: 4px;
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: var(--shadow-raised);
+  transition: box-shadow 0.15s, background-color 0.15s;
 }
 
 .composer__box:focus-within {
-  box-shadow: inset 0 0 0 2px var(--focus);
+  background: var(--surface-3);
+  box-shadow: none;
 }
 
 .composer__input {
@@ -3211,17 +3224,41 @@ a.tile:hover .tile__go {
   width: 100%;
   padding: 14px;
   border-radius: var(--r-tile);
+  position: relative;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
-  transition: box-shadow 0.15s, background-color 0.15s;
+  box-shadow: var(--shadow-raised);
+  transition: background-color 0.15s;
 }
 
 .choice__item:hover .choice__box {
-  box-shadow: inset 0 0 0 1px var(--muted);
+  background: var(--surface-2);
 }
 
+/* Выбранный тип: заливка плотнее и галочка в углу — без обводки */
 .choice__item input:checked + .choice__box {
-  box-shadow: inset 0 0 0 2px var(--primary);
+  background: var(--surface-3);
+  box-shadow: none;
+}
+
+.choice__check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-text);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.choice__item input:checked + .choice__box .choice__check {
+  opacity: 1;
+  transform: none;
 }
 
 .choice__item input:focus-visible + .choice__box {
@@ -3571,13 +3608,13 @@ a.talk:hover {
   border: 0;
   border-radius: var(--r-tile);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: var(--shadow-raised);
   text-align: left;
-  transition: box-shadow 0.15s, background-color 0.15s;
+  transition: background-color 0.15s;
 }
 
-button.vote__option:hover {
-  box-shadow: inset 0 0 0 1px var(--muted);
+button.vote__option:not(.vote__option--mine):hover {
+  background: var(--surface-2);
 }
 
 .vote__option--static {
@@ -3627,12 +3664,12 @@ button.vote__option:hover {
 
 .vote__option--mine.vote__option--for {
   background: var(--success-bg);
-  box-shadow: inset 0 0 0 2px var(--success);
+  box-shadow: none;
 }
 
 .vote__option--mine.vote__option--against {
   background: var(--danger-bg);
-  box-shadow: inset 0 0 0 2px var(--danger);
+  box-shadow: none;
 }
 
 .vote__option--mine .vote__icon {
@@ -3700,15 +3737,14 @@ button.vote__option:hover {
   padding: 30px 20px;
   border-radius: var(--r-tile);
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--field-line);
+  box-shadow: var(--shadow-raised);
   text-align: center;
   cursor: pointer;
-  transition: box-shadow 0.15s, background-color 0.15s;
+  transition: background-color 0.15s;
 }
 
-.dropzone:hover,
-.dropzone--over {
-  box-shadow: inset 0 0 0 2px var(--primary);
+.dropzone:hover {
+  background: var(--surface-2);
 }
 
 .dropzone--over {

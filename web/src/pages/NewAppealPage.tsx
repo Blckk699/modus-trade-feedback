@@ -116,6 +116,9 @@ export function NewAppealPage() {
               <input type="radio" name="type" value={t.code} checked={type === t.code} onChange={() => setType(t.code as AppealType)} />
               <span className="choice__box">
                 <TypeIcon type={t.code as AppealType} />
+                <span className="choice__check" aria-hidden="true">
+                  <Check size={12} strokeWidth={3} />
+                </span>
                 <span className="choice__text">
                   <span className="choice__label">{t.label}</span>
                   <span className="choice__hint">{TYPE_HINT[t.code as AppealType]}</span>
