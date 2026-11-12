@@ -559,3 +559,14 @@ async def test_adapter_tells_rejected_code_from_unavailable_portal(caplog) -> No
     assert caplog.text
     for secret in (CLIENT_SECRET, "portal-code", "portal-access-token"):
         assert secret not in caplog.text
+
+
+async def test_refusal_reason_is_logged_without_personal_data(client, demo, other_browser, caplog) -> None:
+    """Один код `invalid_bitrix_auth` скрывает разные причины; в журнале видно, какая именно."""
+    state = await start(client)
+    with caplog.at_level("INFO", logger="app.auth.bitrix"):
+        assert outcome(await callback(other_browser, state)) == {"error": "invalid_bitrix_auth"}
+        assert outcome(await callback(client, state + "x")) == {"error": "invalid_bitrix_auth"}
+    assert "invalid_bitrix_auth (state_cookie_missing)" in caplog.text
+    assert "invalid_bitrix_auth (state_mismatch)" in caplog.text
+    assert state not in caplog.text and PORTAL_EMAIL not in caplog.text
