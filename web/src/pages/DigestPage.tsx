@@ -14,6 +14,7 @@ import { formatDateTime } from '../lib/format';
 import { plural } from '../lib/plural';
 import { useAsync } from '../lib/useAsync';
 import { Select } from '../app/Select';
+import { countDelta, hoursDelta, type Delta } from './weekDelta';
 
 type Summary = Schemas['AnalyticsSummary'];
 type AppealRef = Schemas['AppealRef'];
@@ -151,6 +152,8 @@ function SummaryView({ data: d }: { data: Summary }) {
         hint={d.avg_first_response_hours === null ? 'ответов ещё не было' : 'от подачи до ответа'}
       />
 
+      {d.last_week && d.previous_week && <WeekBlock now={d.last_week} before={d.previous_week} />}
+
       <Block className="bento__half" title="Просрочен первый ответ" sub="Ответа нет дольше срока" count={d.overdue.length} danger>
         <More items={sortStuck(d.overdue)} limit={5}>
           {(items) => <StuckList items={items} empty="Просроченных нет — все отвечают в срок." />}
@@ -212,6 +215,36 @@ function SummaryView({ data: d }: { data: Summary }) {
         )}
       </Block>
 
+      {/* Одна строка повторяла бы плитки сверху: таблица нужна, когда подразделений несколько. */}
+      {(d.by_department ?? []).length > 1 && (
+        <Block className="bento__full" title="По подразделениям" sub="Считается по подразделению, которое отвечает за категорию обращения">
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Подразделение</th>
+                  <th className="num">Всего</th>
+                  <th className="num">Открыто</th>
+                  <th className="num">Просрочено</th>
+                  <th className="num">Первый ответ, в среднем</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.by_department.map((r) => (
+                  <tr key={r.department?.id ?? 'none'}>
+                    <td>{r.department?.name ?? <span className="muted">Без подразделения</span>}</td>
+                    <td className="num">{r.total}</td>
+                    <td className="num">{r.open_count}</td>
+                    <td className="num">{r.overdue_count > 0 ? <span className="count count--danger">{r.overdue_count}</span> : '0'}</td>
+                    <td className="num">{r.avg_first_response_hours === null ? '—' : formatHours(r.avg_first_response_hours)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Block>
+      )}
+
       {d.assignee_load.length > 0 && (
         <Block className="bento__full" title="Нагрузка по ответственным">
           <div className="table-wrap">
@@ -256,6 +289,46 @@ export function formatHours(h: number): string {
   if (h < 24) return `${h.toFixed(1).replace('.0', '').replace('.', ',')} ч`;
   const days = h / 24;
   return `${days.toFixed(1).replace('.0', '').replace('.', ',')} д`;
+}
+
+type Period = Schemas['PeriodStats'];
+
+/** Последние семь дней рядом с предыдущими семью: значение, изменение и что было неделей раньше. */
+function WeekBlock({ now, before }: { now: Period; before: Period }) {
+  const hours = (h: number | null) => (h === null ? '—' : formatHours(h));
+  const cells: { label: string; value: string; was: string; delta: Delta }[] = [
+    { label: 'Подано', value: String(now.created_count), was: String(before.created_count), delta: countDelta(now.created_count, before.created_count, 'neutral') },
+    { label: 'Завершено', value: String(now.closed_count), was: String(before.closed_count), delta: countDelta(now.closed_count, before.closed_count, 'good') },
+    {
+      label: 'Из них реализовано',
+      value: String(now.implemented_count),
+      was: String(before.implemented_count),
+      delta: countDelta(now.implemented_count, before.implemented_count, 'good'),
+    },
+    { label: 'Просрочено', value: String(now.overdue_count), was: String(before.overdue_count), delta: countDelta(now.overdue_count, before.overdue_count, 'bad') },
+    {
+      label: 'Первый ответ, в среднем',
+      value: hours(now.avg_first_response_hours),
+      was: before.avg_first_response_hours === null ? 'ответов не было' : hours(before.avg_first_response_hours),
+      delta: hoursDelta(now.avg_first_response_hours, before.avg_first_response_hours, formatHours),
+    },
+  ];
+  return (
+    <Block className="bento__full" title="Неделя к неделе" sub="Последние 7 дней и 7 дней перед ними">
+      <dl className="week">
+        {cells.map((c) => (
+          <div key={c.label} className="week__cell">
+            <dt className="week__label">{c.label}</dt>
+            <dd className="week__now">
+              <span className="week__value">{c.value}</span>
+              {c.delta.chip && <span className={`week__delta week__delta--${c.delta.tone}`}>{c.delta.chip}</span>}
+            </dd>
+            <dd className="week__was">неделей раньше: {c.was}</dd>
+          </div>
+        ))}
+      </dl>
+    </Block>
+  );
 }
 
 function ColorTile(props: { tone: 'navy' | 'alert' | 'calm'; label: string; value: string; spoken: string; pill: string; share: number }) {
