@@ -84,7 +84,15 @@ async def create_appeal(
 
 
 async def reassign(
-    session: AsyncSession, appeal: Appeal, actor: User, assignee_id: int, reason: str | None, now: datetime, tz: tzinfo
+    session: AsyncSession,
+    appeal: Appeal,
+    actor: User,
+    assignee_id: int,
+    reason: str | None,
+    now: datetime,
+    tz: tzinfo,
+    *,
+    category_id: int | None = None,
 ) -> None:
     """Назначение и переназначение: руководитель (в своём подразделении), администратор, собственник.
     Причина обязательна при смене ответственного; первое назначение можно сделать без неё.
@@ -105,11 +113,28 @@ async def reassign(
             "Ответственным может быть действующий сотрудник, кроме администратора",
             details={"fields": [{"field": "assignee_id", "message": "Выберите действующего сотрудника, не администратора"}]},
         )
-    if assignee.id == appeal.assignee_id:
+    category = None
+    if category_id is not None and category_id != appeal.category_id:
+        category = await session.get(Category, category_id)
+        if category is None or not category.is_active:
+            raise ValidationFailed(
+                "Такой категории нет или она выключена",
+                details={"fields": [{"field": "category_id", "message": "Выберите действующую категорию"}]},
+            )
+    if assignee.id == appeal.assignee_id and category is None:
         raise ValidationFailed(
             "Этот сотрудник уже ответственный",
             details={"fields": [{"field": "assignee_id", "message": "Выберите другого сотрудника"}]},
         )
+    if category is not None:
+        old = await session.get(Category, appeal.category_id) if appeal.category_id else None
+        appeal.category_id = category.id
+        record(
+            session, appeal, HistoryKind.FIELD_CHANGED, now, actor.id,
+            field="category", old_value=old.name if old else None, new_value=category.name,
+        )
+        if assignee.id == appeal.assignee_id:
+            return  # меняли только категорию: ответственный и срок остаются
     reason = (reason or "").strip() or None
     if appeal.assignee_id and reason is None:
         raise ValidationFailed(

@@ -105,6 +105,8 @@ class ReassignIn(BaseModel):
     assignee_id: int
     # Обязательна при смене ответственного; при первом назначении её можно не передавать.
     reason: str | None = Field(default=None, max_length=2000)
+    # Заодно задать или сменить категорию — например, обращению из очереди «Без ответственного».
+    category_id: int | None = None
 
 
 @router.post("/appeals/{appeal_id}/reassign", response_model=AppealOut, summary="Переназначить ответственного")
@@ -113,7 +115,7 @@ async def reassign_appeal(
 ) -> AppealOut:
     appeal = await service.get_visible(session, appeal_id, user, lock=True)
     now = clock.now()
-    await service.reassign(session, appeal, user, body.assignee_id, body.reason, now, settings.tz)
+    await service.reassign(session, appeal, user, body.assignee_id, body.reason, now, settings.tz, category_id=body.category_id)
     return await appeal_out(session, appeal, user, now)
 
 
