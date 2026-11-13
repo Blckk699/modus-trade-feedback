@@ -23,6 +23,7 @@ void main() {
     await session.restore();
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('server-settings')), findsNothing, reason: 'сервер задаётся сборкой, на входе его не выбирают');
 
     expect(find.byKey(const Key('login-email')), findsOneWidget, reason: 'основной способ — почта');
     expect(find.byKey(const Key('dev-login')), findsNothing, reason: 'dev-вход выключен на сервере');

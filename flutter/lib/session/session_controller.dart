@@ -46,7 +46,10 @@ class SessionController extends ChangeNotifier {
 
   /// Восстанавливает сессию при запуске приложения.
   Future<void> restore() async {
-    api.baseUrl = await store.readServerUrl() ?? ServerConfig.defaultUrl;
+    // Адрес из сборки главнее сохранённого: выбора сервера в приложении больше нет.
+    api.baseUrl = ServerConfig.buildUrl.isNotEmpty
+        ? ServerConfig.buildUrl
+        : await store.readServerUrl() ?? ServerConfig.defaultUrl;
     final token = await store.readToken();
     if (token == null || token.isEmpty) {
       _set(SessionStatus.signedOut);
