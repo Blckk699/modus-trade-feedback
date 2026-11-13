@@ -121,6 +121,12 @@ async def reassign(
                 "Такой категории нет или она выключена",
                 details={"fields": [{"field": "category_id", "message": "Выберите действующую категорию"}]},
             )
+        # Руководитель распоряжается только своим подразделением: категорией нельзя увести обращение в чужое.
+        if actor.role not in (Role.ADMIN, Role.OWNER) and category.department_id not in extras.headed:
+            raise ValidationFailed(
+                "Эта категория относится к другому подразделению",
+                details={"fields": [{"field": "category_id", "message": "Выберите категорию своего подразделения"}]},
+            )
     if assignee.id == appeal.assignee_id and category is None:
         raise ValidationFailed(
             "Этот сотрудник уже ответственный",
