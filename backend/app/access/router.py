@@ -86,7 +86,8 @@ class AccessRequestOut(BaseModel):
     comment: str | None
     created_at: LocalDatetime
     updated_at: LocalDatetime
-    assigned_role: AssignableRole | None
+    # Шире, чем можно выбрать при одобрении: собственника назначают в обход экрана заявок.
+    assigned_role: Role | None
     assigned_department: DepartmentRef | None
     decided_by: UserBrief | None
     decided_at: LocalDatetime | None
@@ -198,7 +199,8 @@ async def request_out(session: AsyncSession, request: AccessRequest) -> AccessRe
         comment=request.comment,
         created_at=request.created_at,
         updated_at=request.updated_at,
-        assigned_role=request.assigned_role,
+        # Неизвестное значение роли (правка базы) не должно ронять весь список заявок.
+        assigned_role=request.assigned_role if request.assigned_role in set(Role) else None,
         assigned_department=await _department(session, request.assigned_department_id),
         decided_by=await _brief(session, request.decided_by_id),
         decided_at=request.decided_at,

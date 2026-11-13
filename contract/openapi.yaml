@@ -5927,8 +5927,10 @@ components:
         assigned_role:
           type: string
           nullable: true
-          enum: [employee, head, admin]
-          description: Роль, выданная при одобрении
+          enum: [employee, head, admin, owner]
+          description: |
+            Роль, выданная при одобрении. На экране заявок выбирают `employee`, `head` или `admin`;
+            `owner` встречается у заявок, решённых в обход экрана. Нераспознанная роль отдаётся как `null`
         assigned_department:
           type: object
           nullable: true
