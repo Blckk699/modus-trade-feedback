@@ -361,7 +361,7 @@ function ReassignForm({ appeal, onDone }: { appeal: Appeal; onDone: (a: Appeal) 
       <label className="field">
         <span className="field__label">Причина</span>
         <textarea className="input" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
-        <span className="field__hint muted">Попадёт в историю. Срок первого ответа начнётся заново.</span>
+        <span className="field__hint muted">Обязательно: без причины переназначить нельзя. Она попадёт в историю, срок первого ответа начнётся заново.</span>
       </label>
     </ActionForm>
   );

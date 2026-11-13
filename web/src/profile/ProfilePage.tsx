@@ -84,7 +84,7 @@ function EmailCard({ account, onChange }: CardProps) {
         <div>
           <h2 className="card__title">Почта и пароль</h2>
           <p className="card__sub">
-            {account.email ? (account.hasPassword ? account.email : `${account.email} · пароль не задан`) : 'Не заданы: вход только через Telegram'}
+            {account.email ? (account.hasPassword ? account.email : `${account.email} · пароль не задан`) : account.telegramLinked ? 'Не заданы: вход только через Telegram' : 'Не заданы'}
           </p>
         </div>
       </header>

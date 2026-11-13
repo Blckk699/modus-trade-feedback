@@ -7,7 +7,7 @@ import { formatChatDay, formatDateTime, formatTime } from '../lib/format';
 import { useAsync } from '../lib/useAsync';
 import { historyDays, readHistoryOpen, writeHistoryOpen } from './history';
 import { historyValue } from './historyValue';
-import { historyKindLabel } from './labels';
+import { historyTitle } from './labels';
 
 type HistoryEvent = Schemas['HistoryEvent'];
 
@@ -41,7 +41,7 @@ export function HistorySection({ appealId, version }: { appealId: number; versio
           </span>
           {!open && last && (
             <span className="history__last">
-              {historyKindLabel[last.kind] ?? last.kind} · {formatDateTime(last.created_at)}
+              {historyTitle(last)} · {formatDateTime(last.created_at)}
             </span>
           )}
           {history.state.status === 'loading' && <span className="history__last">Загружаем…</span>}
@@ -78,7 +78,7 @@ function HistoryItem({ ev }: { ev: HistoryEvent }) {
   return (
     <li className="timeline__item">
       <div className="timeline__head">
-        <span className="timeline__title">{historyKindLabel[ev.kind] ?? ev.kind}</span>
+        <span className="timeline__title">{historyTitle(ev)}</span>
         <span className="timeline__time">
           {ev.actor ? ev.actor.full_name : 'Система'} · <time dateTime={ev.created_at}>{formatTime(ev.created_at)}</time>
         </span>

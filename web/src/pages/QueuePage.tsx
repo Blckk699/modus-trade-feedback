@@ -193,7 +193,9 @@ export function QueuePage() {
       {s.status === 'error' && <LoadError message={s.message} onRetry={first.reload} />}
       {s.status === 'ready' && s.data.total === 0 && (
         <EmptyState icon={narrowed ? 'search' : 'done'} title={narrowed ? 'Под фильтры ничего не подошло' : 'Здесь пусто'}>
-          {narrowed ? 'Попробуйте снять часть фильтров.' : 'Новые обращения появятся в этом списке.'}
+          {narrowed
+            ? 'Попробуйте снять часть фильтров.'
+            : 'Сюда попадают обращения, по которым отвечаете вы: как ответственный, заместитель или руководитель. Новые появятся в этом списке.'}
         </EmptyState>
       )}
       {s.status === 'ready' && s.data.total > 0 && (

@@ -6,6 +6,7 @@ import type { Schemas } from '../api/types';
 import { Select } from '../app/Select';
 import { useToast } from '../app/Toast';
 import { useAsync } from '../lib/useAsync';
+import { useMe } from '../auth';
 import { assignable, byName } from '../settings/shared';
 
 type Appeal = Schemas['Appeal'];
@@ -18,6 +19,7 @@ type Appeal = Schemas['Appeal'];
  */
 export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated: (a: Appeal) => void }) {
   const toast = useToast();
+  const me = useMe();
   const users = useAsync(() => unwrap(api.GET('/api/v1/users')), []);
   const noCategory = appeal.category === null;
   const categories = useAsync(() => (noCategory ? unwrap(api.GET('/api/v1/categories')) : Promise.resolve([])), [noCategory]);
@@ -94,7 +96,9 @@ export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated
             </span>
             <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={busy}>
               <option value="">{categories.state.status === 'loading' ? 'Загружаем категории…' : 'Оставить без категории'}</option>
-              {(categories.state.status === 'ready' ? [...categories.state.data].sort(byName) : []).map((c) => (
+              {(categories.state.status === 'ready' ? [...categories.state.data].sort(byName) : [])
+                .filter((c) => me.role !== 'head' || c.department.id === me.department?.id)
+                .map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} — {c.department.name}
                 </option>
