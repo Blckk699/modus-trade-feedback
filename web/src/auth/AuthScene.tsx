@@ -16,12 +16,12 @@ export function AuthScene() {
     let dispose: (() => void) | undefined;
     let cancelled = false;
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    import('./scene/gyroscope')
-      .then(({ mountGyroscope }) => {
+    import('./scene/rings')
+      .then(({ mountRings }) => {
         if (cancelled) return;
-        // Текст панели прижат к низу: всё, что выше него, свободно для фигуры.
+        // Текст панели прижат к низу: над ним фигура видна целиком, ниже уходит в тень.
         const pitch = el.parentElement?.querySelector<HTMLElement>('.auth__pitch');
-        dispose = mountGyroscope(el, still, () => pitch?.offsetTop ?? el.clientHeight);
+        dispose = mountRings(el, still, () => pitch?.offsetTop ?? el.clientHeight);
         el.dataset.ready = 'true';
       })
       .catch(() => {
