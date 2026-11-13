@@ -13,11 +13,15 @@ type Appeal = Schemas['Appeal'];
 /**
  * Назначение ответственного прямо в карточке (история 70). Блок виден тому, кому бэкенд разрешил
  * `reassign`, пока у обращения нет ответственного: администратор открывает обращение из очереди
- * «Без ответственного» и назначает его здесь же. Причина обязательна по контракту и попадает в историю.
+ * «Без ответственного» и назначает его здесь же. Причина при первом назначении необязательна.
+ * Обращению без категории здесь же выбирают категорию — иначе оно не попадёт в разбивку сводки.
  */
 export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated: (a: Appeal) => void }) {
   const toast = useToast();
   const users = useAsync(() => unwrap(api.GET('/api/v1/users')), []);
+  const noCategory = appeal.category === null;
+  const categories = useAsync(() => (noCategory ? unwrap(api.GET('/api/v1/categories')) : Promise.resolve([])), [noCategory]);
+  const [categoryId, setCategoryId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -33,13 +37,16 @@ export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated
     e.preventDefault();
     setError('');
     if (!assigneeId) return setError('Выберите ответственного.');
-    if (!reason.trim()) return setError('Напишите причину: она попадёт в историю обращения.');
     setBusy(true);
     try {
       const next = await unwrap(
         api.POST('/api/v1/appeals/{appeal_id}/reassign', {
           params: { path: { appeal_id: appeal.id } },
-          body: { assignee_id: Number(assigneeId), reason: reason.trim() },
+          body: {
+            assignee_id: Number(assigneeId),
+            reason: reason.trim() || null,
+            ...(categoryId ? { category_id: Number(categoryId) } : {}),
+          },
         }),
       );
       toast(`${next.number}: ответственный — ${next.assignee?.full_name ?? 'назначен'}`);
@@ -80,8 +87,25 @@ export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated
             ))}
           </Select>
         </label>
+        {noCategory && (
+          <label className="field">
+            <span className="field__label">
+              Категория <span className="muted">· необязательно</span>
+            </span>
+            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={busy}>
+              <option value="">{categories.state.status === 'loading' ? 'Загружаем категории…' : 'Оставить без категории'}</option>
+              {(categories.state.status === 'ready' ? [...categories.state.data].sort(byName) : []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} — {c.department.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+        )}
         <label className="field">
-          <span className="field__label">Причина</span>
+          <span className="field__label">
+            Причина <span className="muted">· необязательно</span>
+          </span>
           <input
             className="input"
             value={reason}
@@ -90,7 +114,6 @@ export function AssignSection({ appeal, onUpdated }: { appeal: Appeal; onUpdated
               setError('');
             }}
             placeholder="Например: вопрос в зоне IT"
-            required
             disabled={busy}
           />
         </label>

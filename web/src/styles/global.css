@@ -4701,6 +4701,19 @@ textarea.compose__text--tall {
   border-top: 1px solid var(--line);
 }
 
+/* На телефоне таблица шире экрана: пусть прокручивается вбок, а не ломает названия посреди слова. */
+@media (max-width: 640px) {
+  .table {
+    min-width: 520px;
+  }
+
+  .table td:first-child {
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+}
+
 .table .num {
   text-align: right;
   white-space: nowrap;
