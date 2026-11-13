@@ -63,6 +63,8 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
 
   const messages = list.state.status === 'ready' ? list.state.data : [];
   const count = messages.length;
+  // Свои сообщения новыми не считаются: ответ или вопрос, отправленный из карточки, отметку не зажигает.
+  const foreign = messages.filter((m) => m.author.id !== me.id).length;
 
   // Живые обновления: чужое сообщение дочитывается без перезагрузки. Пока чат закрыт, на кнопке
   // «Переписка» копится отметка «новое»; открыли чат — отметка снята.
@@ -72,10 +74,10 @@ export function MessagesSection({ appeal, onAppealChanged, entryHost }: Props) {
   const seen = useRef<number | null>(null);
   useEffect(() => {
     if (list.state.status !== 'ready') return;
-    const added = seen.current === null ? 0 : count - seen.current;
-    seen.current = count;
+    const added = seen.current === null ? 0 : foreign - seen.current;
+    seen.current = foreign;
     if (added > 0 && !open) setFresh((n) => n + added);
-  }, [count, open, list.state.status]);
+  }, [foreign, open, list.state.status]);
   useEffect(() => {
     if (open) setFresh(0);
     setOpenChat(open ? appeal.id : null);
