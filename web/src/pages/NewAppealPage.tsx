@@ -137,7 +137,11 @@ export function NewAppealPage() {
           className={type === 'praise' ? 'input compose__text compose__text--tall' : 'input compose__text'}
           rows={5}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            // Ошибка «напишите хотя бы пару слов» относится к пустому полю: начали писать — убираем её.
+            if (errors.text) setErrors(({ text: _text, ...rest }) => rest);
+          }}
           placeholder={TEXT_PLACEHOLDER[type]}
           aria-invalid={Boolean(errors.text)}
           data-autofocus

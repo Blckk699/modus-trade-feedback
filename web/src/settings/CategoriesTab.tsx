@@ -4,6 +4,7 @@ import { api, unwrap } from '../api/client';
 import { errorMessage } from '../api/errors';
 import { useAsync } from '../lib/useAsync';
 import { assignable, byName, changes, fieldErrors, idOrNull, type Category, type Department, type User } from './shared';
+import { Confirm } from '../app/Confirm';
 import { Modal } from '../app/Modal';
 import { Select } from '../app/Select';
 import { useToast } from '../app/Toast';
@@ -24,9 +25,10 @@ export function CategoriesTab() {
   // Пока форма сохраняется, окно не закрывается: иначе ошибку сервера не увидеть.
   const [saving, setSaving] = useState(false);
   const [switching, setSwitching] = useState<number | null>(null);
-  // Удаление — в два нажатия: первое спрашивает, второе удаляет.
+  // Удаление — через окно подтверждения: в нём сказано, что удалить можно только пустую категорию.
   const [confirming, setConfirming] = useState<number | null>(null);
-  const [removing, setRemoving] = useState<number | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const toast = useToast();
 
   const s = data.state;
@@ -59,18 +61,25 @@ export function CategoriesTab() {
   // Удалить можно только категорию без обращений. Если обращения есть, сервер отвечает 409
   // и сам объясняет, что делать: показываем его текст.
   async function remove(c: Category) {
-    setRemoving(c.id);
+    setRemoving(true);
+    setRemoveError('');
     try {
       await unwrap(api.DELETE('/api/v1/admin/categories/{category_id}', { params: { path: { category_id: c.id } } }));
       data.set([categories.filter((x) => x.id !== c.id), departments, users]);
+      setConfirming(null);
       toast(`Категория «${c.name}» удалена`);
     } catch (e) {
-      toast(errorMessage(e), 'error');
+      // Отказ сервера («в категории есть обращения — выключите её») остаётся в окне.
+      setRemoveError(errorMessage(e));
     } finally {
-      setRemoving(null);
-      setConfirming(null);
+      setRemoving(false);
     }
   }
+  const closeConfirm = () => {
+    setConfirming(null);
+    setRemoveError('');
+  };
+  const toRemove = confirming === null ? undefined : categories.find((c) => c.id === confirming);
   const sorted = [...categories].sort((a, b) => Number(b.is_active) - Number(a.is_active) || byName(a, b));
 
   const edited = editing === null ? undefined : categories.find((c) => c.id === editing);
@@ -113,29 +122,30 @@ export function CategoriesTab() {
                 <button type="button" className="btn btn--ghost" onClick={() => setEditing(c.id)}>
                   Изменить
                 </button>
-                {confirming === c.id ? (
-                  <>
-                    <button type="button" className="btn btn--text btn--danger" disabled={removing === c.id} onClick={() => void remove(c)}>
-                      {removing === c.id ? 'Удаляем…' : 'Да, удалить'}
-                    </button>
-                    <button type="button" className="btn btn--text" disabled={removing === c.id} onClick={() => setConfirming(null)}>
-                      Отмена
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn--text btn--danger"
-                    onClick={() => setConfirming(c.id)}
-                    title="Удалить можно категорию, в которой нет обращений. Остальные — только выключить"
-                  >
-                    Удалить
-                  </button>
-                )}
+                <button type="button" className="btn btn--text btn--danger" onClick={() => setConfirming(c.id)}>
+                  Удалить
+                </button>
               </div>
             </li>
         ))}
       </ul>
+
+      <Confirm
+        open={toRemove !== undefined}
+        title={`Удалить категорию «${toRemove?.name ?? ''}»?`}
+        confirmLabel="Удалить"
+        busyLabel="Удаляем…"
+        busy={removing}
+        error={removeError}
+        danger
+        onConfirm={() => toRemove && void remove(toRemove)}
+        onCancel={closeConfirm}
+      >
+        <p>
+          Удалить можно только категорию, в которой нет ни одного обращения. Если обращения есть, система откажет — такую
+          категорию выключают: при подаче её больше не выбрать, а прежние обращения остаются.
+        </p>
+      </Confirm>
 
       {/* Добавление и правка — в окне поверх списка, как у сотрудников. key сбрасывает поля при смене записи. */}
       <Modal open={formOpen} onClose={closeForm} labelledBy="category-form-title" locked={saving}>
