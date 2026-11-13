@@ -3,11 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { pathFromStartParam } from './startParam';
 import { watchTelegramFrame } from './theme';
+import { openFullWindow, watchSafeArea } from './viewport';
 import { getWebApp } from './webApp';
 
 /**
  * Оболочка Mini App (T-06). Вне Telegram ничего не делает и ничего не рисует.
- * - ready() и expand(): Telegram убирает заглушку загрузки и раскрывает окно на всю высоту;
+ * - ready() и раскрытие окна (telegram/viewport.ts): на телефоне — на весь экран (Telegram 8.0+), иначе expand();
+ *   свайп вниз окно не закрывает; отступы под чёлку и кнопки Telegram — CSS-переменными --app-safe-*;
  * - тема: наши токены без перекраски под Telegram (как мобильный веб); рамку Telegram (шапка, фон,
  *   нижняя полоса) красим цветами нашей текущей темы и перекрашиваем при её смене;
  * - кнопка «Назад» Telegram: видна, когда есть куда вернуться внутри приложения, ведёт на шаг назад;
@@ -23,10 +25,14 @@ export function MiniAppShell() {
 
   useEffect(() => {
     if (!webApp) return;
-    const stop = watchTelegramFrame(webApp);
+    const stopFrame = watchTelegramFrame(webApp);
+    const stopSafeArea = watchSafeArea(webApp);
     webApp.ready();
-    webApp.expand();
-    return stop;
+    openFullWindow(webApp);
+    return () => {
+      stopFrame();
+      stopSafeArea();
+    };
   }, [webApp]);
 
   // Ссылка из бота: один раз при открытии, пока идёт вход. Так маршрут уже на месте, когда AuthGate

@@ -36,6 +36,17 @@ interface BackButton {
   offClick(cb: () => void): BackButton;
 }
 
+/** Отступы в px (safeAreaInset, contentSafeAreaInset): с версии 8.0. */
+export interface Insets {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+/** События, на которые подписывается оболочка. */
+export type WebAppEvent = 'themeChanged' | 'safeAreaChanged' | 'contentSafeAreaChanged' | 'fullscreenChanged';
+
 export interface WebApp {
   initData: string;
   initDataUnsafe: { start_param?: string };
@@ -52,8 +63,19 @@ export interface WebApp {
   setBackgroundColor?(color: string): void;
   /** Нижняя полоса Telegram под приложением: с версии 7.10. */
   setBottomBarColor?(color: string): void;
-  onEvent(event: 'themeChanged', cb: () => void): void;
-  offEvent(event: 'themeChanged', cb: () => void): void;
+  /** Полноэкранный режим: с версии 8.0. На компьютере и в вебе Telegram отвечает fullscreenFailed. */
+  isFullscreen?: boolean;
+  requestFullscreen?(): void;
+  exitFullscreen?(): void;
+  /** Свайп вниз больше не закрывает окно: с версии 7.7. */
+  disableVerticalSwipes?(): void;
+  enableVerticalSwipes?(): void;
+  /** Безопасная зона устройства (чёлка, полоска «домой»): с версии 8.0. */
+  safeAreaInset?: Insets;
+  /** Зона под элементами Telegram поверх приложения (кнопки «Закрыть» и «⋯» в полноэкранном режиме): с 8.0. */
+  contentSafeAreaInset?: Insets;
+  onEvent(event: WebAppEvent, cb: () => void): void;
+  offEvent(event: WebAppEvent, cb: () => void): void;
   BackButton: BackButton;
   MainButton: BottomButton;
 }

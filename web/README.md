@@ -73,7 +73,8 @@ npm run dev
 
 - Вход: `auth/methods/miniApp.ts` идёт первым в `authMethods` и отправляет `initData` в `POST /api/v1/auth/telegram/mini-app`. При отказе (`401`/`403`) показывается экран входа с `message`.
 - Оболочка `telegram/MiniAppShell.tsx` (в `App` рядом с `AuthGate`, вне Telegram ничего не делает):
-  - вызывает `ready()` и `expand()`;
+  - вызывает `ready()` и раскрывает окно (`telegram/viewport.ts`): на телефоне (`ios`, `android`) с Telegram 8.0+ — `requestFullscreen()`, на компьютере, в вебе и в старых клиентах — `expand()`; с 7.7 отключает закрытие свайпом вниз (`disableVerticalSwipes()`);
+  - отступы под чёлку и кнопки Telegram «Закрыть» и «⋯»: `safeAreaInset` + `contentSafeAreaInset` пишутся в `--app-safe-*` на `<html>` и обновляются по `safeAreaChanged`, `contentSafeAreaChanged`, `fullscreenChanged`. CSS берёт отступы из `--safe-top` и `--safe-bottom` (вне Telegram это `env(safe-area-inset-*)`). В полноэкранном режиме на `<html>` стоит `data-telegram-fullscreen`;
   - красит рамку Telegram (шапка, фон, нижняя полоса) цветами нашей текущей темы (`telegram/theme.ts`); сами экраны под тему Telegram не перекрашиваются;
   - показывает кнопку «Назад» Telegram, когда в истории есть куда вернуться (`navigate(-1)`).
 - Ссылки из бота (`telegram/startParam.ts`): `startapp` — это маршрут контракта (`Notification.path`), в котором `/` заменён на `_`. Например, `appeals_21` → `/appeals/21`, `discussions_5` → `/discussions/5`, `analytics` → `/digest`. Inline-кнопка `web_app` в боте может вести сразу на путь: `<MINI_APP_URL>/appeals/21`.
