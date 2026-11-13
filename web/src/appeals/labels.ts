@@ -30,6 +30,13 @@ export const historyKindLabel: Record<Schemas['HistoryEvent']['kind'], string> =
   nudged: 'Ответственному напомнили',
 };
 
+/** Заголовок события истории: общий вид события уточняется по тому, что в нём записано. */
+export function historyTitle(ev: Pick<Schemas['HistoryEvent'], 'kind' | 'field' | 'new_value'>): string {
+  if (ev.kind === 'assigned' && !ev.new_value) return 'Ответственный не назначен';
+  if (ev.kind === 'field_changed' && ev.field === 'category') return 'Изменена категория';
+  return historyKindLabel[ev.kind] ?? ev.kind;
+}
+
 export const closedReasonLabel: Record<Schemas['ClosedReason'], string> = {
   feedback_accepted: 'Отзыв принят',
   merged: 'Присоединено к другому обращению',

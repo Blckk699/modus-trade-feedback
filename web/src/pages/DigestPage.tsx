@@ -308,7 +308,7 @@ function WeekBlock({ now, before, narrowed }: { now: Period; before: Period; nar
       was: String(before.implemented_count),
       delta: countDelta(now.implemented_count, before.implemented_count, 'good'),
     },
-    { label: 'Просрочено', value: String(now.overdue_count), was: String(before.overdue_count), delta: countDelta(now.overdue_count, before.overdue_count, 'bad') },
+    { label: 'Сроков сорвано за неделю', value: String(now.overdue_count), was: String(before.overdue_count), delta: countDelta(now.overdue_count, before.overdue_count, 'bad') },
     {
       label: 'Первый ответ, в среднем',
       value: hours(now.avg_first_response_hours),

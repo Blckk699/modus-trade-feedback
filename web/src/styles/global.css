@@ -1109,7 +1109,8 @@ svg {
 
 .toasts {
   position: fixed;
-  inset: auto auto 24px calc(var(--rail-w) + 20px);
+  /* выше нижней панели карточки: подтверждение не закрывает «Переписку» и кнопки действий */
+  inset: auto auto 92px calc(var(--rail-w) + 20px);
   z-index: 90;
   display: grid;
   justify-items: start;

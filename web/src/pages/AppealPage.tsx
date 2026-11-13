@@ -135,7 +135,8 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
 
         {(a.text || a.proposed_solution) && (
           <section className="sheet__text" aria-label="Описание">
-            {a.text && <p className="prose">{a.text}</p>}
+            {/* Короткое обращение целиком уместилось в заголовок — второй раз его не показываем. */}
+            {a.text && a.text.trim() !== (a.summary ?? '').trim() && <p className="prose">{a.text}</p>}
             {a.forwarded_from && <p className="muted">Переслано из: {a.forwarded_from}</p>}
             {a.proposed_solution && (
               <div className="solution">
@@ -147,6 +148,13 @@ function AppealCard({ appeal: a, onChanged, onUpdated }: CardProps) {
         )}
 
         {isAuthor && !a.first_response_at && WAITING.includes(a.status) && <WhoWhenBlock appeal={a} />}
+
+        {!isAuthor && a.status === 'awaiting_info' && (
+          <p className="notice">
+            Ждём ответа автора на уточняющий вопрос. Когда он ответит, обращение вернётся на рассмотрение и появятся
+            кнопки «В работу» и «Отклонить».
+          </p>
+        )}
 
         {/* Автор чужих обращений не видит: только число похожих, без номеров и текстов. */}
         {isAuthor && (a.similar_count ?? 0) > 0 && (
