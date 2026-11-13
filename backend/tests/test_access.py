@@ -458,3 +458,27 @@ async def test_one_account_accepting_two_invites_at_once_gets_one_user(client, a
     assert [r.status_code for r in responses] == [200, 200], [r.text for r in responses]
     assert sorted(r.json()["created"] for r in responses) == [False, True]
     assert await users_with_telegram_id(app, STRANGER) == 1
+
+
+async def test_list_survives_requests_decided_outside_the_screen(client, app, demo, login_as) -> None:
+    """Заявку можно решить в обход экрана (собственник, правка базы): список решённых при этом не падает."""
+    from sqlalchemy import update
+
+    from app.models import AccessRequest
+
+    admin = await login_as("admin")
+    ids = []
+    for telegram_id in (STRANGER, OTHER_STRANGER):
+        assert (await submit(client, telegram_id, full_name="Новый Сотрудник")).status_code == 201
+        ids.append(await pending_request_id(client, admin))
+        approved = await client.post(f"/api/v1/admin/access-requests/{ids[-1]}/approve", headers=admin, json={"role": "employee"})
+        assert approved.status_code == 200, approved.text
+    async with app.state.sessionmaker() as session, session.begin():
+        await session.execute(update(AccessRequest).where(AccessRequest.id == ids[0]).values(assigned_role="owner"))
+        await session.execute(update(AccessRequest).where(AccessRequest.id == ids[1]).values(assigned_role="director"))
+
+    for query in ("", "?status=approved"):
+        page = await client.get("/api/v1/admin/access-requests" + query, headers=admin)
+        assert page.status_code == 200, page.text
+        roles = {item["id"]: item["assigned_role"] for item in page.json()["items"]}
+        assert (roles[ids[0]], roles[ids[1]]) == ("owner", None)
