@@ -12,7 +12,6 @@ import '../../theme/modus_theme.dart';
 import '../web/web_ui.dart';
 import 'auth_forms.dart';
 import 'register_screen.dart';
-import 'server_settings_screen.dart';
 
 /// Бот компании: заявка на доступ и коды входа. Задаётся при сборке: --dart-define=BOT_USERNAME=...
 const botUsername = String.fromEnvironment('BOT_USERNAME', defaultValue: 'modus_fb_bot');
@@ -153,8 +152,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final session = SessionScope.of(context);
-    final c = ModusColors.of(context);
     // Раскладка экрана входа веба на телефоне (.auth, max-width 760): поля 8, плитка бренда,
     // под ней карточка с отступами 22 / 8 и промежутком 16 между блоками.
     return Scaffold(
@@ -227,19 +224,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPick: (user) => _run(() => SessionScope.read(context).devLogin(user.id)),
                   );
                 },
-              ),
-            ),
-            const SizedBox(height: 28),
-            Center(
-              child: TextButton.icon(
-                key: const Key('server-settings'),
-                style: TextButton.styleFrom(foregroundColor: c.muted),
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const ServerSettingsScreen())),
-                icon: const Icon(LucideIcons.server, size: 16),
-                label: Text('Сервер: ${Uri.tryParse(session.serverUrl)?.host ?? session.serverUrl}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               ),
             ),
           ],
