@@ -1,7 +1,7 @@
 """Очередь уведомлений для бота и счётчик непрочитанного (B-08). Истории 12, 19, 25, 40, 45.
 
-Сид: A-001 «Новое» (ответственный — Марат Сейткали id 3, автор — Айгерим Нурланова id 4),
-A-005 «Ожидает уточнения» (ответственный — Ольга Петрова id 5, автор — Дина Жуматова id 6).
+Сид: A-001 «Новое» (ответственный — Олжас Мукашев id 3, автор — Карина Шаймерденова id 4),
+A-005 «Ожидает уточнения» (ответственный — Людмила Корж id 5, автор — Зарина Уалиева id 6).
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ async def test_new_appeal_notifies_assignee_and_author(app, client, login_as) ->
     assert [n.kind for n in assignee] == ["appeal_assigned"]
     assert created["number"] in assignee[0].text and assignee[0].path == f"/appeals/{created['id']}"
     author = await inbox(app, 8)
-    assert [n.kind for n in author] == ["appeal_created"] and "Марат Сейткали" in author[0].text
+    assert [n.kind for n in author] == ["appeal_created"] and "Олжас Мукашев" in author[0].text
 
 
 async def test_bot_submission_gets_no_duplicate_confirmation(app, client, demo) -> None:

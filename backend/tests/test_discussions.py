@@ -10,7 +10,7 @@ import pytest
 # A-002: предложение сотрудника закупок, «На рассмотрении», руководитель закупок — ответственный.
 APPEAL = 2
 AUTHOR = "employee_procurement"
-AUTHOR_NAME = "Айгерим Нурланова"
+AUTHOR_NAME = "Карина Шаймерденова"
 HEAD = "head_procurement"
 SECRET_TEXT = "Приватная реплика только для автора"
 

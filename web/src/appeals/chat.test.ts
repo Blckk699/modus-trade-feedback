@@ -5,7 +5,7 @@ const user = (id: number, full_name: string) => ({ id, full_name, role: 'employe
 const msg = (id: number, authorId: number, created_at: string): Message => ({
   id,
   appeal_id: 1,
-  author: user(authorId, authorId === 4 ? 'Айгерим Нурланова' : 'Марат Сейткали'),
+  author: user(authorId, authorId === 4 ? 'Карина Шаймерденова' : 'Олжас Мукашев'),
   text: `Сообщение ${id}`,
   is_clarification_question: false,
   created_at,

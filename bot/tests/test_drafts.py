@@ -40,7 +40,7 @@ CATEGORIES = [
 CREATED = {
     "id": 21,
     "number": "A-021",
-    "assignee": {"id": 3, "full_name": "Марат Сейткали", "role": "head", "department": None},
+    "assignee": {"id": 3, "full_name": "Олжас Мукашев", "role": "head", "department": None},
     "first_response_due_at": "2026-11-13T18:00:00+05:00",
 }
 
@@ -115,7 +115,7 @@ async def test_confirm_creates_appeal_and_reports_number_assignee_due(harness, b
     }
     confirmation = harness.telegram.sent()[-1]  # без виджетов — прежний полный текст
     assert "<b>A-021</b>" in confirmation.text
-    assert "Марат Сейткали" in confirmation.text
+    assert "Олжас Мукашев" in confirmation.text
     assert "13 ноября, 18:00" in confirmation.text
     # Кнопки с карточки убраны, повторно отправить нельзя.
     assert harness.telegram.of_type(EditMessageReplyMarkup)[-1].reply_markup is None

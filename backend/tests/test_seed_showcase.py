@@ -134,3 +134,21 @@ async def test_second_part_shows_every_feature(client, login_as, showcase) -> No
     assert len(summary["by_department"]) >= 8
     feed = (await client.get(f"{API}/feed/implemented", headers=await login_as("employee_sales"))).json()
     assert feed["total"] >= 5
+
+
+@pytest.mark.parametrize("moment", LOAD_MOMENTS)
+async def test_overdue_examples_stand_on_their_step_at_any_moment(app: FastAPI, moment: datetime) -> None:
+    """В любой день сброса шаг эскалации в витрине совпадает с положенным: фоновая проверка ничего не сдвинет."""
+    from sqlalchemy import select
+
+    from app.appeals.escalation import due_level
+    from app.models import Appeal
+
+    await seed(app, moment)
+    async with app.state.sessionmaker() as session:
+        appeals = list(await session.scalars(select(Appeal).where(Appeal.number >= f"A-{FIRST_NUMBER:03d}")))
+    escalated = [a for a in appeals if a.escalation_level]
+    assert sorted(a.escalation_level for a in escalated) == [2, 3]
+    for appeal in escalated:
+        assert due_level(appeal.first_response_due_at, moment, TZ) == appeal.escalation_level, appeal.number
+        assert appeal.created_at < moment and appeal.updated_at <= moment

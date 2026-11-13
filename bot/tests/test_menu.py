@@ -21,7 +21,7 @@ async def test_start_greets_employee_and_shows_menu(harness):
     await harness.send_text("/start")
 
     [reply] = harness.telegram.sent()
-    assert "Здравствуйте, Айгерим!" in reply.text
+    assert "Здравствуйте, Карина!" in reply.text
     assert buttons(reply.reply_markup) == [texts.BTN_SUBMIT, texts.BTN_MY_APPEALS, texts.BTN_LOGIN_CODE]
     assert harness.backend.calls("GET", "/api/v1/appeals") == []
 

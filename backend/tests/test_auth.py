@@ -23,12 +23,12 @@ def bot_token(app: FastAPI) -> None:
 
 
 def init_data(telegram_id: int, auth_date: int, token: str = BOT_TOKEN) -> str:
-    user = json.dumps({"id": telegram_id, "first_name": "Айгерим"}, ensure_ascii=False)
+    user = json.dumps({"id": telegram_id, "first_name": "Карина"}, ensure_ascii=False)
     return sign_mini_app({"auth_date": str(auth_date), "query_id": "AAH1", "user": user}, token)
 
 
 def widget(telegram_id: int, auth_date: int, token: str = BOT_TOKEN) -> dict:
-    return sign_login_widget({"id": telegram_id, "first_name": "Айгерим", "username": "aigerim", "auth_date": auth_date}, token)
+    return sign_login_widget({"id": telegram_id, "first_name": "Карина", "username": "aigerim", "auth_date": auth_date}, token)
 
 
 def now_ts(time_machine: TimeMachine) -> int:
@@ -56,7 +56,7 @@ async def test_mini_app_login_by_signed_init_data(client, demo, time_machine) ->
     assert response.status_code == 200
     body = response.json()
     assert body["token_type"] == "bearer"
-    assert body["user"]["full_name"] == "Айгерим Нурланова"
+    assert body["user"]["full_name"] == "Карина Шаймерденова"
 
     whoami = (await me(client, body["access_token"])).json()
     assert (whoami["role"], whoami["department"]["name"]) == ("employee", "Закупки")
@@ -119,7 +119,7 @@ async def test_code_from_bot_is_exchanged_once(client, demo) -> None:
     code = await issue_code(client, EMPLOYEE)
     first = await client.post("/api/v1/auth/code", json={"code": code})
     assert first.status_code == 200
-    assert first.json()["user"]["full_name"] == "Айгерим Нурланова"
+    assert first.json()["user"]["full_name"] == "Карина Шаймерденова"
 
     second = await client.post("/api/v1/auth/code", json={"code": code})
     assert (second.status_code, second.json()["error"]["code"]) == (401, "invalid_login_code")
@@ -151,7 +151,7 @@ async def test_only_bot_issues_codes(client, login_as) -> None:
 async def test_bot_acts_as_user_with_that_users_rights(client, demo) -> None:
     whoami = await client.get("/api/v1/me", headers=bot_headers(telegram_id_of("head_procurement")))
     assert whoami.status_code == 200
-    assert whoami.json()["full_name"] == "Марат Сейткали"
+    assert whoami.json()["full_name"] == "Олжас Мукашев"
     assert whoami.json()["permissions"]["analytics_scope"] == "department"
 
     no_user = await client.get("/api/v1/me", headers={"X-Service-Key": "test-service-key"})

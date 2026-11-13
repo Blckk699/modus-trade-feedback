@@ -165,8 +165,8 @@ paths:
               $ref: '#/components/schemas/TelegramWidgetLoginRequest'
             example:
               id: 100000004
-              first_name: Айгерим
-              last_name: Нурланова
+              first_name: Карина
+              last_name: Шаймерденова
               username: aigerim_demo
               auth_date: 1794300000
               hash: 9b1c0e7d4a...
@@ -270,12 +270,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/UserBrief'
               example:
-                - {id: 1, full_name: Ержан Касымов, role: owner, department: null}
-                - {id: 2, full_name: Анна Ли, role: admin, department: null}
-                - {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
-                - {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-                - {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
-                - {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+                - {id: 1, full_name: Андрей Вольф, role: owner, department: null}
+                - {id: 2, full_name: Ксения Гарипова, role: admin, department: null}
+                - {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
+                - {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+                - {id: 6, full_name: Зарина Уалиева, role: employee, department: {id: 2, name: Бухгалтерия}}
+                - {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
         '403':
           $ref: '#/components/responses/DevLoginDisabled'
   /api/v1/auth/dev/login:
@@ -338,7 +338,7 @@ paths:
               request:
                 summary: Заявка на доступ
                 value:
-                  full_name: Сергей Ким
+                  full_name: Ильдар Хасанов
                   email: s.kim@modus.example
                   password: korova-2026
                   department_id: 3
@@ -346,7 +346,7 @@ paths:
               invite:
                 summary: По приглашению
                 value:
-                  full_name: Сергей Ким
+                  full_name: Ильдар Хасанов
                   email: s.kim@modus.example
                   password: korova-2026
                   invite_token: 3q2-7Hk_LmN0pQrStUvWxYz9aBcDeFg
@@ -359,7 +359,7 @@ paths:
                 $ref: '#/components/schemas/RegisterResult'
               example:
                 status: pending
-                request: {id: 9, status: pending, full_name: Сергей Ким, email: s.kim@modus.example, telegram_username: null, department: {id: 3, name: Продажи}, comment: Менеджер по продажам, created_at: '2026-11-12T16:20:00+05:00', updated_at: '2026-11-12T16:25:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                request: {id: 9, status: pending, full_name: Ильдар Хасанов, email: s.kim@modus.example, telegram_username: null, department: {id: 3, name: Продажи}, comment: Менеджер по продажам, created_at: '2026-11-12T16:20:00+05:00', updated_at: '2026-11-12T16:25:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
                 session: null
         '201':
           description: Заявка подана (`pending`) или пользователь создан по приглашению (`registered`)
@@ -372,7 +372,7 @@ paths:
                   summary: Заявка подана
                   value:
                     status: pending
-                    request: {id: 9, status: pending, full_name: Сергей Ким, email: s.kim@modus.example, telegram_username: null, department: {id: 3, name: Продажи}, comment: Менеджер по продажам, created_at: '2026-11-12T16:20:00+05:00', updated_at: '2026-11-12T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                    request: {id: 9, status: pending, full_name: Ильдар Хасанов, email: s.kim@modus.example, telegram_username: null, department: {id: 3, name: Продажи}, comment: Менеджер по продажам, created_at: '2026-11-12T16:20:00+05:00', updated_at: '2026-11-12T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
                     session: null
                 registered:
                   summary: По приглашению — сразу вход
@@ -390,7 +390,7 @@ paths:
                         has_password: true
                         telegram_linked: false
                         switch_targets: []
-                        full_name: Сергей Ким
+                        full_name: Ильдар Хасанов
                         position: null
                         role: employee
                         department: {id: 3, name: Продажи}
@@ -731,20 +731,20 @@ paths:
                 summary: Mini App
                 value:
                   init_data: 'query_id=AAH...&user=%7B%22id%22%3A100000021%7D&auth_date=1794300000&hash=3f2a...'
-                  full_name: Сергей Ким
+                  full_name: Ильдар Хасанов
                   department_id: 3
                   comment: Менеджер по продажам, вышел 10 ноября
               web:
                 summary: Веб, Telegram Login
                 value:
-                  telegram_login: {id: 100000021, first_name: Сергей, last_name: Ким, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
-                  full_name: Сергей Ким
+                  telegram_login: {id: 100000021, first_name: Ильдар, last_name: Хасанов, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
+                  full_name: Ильдар Хасанов
                   department_id: 3
                   comment: Менеджер по продажам
               bot:
                 summary: Бот (заголовки X-Service-Key и X-Telegram-Id)
                 value:
-                  full_name: Сергей Ким
+                  full_name: Ильдар Хасанов
                   telegram_username: sergey_kim
                   department_id: 3
                   comment: null
@@ -819,7 +819,7 @@ paths:
                   summary: Заявка на рассмотрении
                   value:
                     state: pending
-                    request: {id: 7, status: pending, full_name: Сергей Ким, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                    request: {id: 7, status: pending, full_name: Ильдар Хасанов, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
                 none:
                   summary: Заявки нет — показать форму
                   value:
@@ -829,7 +829,7 @@ paths:
                   summary: Отказ
                   value:
                     state: rejected
-                    request: {id: 5, status: rejected, full_name: Олег Петров, email: null, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
+                    request: {id: 5, status: rejected, full_name: Олег Петров, email: null, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
         '401':
           $ref: '#/components/responses/InvalidTelegramAuth'
         '422':
@@ -859,7 +859,7 @@ paths:
               example:
                 role: employee
                 department: {id: 3, name: Продажи}
-                full_name: Сергей Ким
+                full_name: Ильдар Хасанов
                 expires_at: '2026-11-18T10:00:00+05:00'
         '410':
           $ref: '#/components/responses/InviteInvalid'
@@ -897,12 +897,12 @@ paths:
                 summary: Веб, Telegram Login
                 value:
                   token: Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
-                  telegram_login: {id: 100000021, first_name: Сергей, last_name: Ким, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
+                  telegram_login: {id: 100000021, first_name: Ильдар, last_name: Хасанов, username: sergey_kim, auth_date: 1794300000, hash: 9b1c0e7d4a...}
               bot:
                 summary: Бот (заголовки X-Service-Key и X-Telegram-Id)
                 value:
                   token: Qm9sZC1pbnZpdGUtdG9rZW4tZXhhbXBsZQ
-                  full_name: Сергей Ким
+                  full_name: Ильдар Хасанов
                   telegram_username: sergey_kim
       responses:
         '200':
@@ -916,7 +916,7 @@ paths:
                   summary: Пользователь создан, веб получил сессию
                   value:
                     created: true
-                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Ильдар Хасанов, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
                     session:
                       access_token: eyJhbGciOiJIUzI1NiJ9.mock.session
                       token_type: bearer
@@ -925,7 +925,7 @@ paths:
                   summary: Пользователь создан, бот — без сессии
                   value:
                     created: true
-                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Сергей Ким, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
+                    user: {id: 21, telegram_id: 100000021, email: null, has_password: false, telegram_linked: true, switch_targets: [], full_name: Ильдар Хасанов, position: null, role: employee, department: {id: 3, name: Продажи}, is_absent: false, is_disabled: false, responsible_for: [], deputy_for: [], assigned_open_count: 0, permissions: {can_create_appeal: true, can_process_appeals: false, can_view_department: false, can_view_all_appeals: false, analytics_scope: none, can_upload_meetings: false, can_manage_settings: false, can_view_unassigned: false, can_manage_access: false}}
                     session: null
         '401':
           $ref: '#/components/responses/InvalidTelegramAuth'
@@ -1028,8 +1028,8 @@ paths:
               $ref: '#/components/schemas/TelegramWidgetLoginRequest'
             example:
               id: 100000004
-              first_name: Айгерим
-              last_name: Нурланова
+              first_name: Карина
+              last_name: Шаймерденова
               username: aigerim_demo
               auth_date: 1794300000
               hash: 9b1c0e7d4a...
@@ -1313,7 +1313,7 @@ paths:
                 - id: 101
                   appeal_id: 21
                   kind: created
-                  actor: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+                  actor: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
                   field: null
                   old_value: null
                   new_value: null
@@ -1325,13 +1325,13 @@ paths:
                   actor: null
                   field: assignee
                   old_value: null
-                  new_value: Марат Сейткали
+                  new_value: Олжас Мукашев
                   comment: По правилу категории «Межотдельное взаимодействие»
                   created_at: '2026-11-10T10:15:00+05:00'
                 - id: 103
                   appeal_id: 21
                   kind: status_changed
-                  actor: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                  actor: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
                   field: status
                   old_value: new
                   new_value: in_review
@@ -1812,13 +1812,13 @@ paths:
               example:
                 - id: 501
                   appeal_id: 5
-                  author: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}
+                  author: {id: 5, full_name: Людмила Корж, role: head, department: {id: 2, name: Бухгалтерия}}
                   text: Уточните, пожалуйста, какие виды документов чаще всего «теряются» между подразделениями?
                   is_clarification_question: true
                   created_at: '2026-11-09T12:40:00+05:00'
                 - id: 502
                   appeal_id: 5
-                  author: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+                  author: {id: 6, full_name: Зарина Уалиева, role: employee, department: {id: 2, name: Бухгалтерия}}
                   text: Чаще всего акты сверки и счета-фактуры от поставщиков.
                   is_clarification_question: false
                   created_at: '2026-11-10T09:05:00+05:00'
@@ -1859,7 +1859,7 @@ paths:
               example:
                 id: 502
                 appeal_id: 5
-                author: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+                author: {id: 6, full_name: Зарина Уалиева, role: employee, department: {id: 2, name: Бухгалтерия}}
                 text: Чаще всего акты сверки и счета-фактуры от поставщиков.
                 is_clarification_question: false
                 created_at: '2026-11-10T09:05:00+05:00'
@@ -1892,7 +1892,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/Attachment'
               example:
-                - {"id": 7, "appeal_id": 1, "filename": "пример_заявки.pdf", "content_type": "application/pdf", "size_bytes": 184320, "download_url": "/api/v1/attachments/7", "preview_url": null, "can_delete": true, "uploaded_by": {"id": 4, "full_name": "Айгерим Нурланова", "role": "employee", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-04T10:21:00+05:00"}
+                - {"id": 7, "appeal_id": 1, "filename": "пример_заявки.pdf", "content_type": "application/pdf", "size_bytes": 184320, "download_url": "/api/v1/attachments/7", "preview_url": null, "can_delete": true, "uploaded_by": {"id": 4, "full_name": "Карина Шаймерденова", "role": "employee", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-04T10:21:00+05:00"}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2251,7 +2251,7 @@ paths:
                 $ref: '#/components/schemas/DiscussionPage'
               example:
                 items:
-                  - {"id": 12, "appeal": {"id": 20, "number": "A-020", "type": "suggestion", "status": "in_review"}, "public_text": "Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?", "deadline": "2026-11-17T18:00:00+05:00", "status": "open", "author_name_consent": "pending", "author_display": "Отдел «Закупки»", "department": {"id": 1, "name": "Закупки"}, "votes_for": 7, "votes_against": 1, "my_vote": null, "comments_count": 3, "outcome": null, "created_by": {"id": 3, "full_name": "Марат Сейткали", "role": "head", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-10T13:00:00+05:00", "closed_at": null, "can_vote": true, "can_close": false, "can_set_name_consent": false}
+                  - {"id": 12, "appeal": {"id": 20, "number": "A-020", "type": "suggestion", "status": "in_review"}, "public_text": "Публиковать раз в квартал краткий обзор завершённых внутренних улучшений?", "deadline": "2026-11-17T18:00:00+05:00", "status": "open", "author_name_consent": "pending", "author_display": "Отдел «Закупки»", "department": {"id": 1, "name": "Закупки"}, "votes_for": 7, "votes_against": 1, "my_vote": null, "comments_count": 3, "outcome": null, "created_by": {"id": 3, "full_name": "Олжас Мукашев", "role": "head", "department": {"id": 1, "name": "Закупки"}}, "created_at": "2026-11-10T13:00:00+05:00", "closed_at": null, "can_vote": true, "can_close": false, "can_set_name_consent": false}
                 total: 1
                 page: 1
                 page_size: 50
@@ -2353,7 +2353,7 @@ paths:
               example:
                 - id: 801
                   discussion_id: 12
-                  author: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+                  author: {id: 8, full_name: Ильдар Хасанов, role: employee, department: {id: 3, name: Продажи}}
                   text: Поддерживаю, клиентам тоже можно показывать такие примеры.
                   created_at: '2026-11-10T14:20:00+05:00'
         '401':
@@ -2387,7 +2387,7 @@ paths:
               example:
                 id: 801
                 discussion_id: 12
-                author: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+                author: {id: 8, full_name: Ильдар Хасанов, role: employee, department: {id: 3, name: Продажи}}
                 text: Поддерживаю, клиентам тоже можно показывать такие примеры.
                 created_at: '2026-11-10T14:20:00+05:00'
         '401':
@@ -2512,7 +2512,7 @@ paths:
                     department: {id: 2, name: Бухгалтерия}
                     public_summary: Памятка по типовым ошибкам для новых сотрудников
                     result: Создана учебная инструкция с разбором типовых ошибок и контактами.
-                    author_display: Дина Жуматова
+                    author_display: Зарина Уалиева
                     implemented_at: '2026-11-03T12:30:00+05:00'
                     discussion_id: 9
                 total: 2
@@ -2543,7 +2543,7 @@ paths:
                   status: ready
                   drafts_total: 3
                   drafts_pending: 2
-                  uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                  uploaded_by: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
                   created_at: '2026-11-10T12:00:00+05:00'
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -2584,7 +2584,7 @@ paths:
                 status: processing
                 error: null
                 transcript: null
-                uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                uploaded_by: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
                 drafts: []
                 created_at: '2026-11-10T12:00:00+05:00'
         '401':
@@ -2797,7 +2797,7 @@ paths:
                 scope: company
                 department: null
                 generated_at: '2026-11-10T09:00:00+05:00'
-                text: "<b>Сводка на 10 ноября</b>\n\n🆕 Новое за сутки: 3\n• A-021 Нет назначения изделия в заявках (Закупки)\n\n⏰ Зависло: 2\n• A-007 — Даурен Исаев, просрочено 2 дн.\n• A-011 — Тимур Абенов, просрочено 1 дн.\n\n✅ Закрыто за неделю: 4\n\n🔁 Повторяется: A-003 — сообщили 3 человека"
+                text: "<b>Сводка на 10 ноября</b>\n\n🆕 Новое за сутки: 3\n• A-021 Нет назначения изделия в заявках (Закупки)\n\n⏰ Зависло: 2\n• A-007 — Станислав Цой, просрочено 2 дн.\n• A-011 — Денис Пак, просрочено 1 дн.\n\n✅ Закрыто за неделю: 4\n\n🔁 Повторяется: A-003 — сообщили 3 человека"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3189,7 +3189,7 @@ paths:
               example:
                 id: 3
                 telegram_id: 100000003
-                full_name: Марат Сейткали
+                full_name: Олжас Мукашев
                 position: Руководитель закупок
                 role: head
                 department: {id: 1, name: Закупки}
@@ -3299,7 +3299,7 @@ paths:
               example:
                 id: 1
                 name: Закупки
-                head: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+                head: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3336,8 +3336,8 @@ paths:
                 id: 19
                 name: Склад и логистика
                 department: {id: 1, name: Закупки}
-                responsible: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
-                deputy: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+                responsible: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
+                deputy: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
                 is_active: true
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -3381,7 +3381,7 @@ paths:
                 id: 7
                 name: Интеграции и IT
                 department: {id: 6, name: IT}
-                responsible: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+                responsible: {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
                 deputy: null
                 is_active: true
         '401':
@@ -3561,8 +3561,8 @@ paths:
                 $ref: '#/components/schemas/AccessRequestPage'
               example:
                 items:
-                  - {id: 7, status: pending, full_name: Сергей Ким, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
-                  - {id: 6, status: approved, full_name: Лаура Беккер, email: null, telegram_username: laura_b, department: {id: 2, name: Бухгалтерия}, comment: Бухгалтер, created_at: '2026-11-10T17:40:00+05:00', updated_at: '2026-11-10T18:05:00+05:00', assigned_role: employee, assigned_department: {id: 2, name: Бухгалтерия}, decided_by: {id: 1, full_name: Ержан Касымов, role: owner, department: null}, decided_at: '2026-11-10T18:05:00+05:00', reject_reason: null, user_id: 20}
+                  - {id: 7, status: pending, full_name: Ильдар Хасанов, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+                  - {id: 6, status: approved, full_name: Лаура Беккер, email: null, telegram_username: laura_b, department: {id: 2, name: Бухгалтерия}, comment: Бухгалтер, created_at: '2026-11-10T17:40:00+05:00', updated_at: '2026-11-10T18:05:00+05:00', assigned_role: employee, assigned_department: {id: 2, name: Бухгалтерия}, decided_by: {id: 1, full_name: Андрей Вольф, role: owner, department: null}, decided_at: '2026-11-10T18:05:00+05:00', reject_reason: null, user_id: 20}
                 total: 2
                 page: 1
                 page_size: 50
@@ -3598,7 +3598,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AccessRequest'
               example:
-                {id: 7, status: approved, full_name: Сергей Ким, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:30:00+05:00', assigned_role: employee, assigned_department: {id: 3, name: Продажи}, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-11T09:30:00+05:00', reject_reason: null, user_id: 21}
+                {id: 7, status: approved, full_name: Ильдар Хасанов, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:30:00+05:00', assigned_role: employee, assigned_department: {id: 3, name: Продажи}, decided_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, decided_at: '2026-11-11T09:30:00+05:00', reject_reason: null, user_id: 21}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3671,9 +3671,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/Invite'
               example:
-                - {id: 4, state: active, role: employee, department: {id: 3, name: Продажи}, full_name: Сергей Ким, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: null}
-                - {id: 3, state: exhausted, role: head, department: {id: 6, name: IT}, full_name: null, created_by: {id: 1, full_name: Ержан Касымов, role: owner, department: null}, created_at: '2026-11-09T12:00:00+05:00', expires_at: '2026-11-16T12:00:00+05:00', max_uses: 1, used_count: 1, revoked_at: null}
-                - {id: 2, state: revoked, role: employee, department: null, full_name: null, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-08T09:00:00+05:00', expires_at: '2026-11-15T09:00:00+05:00', max_uses: 10, used_count: 3, revoked_at: '2026-11-09T08:00:00+05:00'}
+                - {id: 4, state: active, role: employee, department: {id: 3, name: Продажи}, full_name: Ильдар Хасанов, created_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: null}
+                - {id: 3, state: exhausted, role: head, department: {id: 6, name: IT}, full_name: null, created_by: {id: 1, full_name: Андрей Вольф, role: owner, department: null}, created_at: '2026-11-09T12:00:00+05:00', expires_at: '2026-11-16T12:00:00+05:00', max_uses: 1, used_count: 1, revoked_at: null}
+                - {id: 2, state: revoked, role: employee, department: null, full_name: null, created_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, created_at: '2026-11-08T09:00:00+05:00', expires_at: '2026-11-15T09:00:00+05:00', max_uses: 10, used_count: 3, revoked_at: '2026-11-09T08:00:00+05:00'}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3694,7 +3694,7 @@ paths:
             example:
               role: employee
               department_id: 3
-              full_name: Сергей Ким
+              full_name: Ильдар Хасанов
               expires_in_days: 7
               max_uses: 1
       responses:
@@ -3709,8 +3709,8 @@ paths:
                 state: active
                 role: employee
                 department: {id: 3, name: Продажи}
-                full_name: Сергей Ким
-                created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}
+                full_name: Ильдар Хасанов
+                created_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}
                 created_at: '2026-11-11T10:00:00+05:00'
                 expires_at: '2026-11-18T10:00:00+05:00'
                 max_uses: 1
@@ -3745,7 +3745,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Invite'
               example:
-                {id: 4, state: revoked, role: employee, department: {id: 3, name: Продажи}, full_name: Сергей Ким, created_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: '2026-11-11T11:00:00+05:00'}
+                {id: 4, state: revoked, role: employee, department: {id: 3, name: Продажи}, full_name: Ильдар Хасанов, created_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, created_at: '2026-11-11T10:00:00+05:00', expires_at: '2026-11-18T10:00:00+05:00', max_uses: 1, used_count: 0, revoked_at: '2026-11-11T11:00:00+05:00'}
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -6270,10 +6270,10 @@ components:
   examples:
     AccessRequestPending:
       summary: Заявка на рассмотрении
-      value: {id: 7, status: pending, full_name: Сергей Ким, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
+      value: {id: 7, status: pending, full_name: Ильдар Хасанов, email: null, telegram_username: sergey_kim, department: {id: 3, name: Продажи}, comment: 'Менеджер по продажам, вышел 10 ноября', created_at: '2026-11-11T09:12:00+05:00', updated_at: '2026-11-11T09:12:00+05:00', assigned_role: null, assigned_department: null, decided_by: null, decided_at: null, reject_reason: null, user_id: null}
     AccessRequestRejected:
       summary: Заявка отклонена
-      value: {id: 5, status: rejected, full_name: Олег Петров, email: null, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Анна Ли, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
+      value: {id: 5, status: rejected, full_name: Олег Петров, email: null, telegram_username: null, department: {id: 6, name: IT}, comment: Подрядчик, created_at: '2026-11-10T15:00:00+05:00', updated_at: '2026-11-10T16:20:00+05:00', assigned_role: null, assigned_department: null, decided_by: {id: 2, full_name: Ксения Гарипова, role: admin, department: null}, decided_at: '2026-11-10T16:20:00+05:00', reject_reason: 'Подрядчикам доступ не выдаём, обратитесь к руководителю проекта', user_id: null}
     MeEmployee:
       summary: Сотрудник закупок
       value:
@@ -6283,7 +6283,7 @@ components:
         has_password: false
         telegram_linked: true
         switch_targets: []
-        full_name: Айгерим Нурланова
+        full_name: Карина Шаймерденова
         position: Сотрудник закупок
         role: employee
         department: {id: 1, name: Закупки}
@@ -6312,7 +6312,7 @@ components:
         has_password: false
         telegram_linked: true
         switch_targets: []
-        full_name: Ержан Касымов
+        full_name: Андрей Вольф
         position: Собственник
         role: owner
         department: null
@@ -6344,7 +6344,7 @@ components:
           has_password: false
           telegram_linked: true
           switch_targets: []
-          full_name: Айгерим Нурланова
+          full_name: Карина Шаймерденова
           position: Сотрудник закупок
           role: employee
           department: {id: 1, name: Закупки}
@@ -6376,8 +6376,8 @@ components:
             priority: medium
             status: new
             summary: В заявках на оборудование не хватает назначения и параметров
-            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
             source: form
             first_response_due_at: '2026-11-09T18:00:00+05:00'
             due_state: overdue
@@ -6396,8 +6396,8 @@ components:
             priority: medium
             status: in_review
             summary: Показывать поставщикам стадию проекта без коммерческих деталей
-            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
             source: bot
             first_response_due_at: '2026-11-06T18:00:00+05:00'
             due_state: answered
@@ -6416,8 +6416,8 @@ components:
             priority: low
             status: new
             summary: Публиковать обзор завершённых внутренних улучшений
-            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
             source: form
             first_response_due_at: '2026-11-16T18:00:00+05:00'
             due_state: on_time
@@ -6442,8 +6442,8 @@ components:
         priority: medium
         status: new
         summary: В заявках на оборудование не хватает назначения и параметров
-        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-        assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         source: form
         first_response_due_at: '2026-11-13T18:00:00+05:00'
         due_state: on_time
@@ -6480,8 +6480,8 @@ components:
         priority: medium
         status: new
         summary: В заявках на оборудование не хватает назначения и параметров
-        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-        assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         source: form
         first_response_due_at: '2026-11-09T18:00:00+05:00'
         due_state: overdue
@@ -6513,7 +6513,7 @@ components:
             download_url: /api/v1/attachments/7
             preview_url: null
             can_delete: false
-            uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            uploaded_by: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
             created_at: '2026-11-04T10:21:00+05:00'
         viewer_relations: [assignee, department_head]
         allowed_actions: [take, reassign, merge, publish_discussion, send_message, upload_attachment]
@@ -6528,8 +6528,8 @@ components:
         priority: low
         status: rejected
         summary: Зона для коротких перерывов рядом с рабочими помещениями
-        author: {id: 15, full_name: Асель Тулегенова, role: employee, department: {id: 7, name: Административный отдел}}
-        assignee: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}
+        author: {id: 15, full_name: Ольга Мороз, role: employee, department: {id: 7, name: Административный отдел}}
+        assignee: {id: 14, full_name: Майра Жанибекова, role: head, department: {id: 7, name: Административный отдел}}
         source: form
         first_response_due_at: '2026-10-30T18:00:00+05:00'
         due_state: answered
@@ -6566,8 +6566,8 @@ components:
         priority: low
         status: implemented
         summary: Короткие занятия по новым товарным линейкам
-        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
-        assignee: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}
+        author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
+        assignee: {id: 16, full_name: Алтынай Сыздыкова, role: head, department: {id: 8, name: HR}}
         source: bot
         first_response_due_at: '2026-10-27T18:00:00+05:00'
         due_state: answered
@@ -6608,7 +6608,7 @@ components:
         status: in_progress
         summary: Разные обозначения одного изделия в рабочих материалах
         author: null
-        assignee: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+        assignee: {id: 9, full_name: Бауыржан Сарсенбаев, role: head, department: {id: 4, name: Проектирование}}
         source: form
         first_response_due_at: '2026-11-03T18:00:00+05:00'
         due_state: answered
@@ -6651,14 +6651,14 @@ components:
         summary: В заявках на оборудование не хватает назначения и параметров
         author:
           id: 4
-          full_name: Айгерим Нурланова
+          full_name: Карина Шаймерденова
           role: employee
           department:
             id: 1
             name: Закупки
         assignee:
           id: 3
-          full_name: Марат Сейткали
+          full_name: Олжас Мукашев
           role: head
           department:
             id: 1
@@ -6696,7 +6696,7 @@ components:
           can_delete: false
           uploaded_by:
             id: 4
-            full_name: Айгерим Нурланова
+            full_name: Карина Шаймерденова
             role: employee
             department:
               id: 1
@@ -6732,14 +6732,14 @@ components:
         summary: В заявках на оборудование не хватает назначения и параметров
         author:
           id: 4
-          full_name: Айгерим Нурланова
+          full_name: Карина Шаймерденова
           role: employee
           department:
             id: 1
             name: Закупки
         assignee:
           id: 3
-          full_name: Марат Сейткали
+          full_name: Олжас Мукашев
           role: head
           department:
             id: 1
@@ -6777,7 +6777,7 @@ components:
           can_delete: false
           uploaded_by:
             id: 4
-            full_name: Айгерим Нурланова
+            full_name: Карина Шаймерденова
             role: employee
             department:
               id: 1
@@ -6809,14 +6809,14 @@ components:
         summary: В заявках на оборудование не хватает назначения и параметров
         author:
           id: 4
-          full_name: Айгерим Нурланова
+          full_name: Карина Шаймерденова
           role: employee
           department:
             id: 1
             name: Закупки
         assignee:
           id: 3
-          full_name: Марат Сейткали
+          full_name: Олжас Мукашев
           role: head
           department:
             id: 1
@@ -6854,7 +6854,7 @@ components:
           can_delete: false
           uploaded_by:
             id: 4
-            full_name: Айгерим Нурланова
+            full_name: Карина Шаймерденова
             role: employee
             department:
               id: 1
@@ -6887,14 +6887,14 @@ components:
         summary: Польза внутренних учебных встреч
         author:
           id: 15
-          full_name: Асель Тулегенова
+          full_name: Ольга Мороз
           role: employee
           department:
             id: 7
             name: Административный отдел
         assignee:
           id: 14
-          full_name: Гульнара Омарова
+          full_name: Майра Жанибекова
           role: head
           department:
             id: 7
@@ -6943,14 +6943,14 @@ components:
         summary: Повторный ввод данных в разных системах
         author:
           id: 6
-          full_name: Дина Жуматова
+          full_name: Зарина Уалиева
           role: employee
           department:
             id: 2
             name: Бухгалтерия
         assignee:
           id: 13
-          full_name: Даурен Исаев
+          full_name: Станислав Цой
           role: employee
           department:
             id: 6
@@ -7004,14 +7004,14 @@ components:
         summary: Разные обозначения одного изделия в рабочих материалах
         author:
           id: 10
-          full_name: Алия Сапарова
+          full_name: Вероника Литвин
           role: employee
           department:
             id: 4
             name: Проектирование
         assignee:
           id: 9
-          full_name: Нурлан Беков
+          full_name: Бауыржан Сарсенбаев
           role: head
           department:
             id: 4
@@ -7062,7 +7062,7 @@ components:
         download_url: /api/v1/attachments/7
         preview_url: null
         can_delete: false
-        uploaded_by: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        uploaded_by: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
         created_at: '2026-11-04T10:21:00+05:00'
     BitrixTaskExample:
       value:
@@ -7105,7 +7105,7 @@ components:
         my_vote: null
         comments_count: 3
         outcome: null
-        created_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        created_by: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         created_at: '2026-11-10T13:00:00+05:00'
         closed_at: null
         can_vote: true
@@ -7119,14 +7119,14 @@ components:
         deadline: '2026-11-17T18:00:00+05:00'
         status: closed
         author_name_consent: shown
-        author_display: Айгерим Нурланова
+        author_display: Карина Шаймерденова
         department: {id: 1, name: Закупки}
         votes_for: 11
         votes_against: 2
         my_vote: for
         comments_count: 5
         outcome: Большинство за. Первый обзор выпустим в конце квартала.
-        created_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        created_by: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         created_at: '2026-11-10T13:00:00+05:00'
         closed_at: '2026-11-17T18:05:00+05:00'
         can_vote: false
@@ -7144,7 +7144,7 @@ components:
         text: На планёрке обсудили, что заявки от отдела продаж регулярно приходят без назначения оборудования и параметров, из-за чего закупки тратят время на уточнения.
         proposed_solution: Ввести обязательные поля в шаблон заявки
         quote: «…опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля…»
-        author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+        author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
         appeal: null
     MeetingReadyExample:
       value:
@@ -7152,8 +7152,8 @@ components:
         title: Планёрка закупок 10.11
         status: ready
         error: null
-        transcript: "Марат: Коллеги, по заявкам. Опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля.\nАйгерим: Согласна, и ещё поставщики спрашивают про сроки проекта.\nМарат: Может, вообще все рабочие чаты в один мессенджер перевести, но это не к нам вопрос."
-        uploaded_by: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+        transcript: "Олжас: Коллеги, по заявкам. Опять заявка без назначения, мы по три раза переспрашиваем, давайте уже сделаем обязательные поля.\nКарина: Согласна, и ещё поставщики спрашивают про сроки проекта.\nОлжас: Может, вообще все рабочие чаты в один мессенджер перевести, но это не к нам вопрос."
+        uploaded_by: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
         drafts:
           - id: 11
             meeting_id: 3
@@ -7177,7 +7177,7 @@ components:
             text: Поставщики спрашивают о сроках проекта; предложено давать им краткий статус без коммерческих деталей.
             proposed_solution: null
             quote: «…и ещё поставщики спрашивают про сроки проекта…»
-            author: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+            author: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
             appeal: {id: 22, number: A-022, summary: Показывать поставщикам ориентировочные сроки проекта, status: new, type: suggestion}
           - id: 13
             meeting_id: 3
@@ -7230,7 +7230,7 @@ components:
           - {id: 20, number: A-020, summary: Публиковать обзор завершённых внутренних улучшений, status: new, type: suggestion}
         stuck:
           - appeal: {id: 7, number: A-007, summary: Повторный ввод данных в разных системах, status: new, type: problem}
-            assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            assignee: {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
             days_overdue: 2
             escalation_level: 3
         closed_last_week:
@@ -7241,83 +7241,83 @@ components:
             participants_count: 3
         overdue:
           - appeal: {id: 7, number: A-007, summary: Повторный ввод данных в разных системах, status: new, type: problem}
-            assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+            assignee: {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
             days_overdue: 2
             escalation_level: 3
           - appeal: {id: 1, number: A-001, summary: В заявках на оборудование не хватает назначения и параметров, status: new, type: problem}
-            assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+            assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
             days_overdue: 1
             escalation_level: 1
         assignee_load:
-          - assignee: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
+          - assignee: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
             open_count: 4
             overdue_count: 1
             avg_first_response_hours: 20.0
-          - assignee: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+          - assignee: {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
             open_count: 2
             overdue_count: 1
             avg_first_response_hours: null
-          - assignee: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
+          - assignee: {id: 9, full_name: Бауыржан Сарсенбаев, role: head, department: {id: 4, name: Проектирование}}
             open_count: 2
             overdue_count: 0
             avg_first_response_hours: 6.5
     DepartmentsExample:
       value:
-        - {id: 1, name: Закупки, head: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}}
-        - {id: 2, name: Бухгалтерия, head: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}}
-        - {id: 3, name: Продажи, head: {id: 7, full_name: Тимур Абенов, role: head, department: {id: 3, name: Продажи}}}
-        - {id: 4, name: Проектирование, head: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}}
-        - {id: 5, name: Проектный офис, head: {id: 11, full_name: Виктор Ахметов, role: head, department: {id: 5, name: Проектный офис}}}
+        - {id: 1, name: Закупки, head: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}}
+        - {id: 2, name: Бухгалтерия, head: {id: 5, full_name: Людмила Корж, role: head, department: {id: 2, name: Бухгалтерия}}}
+        - {id: 3, name: Продажи, head: {id: 7, full_name: Денис Пак, role: head, department: {id: 3, name: Продажи}}}
+        - {id: 4, name: Проектирование, head: {id: 9, full_name: Бауыржан Сарсенбаев, role: head, department: {id: 4, name: Проектирование}}}
+        - {id: 5, name: Проектный офис, head: {id: 11, full_name: Игорь Дробышев, role: head, department: {id: 5, name: Проектный офис}}}
         - {id: 6, name: IT, head: null}
-        - {id: 7, name: Административный отдел, head: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}}
-        - {id: 8, name: HR, head: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}}
+        - {id: 7, name: Административный отдел, head: {id: 14, full_name: Майра Жанибекова, role: head, department: {id: 7, name: Административный отдел}}}
+        - {id: 8, name: HR, head: {id: 16, full_name: Алтынай Сыздыкова, role: head, department: {id: 8, name: HR}}}
     CategoriesExample:
       value:
         - id: 1
           name: Межотдельное взаимодействие
           department: {id: 1, name: Закупки}
-          responsible: {id: 3, full_name: Марат Сейткали, role: head, department: {id: 1, name: Закупки}}
-          deputy: {id: 4, full_name: Айгерим Нурланова, role: employee, department: {id: 1, name: Закупки}}
+          responsible: {id: 3, full_name: Олжас Мукашев, role: head, department: {id: 1, name: Закупки}}
+          deputy: {id: 4, full_name: Карина Шаймерденова, role: employee, department: {id: 1, name: Закупки}}
           is_active: true
         - id: 3
           name: Каталог и данные
           department: {id: 4, name: Проектирование}
-          responsible: {id: 9, full_name: Нурлан Беков, role: head, department: {id: 4, name: Проектирование}}
-          deputy: {id: 10, full_name: Алия Сапарова, role: employee, department: {id: 4, name: Проектирование}}
+          responsible: {id: 9, full_name: Бауыржан Сарсенбаев, role: head, department: {id: 4, name: Проектирование}}
+          deputy: {id: 10, full_name: Вероника Литвин, role: employee, department: {id: 4, name: Проектирование}}
           is_active: true
         - id: 4
           name: Обучение
           department: {id: 8, name: HR}
-          responsible: {id: 16, full_name: Жанна Ермекова, role: head, department: {id: 8, name: HR}}
+          responsible: {id: 16, full_name: Алтынай Сыздыкова, role: head, department: {id: 8, name: HR}}
           deputy: null
           is_active: true
         - id: 5
           name: Документооборот
           department: {id: 2, name: Бухгалтерия}
-          responsible: {id: 5, full_name: Ольга Петрова, role: head, department: {id: 2, name: Бухгалтерия}}
-          deputy: {id: 6, full_name: Дина Жуматова, role: employee, department: {id: 2, name: Бухгалтерия}}
+          responsible: {id: 5, full_name: Людмила Корж, role: head, department: {id: 2, name: Бухгалтерия}}
+          deputy: {id: 6, full_name: Зарина Уалиева, role: employee, department: {id: 2, name: Бухгалтерия}}
           is_active: true
         - id: 7
           name: Интеграции и IT
           department: {id: 6, name: IT}
-          responsible: {id: 13, full_name: Даурен Исаев, role: employee, department: {id: 6, name: IT}}
+          responsible: {id: 13, full_name: Станислав Цой, role: employee, department: {id: 6, name: IT}}
           deputy: null
           is_active: true
         - id: 9
           name: Договорная работа
           department: {id: 3, name: Продажи}
-          responsible: {id: 7, full_name: Тимур Абенов, role: head, department: {id: 3, name: Продажи}}
-          deputy: {id: 8, full_name: Сергей Ким, role: employee, department: {id: 3, name: Продажи}}
+          responsible: {id: 7, full_name: Денис Пак, role: head, department: {id: 3, name: Продажи}}
+          deputy: {id: 8, full_name: Ильдар Хасанов, role: employee, department: {id: 3, name: Продажи}}
           is_active: true
         - id: 16
           name: Корпоративная среда
           department: {id: 7, name: Административный отдел}
-          responsible: {id: 14, full_name: Гульнара Омарова, role: head, department: {id: 7, name: Административный отдел}}
-          deputy: {id: 15, full_name: Асель Тулегенова, role: employee, department: {id: 7, name: Административный отдел}}
+          responsible: {id: 14, full_name: Майра Жанибекова, role: head, department: {id: 7, name: Административный отдел}}
+          deputy: {id: 15, full_name: Ольга Мороз, role: employee, department: {id: 7, name: Административный отдел}}
           is_active: true
     UsersExample:
       value:
-        - {id: 3, telegram_id: null, full_name: Марат Сейткали, position: Руководитель закупок, role: head, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
-        - {id: 4, telegram_id: null, full_name: Айгерим Нурланова, position: Сотрудник закупок, role: employee, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
-        - {id: 13, telegram_id: null, full_name: Даурен Исаев, position: IT-специалист, role: employee, department: {id: 6, name: IT}, is_absent: false, is_disabled: false}
-        - {id: 16, telegram_id: null, full_name: Жанна Ермекова, position: HR / внутренние коммуникации, role: head, department: {id: 8, name: HR}, is_absent: false, is_disabled: false}
+        - {id: 3, telegram_id: null, full_name: Олжас Мукашев, position: Руководитель закупок, role: head, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
+        - {id: 4, telegram_id: null, full_name: Карина Шаймерденова, position: Сотрудник закупок, role: employee, department: {id: 1, name: Закупки}, is_absent: false, is_disabled: false}
+        - {id: 13, telegram_id: null, full_name: Станислав Цой, position: IT-специалист, role: employee, department: {id: 6, name: IT}, is_absent: false, is_disabled: false}
+        - {id: 16, telegram_id: null, full_name: Алтынай Сыздыкова, position: HR / внутренние коммуникации, role: head, department: {id: 8, name: HR}, is_absent: false, is_disabled: false}

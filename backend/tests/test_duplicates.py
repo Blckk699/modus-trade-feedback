@@ -181,7 +181,7 @@ async def test_author_sees_only_the_number_of_similar_appeals(client, login_as, 
     assert created.get("similar_count", 0) == 0, "сразу после подачи подсказок ещё нет"
     assert card["similar_count"] == 2
     assert (await client.get(f"/api/v1/appeals/{created['id']}/similar", headers=author)).json() == []
-    for foreign in ("A-001", "A-002", "Айгерим"):
+    for foreign in ("A-001", "A-002", "Карина"):
         assert foreign not in json.dumps(card, ensure_ascii=False)
 
     # «Это другое» и завершение похожего уменьшают число.

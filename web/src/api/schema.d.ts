@@ -3345,8 +3345,8 @@ export interface operations {
             content: {
                 /** @example {
                  *       "id": 100000004,
-                 *       "first_name": "Айгерим",
-                 *       "last_name": "Нурланова",
+                 *       "first_name": "Карина",
+                 *       "last_name": "Шаймерденова",
                  *       "username": "aigerim_demo",
                  *       "auth_date": 1794300000,
                  *       "hash": "9b1c0e7d4a..."
@@ -3922,8 +3922,8 @@ export interface operations {
             content: {
                 /** @example {
                  *       "id": 100000004,
-                 *       "first_name": "Айгерим",
-                 *       "last_name": "Нурланова",
+                 *       "first_name": "Карина",
+                 *       "last_name": "Шаймерденова",
                  *       "username": "aigerim_demo",
                  *       "auth_date": 1794300000,
                  *       "hash": "9b1c0e7d4a..."
@@ -6074,7 +6074,7 @@ export interface operations {
                 /** @example {
                  *       "role": "employee",
                  *       "department_id": 3,
-                 *       "full_name": "Сергей Ким",
+                 *       "full_name": "Ильдар Хасанов",
                  *       "expires_in_days": 7,
                  *       "max_uses": 1
                  *     } */

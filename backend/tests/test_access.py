@@ -27,17 +27,17 @@ def bot_token(app: FastAPI) -> None:
 
 
 def init_data(telegram_id: int, time_machine: TimeMachine) -> str:
-    user = json.dumps({"id": telegram_id, "first_name": "Сергей", "last_name": "Ким", "username": "sergey_kim"})
+    user = json.dumps({"id": telegram_id, "first_name": "Ильдар", "last_name": "Хасанов", "username": "sergey_kim"})
     return sign_mini_app({"auth_date": str(int(time_machine.now.timestamp())), "user": user}, BOT_TOKEN)
 
 
 def widget(telegram_id: int, time_machine: TimeMachine) -> dict:
-    fields = {"id": telegram_id, "first_name": "Сергей", "last_name": "Ким", "auth_date": int(time_machine.now.timestamp())}
+    fields = {"id": telegram_id, "first_name": "Ильдар", "last_name": "Хасанов", "auth_date": int(time_machine.now.timestamp())}
     return sign_login_widget(fields, BOT_TOKEN)
 
 
 async def submit(client: httpx.AsyncClient, telegram_id: int = STRANGER, **body) -> httpx.Response:
-    payload = {"full_name": "Сергей Ким", "department_id": None, "comment": "Менеджер по продажам", **body}
+    payload = {"full_name": "Ильдар Хасанов", "department_id": None, "comment": "Менеджер по продажам", **body}
     return await client.post("/api/v1/access-requests", json=payload, headers=bot_headers(telegram_id))
 
 
@@ -93,7 +93,7 @@ async def test_resubmission_updates_the_single_pending_request(client, app, demo
 async def test_mini_app_and_web_submit_with_signed_telegram_data(client, demo, time_machine) -> None:
     mini = await client.post(
         "/api/v1/access-requests",
-        json={"init_data": init_data(STRANGER, time_machine), "full_name": "Сергей Ким"},
+        json={"init_data": init_data(STRANGER, time_machine), "full_name": "Ильдар Хасанов"},
     )
     assert mini.status_code == 201
     assert mini.json()["telegram_username"] == "sergey_kim"
@@ -163,7 +163,7 @@ async def test_mine_shows_what_to_render(client, demo, time_machine) -> None:
     await submit(client)
     mine = await client.post("/api/v1/access-requests/mine", json={}, headers=bot_headers(STRANGER))
     assert mine.json()["state"] == "pending"
-    assert mine.json()["request"]["full_name"] == "Сергей Ким"
+    assert mine.json()["request"]["full_name"] == "Ильдар Хасанов"
 
 
 # --- рассмотрение (история 72) -----------------------------------------------------------------------
@@ -189,7 +189,7 @@ async def test_approval_creates_user_with_assigned_role_and_notifies_applicant(c
     me = (await client.get("/api/v1/me", headers=bot_headers(STRANGER))).json()
     assert me["id"] == body["user_id"]
     assert (me["full_name"], me["role"], me["department"]["name"], me["position"]) == (
-        "Сергей Ким", "head", "IT", "Руководитель IT",
+        "Ильдар Хасанов", "head", "IT", "Руководитель IT",
     )
 
     [approved] = await notifications(app, "access_request_approved")
@@ -275,7 +275,7 @@ async def create_invite(client: httpx.AsyncClient, headers: dict, **body) -> dic
 async def accept_by_bot(client: httpx.AsyncClient, token: str, telegram_id: int = STRANGER) -> httpx.Response:
     return await client.post(
         "/api/v1/invites/accept",
-        json={"token": token, "full_name": "Сергей Ким", "telegram_username": "sergey_kim"},
+        json={"token": token, "full_name": "Ильдар Хасанов", "telegram_username": "sergey_kim"},
         headers=bot_headers(telegram_id),
     )
 
@@ -283,7 +283,7 @@ async def accept_by_bot(client: httpx.AsyncClient, token: str, telegram_id: int 
 async def test_invite_creates_user_at_once_and_token_is_shown_once(client, demo, login_as) -> None:
     admin = await login_as("admin")
     sales = await department_id(client, "Продажи")
-    invite = await create_invite(client, admin, department_id=sales, full_name="Сергей Ким")
+    invite = await create_invite(client, admin, department_id=sales, full_name="Ильдар Хасанов")
     token = invite["token"]
     assert invite["bot_link"] == f"https://t.me/modus_feedback_bot?start=inv_{token}"
     assert invite["web_link"].endswith(f"/invite/{token}")
@@ -314,7 +314,7 @@ async def test_web_accept_gives_a_session(client, demo, login_as, time_machine) 
         "/api/v1/invites/accept", json={"token": invite["token"], "telegram_login": widget(STRANGER, time_machine)}
     )
     body = response.json()
-    assert (body["created"], body["user"]["full_name"], body["user"]["role"]) == (True, "Сергей Ким", "head")
+    assert (body["created"], body["user"]["full_name"], body["user"]["role"]) == (True, "Ильдар Хасанов", "head")
     me = await client.get("/api/v1/me", headers={"Authorization": f"Bearer {body['session']['access_token']}"})
     assert me.json()["id"] == body["user"]["id"]
 

@@ -27,7 +27,7 @@ describe('значения в истории обращения (история 
   });
 
   it('обычный текст и пустое значение — как есть', () => {
-    expect(historyValue('assignee', 'Марат Сейткали', labels)).toBe('Марат Сейткали');
+    expect(historyValue('assignee', 'Олжас Мукашев', labels)).toBe('Олжас Мукашев');
     expect(historyValue('assignee', null, labels)).toBeNull();
     expect(historyValue('comment', '2026 год', labels)).toBe('2026 год');
   });

@@ -12,7 +12,7 @@ import pytest
 from app import texts, widgets
 from app.notifications import deliver_pending
 
-EMPLOYEE = "Айгерим Нурланова"  # сотрудник закупок
+EMPLOYEE = "Карина Шаймерденова"  # сотрудник закупок
 STRANGER = 555_000_555
 
 
@@ -171,7 +171,7 @@ async def test_my_appeals_lists_what_was_submitted(bot, people):
 
 
 async def test_digest_command(bot, backend, people):
-    owner = people["Ержан Касымов"]
+    owner = people["Андрей Вольф"]
     probe = await backend.get("/api/v1/analytics/digest", headers=as_user(owner))
     assert probe.status_code == 200, probe.text
     await bot.send_text("/digest", user_id=owner)
@@ -188,7 +188,7 @@ async def test_digest_is_unavailable_for_employee(bot, people):
 
 async def test_morning_digest_reaches_owner_and_heads(bot, backend, people):
     await drain(bot)
-    admin = people["Анна Ли"]
+    admin = people["Ксения Гарипова"]
     # Время рассылки — «сейчас» по UTC+5; задача сверки запускается сразу, без ожидания расписания.
     now_local = datetime.now(timezone(timedelta(hours=5))).strftime("%H:%M")
     patched = await backend.patch("/api/v1/admin/settings", headers=as_user(admin), json={"digest_time": now_local})
@@ -198,10 +198,10 @@ async def test_morning_digest_reaches_owner_and_heads(bot, backend, people):
 
     delivered = await drain(bot)
     recipients = {m.chat_id for m in delivered}
-    assert people["Ержан Касымов"] in recipients  # собственник — по компании
-    assert people["Марат Сейткали"] in recipients  # руководитель закупок — по подразделению
+    assert people["Андрей Вольф"] in recipients  # собственник — по компании
+    assert people["Олжас Мукашев"] in recipients  # руководитель закупок — по подразделению
     assert people[EMPLOYEE] not in recipients
-    owner_digest = next(m for m in delivered if m.chat_id == people["Ержан Касымов"])
+    owner_digest = next(m for m in delivered if m.chat_id == people["Андрей Вольф"])
     captions = [b.text for row in owner_digest.reply_markup.inline_keyboard for b in row]
     assert captions  # кнопка перехода к аналитике
     assert (await backend.get("/api/v1/bot/notifications/pending")).json() == []

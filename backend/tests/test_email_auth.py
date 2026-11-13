@@ -23,12 +23,12 @@ def bot_token(app: FastAPI) -> None:
 
 
 def widget(telegram_id: int, time_machine: TimeMachine) -> dict:
-    fields = {"id": telegram_id, "first_name": "Сергей", "auth_date": int(time_machine.now.timestamp())}
+    fields = {"id": telegram_id, "first_name": "Ильдар", "auth_date": int(time_machine.now.timestamp())}
     return sign_login_widget(fields, BOT_TOKEN)
 
 
 async def register(client: httpx.AsyncClient, **body) -> httpx.Response:
-    payload = {"full_name": "Сергей Ким", "email": EMAIL, "password": PASSWORD, "department_id": 3, "comment": "Продажи"}
+    payload = {"full_name": "Ильдар Хасанов", "email": EMAIL, "password": PASSWORD, "department_id": 3, "comment": "Продажи"}
     return await client.post("/api/v1/auth/register", json={**payload, **body})
 
 
@@ -52,7 +52,7 @@ async def test_registration_creates_request_and_login_waits_for_approval(client,
     assert (body["request"]["email"], body["request"]["status"]) == (EMAIL, "pending")
     assert PASSWORD not in created.text
 
-    again = await register(client, full_name="Сергей Ким (продажи)")
+    again = await register(client, full_name="Ильдар Хасанов (продажи)")
     assert (again.status_code, again.json()["request"]["id"]) == (200, body["request"]["id"])
 
     pending = await login(client)
@@ -269,12 +269,12 @@ async def test_seed_roles_get_email_and_password_from_accounts_file(client, app,
 async def test_stranger_cannot_replace_password_of_pending_request(client, demo, login_as) -> None:
     """Почта не подтверждается: повторная регистрация меняет заявку только с её же паролем."""
     request_id = (await register(client)).json()["request"]["id"]
-    hijack = await register(client, password="chuzhoi-parol-1", full_name="Не Сергей")
+    hijack = await register(client, password="chuzhoi-parol-1", full_name="Не Ильдар")
     assert (hijack.status_code, hijack.json()["error"]["code"]) == (409, "email_taken")
 
     admin = await login_as("admin")
     listed = (await client.get("/api/v1/admin/access-requests", headers=admin)).json()["items"]
-    assert listed[0]["full_name"] == "Сергей Ким"
+    assert listed[0]["full_name"] == "Ильдар Хасанов"
     await approve(client, admin, request_id)
     assert (await login(client)).status_code == 200
     assert (await login(client, password="chuzhoi-parol-1")).status_code == 401

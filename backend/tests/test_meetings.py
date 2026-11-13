@@ -11,7 +11,7 @@ from app.adapters.claude import MeetingDraft
 from app.adapters.fakes import FakeClaude, FakeSpeech
 
 HEAD = "head_procurement"
-TRANSCRIPT = "Марат: поставщик снова задержал спецификацию."
+TRANSCRIPT = "Олжас: поставщик снова задержал спецификацию."
 QUOTE = "поставщик снова задержал спецификацию"
 
 
@@ -83,8 +83,8 @@ async def test_confirm_creates_routed_appeal_with_meeting_source(client, login_a
     url = f"/api/v1/meetings/{meeting['id']}/drafts/{meeting['drafts'][0]['id']}"
     appeal = await client.post(f"{url}/confirm", headers=head)
     body = appeal.json()
-    assert (appeal.status_code, body["source"], body["author"]["full_name"]) == (201, "meeting", "Марат Сейткали")
-    assert body["assignee"]["full_name"] == "Марат Сейткали"
+    assert (appeal.status_code, body["source"], body["author"]["full_name"]) == (201, "meeting", "Олжас Мукашев")
+    assert body["assignee"]["full_name"] == "Олжас Мукашев"
     assert body["first_response_due_at"] is not None
     assert QUOTE in body["text"]
 

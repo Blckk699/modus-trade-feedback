@@ -48,7 +48,7 @@ def employee(telegram_id: int, analytics_scope: str = "none") -> dict:
     return {
         "id": 4,
         "telegram_id": telegram_id,
-        "full_name": "Айгерим Нурланова",
+        "full_name": "Карина Шаймерденова",
         "position": "Сотрудник закупок",
         "role": "employee" if analytics_scope == "none" else "owner",
         "department": {"id": 1, "name": "Закупки"},
@@ -97,7 +97,7 @@ class BotHarness:
         self,
         text: str,
         user_id: int = 100000004,
-        first_name: str = "Айгерим",
+        first_name: str = "Карина",
         last_name: str | None = None,
         username: str | None = None,
     ) -> None:
@@ -141,7 +141,7 @@ class BotHarness:
             message_id=next(self._update_ids),
             date=datetime.now(),
             chat=Chat(id=user_id, type="private"),
-            from_user=User(id=user_id, is_bot=False, first_name="Айгерим"),
+            from_user=User(id=user_id, is_bot=False, first_name="Карина"),
             **fields,
         )
         await self.dp.feed_update(self.bot, Update(update_id=next(self._update_ids), message=message))
@@ -153,7 +153,7 @@ class BotHarness:
         message_id = getattr(sent, "message_id", None) or self.telegram.message_id_of(sent)
         callback = CallbackQuery(
             id=str(next(self._update_ids)),
-            from_user=User(id=user_id, is_bot=False, first_name="Айгерим"),
+            from_user=User(id=user_id, is_bot=False, first_name="Карина"),
             chat_instance="ci",
             message=Message(
                 message_id=message_id,

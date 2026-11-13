@@ -203,7 +203,7 @@ CREATED = {
     "type": "problem",
     "status": "new",
     "summary": DRAFT["summary"],
-    "assignee": {"id": 3, "full_name": "Марат Сейткали"},
+    "assignee": {"id": 3, "full_name": "Олжас Мукашев"},
     "first_response_due_at": "2026-11-13T18:00:00+05:00",
 }
 
@@ -249,8 +249,8 @@ async def test_sent_draft_is_marked_and_appeal_card_follows(harness, drafting):
     appeal = harness.telegram.widgets()[-1]
     assert appeal.html == widgets.APPEAL_CARD
     assert appeal.caption == texts.appeal_created_caption("A-021")
-    assert "Марат Сейткали" not in appeal.caption  # ответственный и срок — в карточке
-    assert data(appeal)["a"] == "Марат Сейткали" and data(appeal)["d"] == "13 ноября, 18:00"
+    assert "Олжас Мукашев" not in appeal.caption  # ответственный и срок — в карточке
+    assert data(appeal)["a"] == "Олжас Мукашев" and data(appeal)["d"] == "13 ноября, 18:00"
 
 
 async def test_cancelled_draft_widget_is_marked(harness, drafting):
@@ -327,7 +327,7 @@ def test_long_appeal_list_fits_chat_data():
 
 def test_card_caption_drops_what_the_card_shows():
     text = ("Обращение <b>A-021</b> «Счёт дважды: в 1С и в Битрикс» зарегистрировано.\n"
-            "Ответственный: Марат Сейткали\nСрок первого ответа: 13 ноября, 18:00")
+            "Ответственный: Олжас Мукашев\nСрок первого ответа: 13 ноября, 18:00")
     assert formatting.card_caption(text) == "Обращение <b>A-021</b> зарегистрировано."
 
     status = "Обращение <b>A-021</b> «Счёт» реализовано.\nКомментарий: настроили обмен"
@@ -336,14 +336,14 @@ def test_card_caption_drops_what_the_card_shows():
 
 async def test_new_message_is_a_card_with_short_caption(harness, backend):
     note = {**STATUS_CHANGED, "kind": "message_received",
-            "text": "Новое сообщение по обращению <b>A-021</b> «Счёт дважды» от Марат Сейткали:\nПроверим завтра"}
+            "text": "Новое сообщение по обращению <b>A-021</b> «Счёт дважды» от Олжас Мукашев:\nПроверим завтра"}
     backend.on("GET", "/api/v1/bot/notifications/pending", 200, [note])
 
     await deliver_pending(harness.bot, harness.api, harness.settings)
 
     [widget] = harness.telegram.widgets()
     assert data(widget)["h"] == "Новое сообщение"
-    assert widget.caption == "Новое сообщение по обращению <b>A-021</b> от Марат Сейткали:\nПроверим завтра"
+    assert widget.caption == "Новое сообщение по обращению <b>A-021</b> от Олжас Мукашев:\nПроверим завтра"
 
 
 async def test_notification_with_reply_button_stays_text(harness, backend):
@@ -357,7 +357,7 @@ async def test_notification_with_reply_button_stays_text(harness, backend):
 
 
 async def test_widget_rejection_sends_full_text(harness, backend):
-    text = "Обращение <b>A-021</b> «Счёт» зарегистрировано.\nОтветственный: Марат Сейткали"
+    text = "Обращение <b>A-021</b> «Счёт» зарегистрировано.\nОтветственный: Олжас Мукашев"
     backend.on("GET", "/api/v1/bot/notifications/pending", 200, [{**STATUS_CHANGED, "kind": "appeal_created", "text": text}])
     harness.telegram.reject_widgets = lambda m: TelegramBadRequest(method=m, message="Bad Request: method not found")
 
@@ -395,7 +395,7 @@ def test_appeal_card_script_renders_and_escapes():
         "summary": "Счёт <script> дважды",
         "priority": "high",
         "category": {"id": 3, "name": "Межотдельное взаимодействие"},
-        "assignee": {"full_name": "Марат Сейткали"},
+        "assignee": {"full_name": "Олжас Мукашев"},
         "first_response_due_at": "2026-11-13T18:00:00+05:00",
     }
     dictionaries = {
@@ -406,12 +406,12 @@ def test_appeal_card_script_renders_and_escapes():
     html = run_widget(widgets.APPEAL_CARD, formatting.appeal_card_data(appeal, dictionaries, "Статус изменён"))["r"][
         "innerHTML"
     ]
-    assert "A-021" in html and "В работе" in html and "Марат Сейткали" in html and "13 ноября, 18:00" in html
+    assert "A-021" in html and "В работе" in html and "Олжас Мукашев" in html and "13 ноября, 18:00" in html
     assert "&lt;script&gt;" in html and "<script>" not in html
     assert 'class="bg dot s-in_progress"' in html  # бейдж статуса, как .badge--status-* на сайте
     assert '<span class="no">A-021</span>' in html
     assert "Проблема · Межотдельное взаимодействие · приоритет высокий" in html
-    assert ">МС</span>" in html  # аватарка с инициалами ответственного
+    assert ">ОМ</span>" in html  # аватарка с инициалами ответственного
     assert '<span class="on">В работе</span>' in html
     assert 'class="bg on_time"' in html and "В срок · до 13 ноября, 18:00" in html
     assert html.count("background:var(--s-in_progress)") == 3  # новое → рассмотрение → в работе

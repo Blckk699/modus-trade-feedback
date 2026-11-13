@@ -86,11 +86,11 @@ describe('форма регистрации', () => {
       email: 'Укажите рабочую почту.',
       password: 'Придумайте пароль.',
     });
-    expect(registerFormErrors({ ...REGISTER_EMPTY, fullName: 'Айгерим Нурланова', email: 'a@modus.kz', password: 'длинный-пароль' })).toEqual({});
+    expect(registerFormErrors({ ...REGISTER_EMPTY, fullName: 'Карина Шаймерденова', email: 'a@modus.kz', password: 'длинный-пароль' })).toEqual({});
   });
 
   it('пароль не короче восьми символов', () => {
-    const f = { ...REGISTER_EMPTY, fullName: 'Айгерим', email: 'a@modus.kz' };
+    const f = { ...REGISTER_EMPTY, fullName: 'Карина', email: 'a@modus.kz' };
     expect(registerFormErrors({ ...f, password: '1234567' })).toEqual({ password: 'Пароль короче 8 символов.' });
     expect(registerFormErrors({ ...f, password: '12345678' })).toEqual({});
   });

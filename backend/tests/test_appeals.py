@@ -43,7 +43,7 @@ async def test_employee_creates_appeal_through_form(client, login_as) -> None:
     assert (appeal["status"], appeal["source"], appeal["access"]) == ("new", "form", "full")
     assert appeal["proposed_solution"] == FORM["proposed_solution"]
     assert appeal["summary"], "краткая суть подставляется из текста"
-    assert appeal["author"]["full_name"] == "Дина Жуматова"
+    assert appeal["author"]["full_name"] == "Зарина Уалиева"
     assert appeal["viewer_relations"] == ["author"]
     assert "send_message" in appeal["allowed_actions"] and "take" not in appeal["allowed_actions"]
 
@@ -122,7 +122,7 @@ async def test_missing_appeal_is_404(client, login_as) -> None:
 async def test_participant_sees_main_appeal_without_foreign_text(app: FastAPI, client, login_as, clock) -> None:
     """История 19: автор присоединённого повтора видит статус основного, но не чужой текст и имя."""
     async with app.state.sessionmaker() as session, session.begin():
-        session.add(AppealParticipant(appeal_id=3, user_id=8, added_at=clock.now()))  # Сергей Ким -> A-003
+        session.add(AppealParticipant(appeal_id=3, user_id=8, added_at=clock.now()))  # Ильдар Хасанов -> A-003
     headers = await login_as("employee_sales")
     card = (await client.get("/api/v1/appeals/3", headers=headers)).json()
     assert (card["access"], card["status"]) == ("participant", "in_progress")
@@ -194,7 +194,7 @@ async def test_history_records_every_change_with_author_and_time(client, login_a
     history = (await client.get(f"/api/v1/appeals/{appeal['id']}/history", headers=headers)).json()
     assert [e["kind"] for e in history] == ["created", "assigned", "deadline_set", "attachment_added"]
     assert all(e["created_at"] for e in history)
-    assert [e["actor"] and e["actor"]["full_name"] for e in history] == ["Сергей Ким", None, None, "Сергей Ким"]
+    assert [e["actor"] and e["actor"]["full_name"] for e in history] == ["Ильдар Хасанов", None, None, "Ильдар Хасанов"]
 
     seeded = (await client.get("/api/v1/appeals/17/history", headers=await login_as("owner"))).json()
     assert [e["kind"] for e in seeded][-1] == "status_changed"
@@ -244,12 +244,12 @@ async def test_attachment_rules(app, client, login_as, tmp_path) -> None:
 async def test_dictionaries_for_form(client, login_as) -> None:
     headers = await login_as("employee_sales")
     categories = (await client.get("/api/v1/categories", headers=headers)).json()
-    assert len(categories) == 18 and categories[0]["responsible"]["full_name"] == "Марат Сейткали"
+    assert len(categories) == 18 and categories[0]["responsible"]["full_name"] == "Олжас Мукашев"
     departments = (await client.get("/api/v1/departments", headers=headers)).json()
     assert len(departments) == 8 and all(d["head"] for d in departments)
 
     users = (await client.get("/api/v1/users", headers=headers, params={"department_id": 1})).json()
-    assert {u["full_name"] for u in users} == {"Марат Сейткали", "Айгерим Нурланова"}
+    assert {u["full_name"] for u in users} == {"Олжас Мукашев", "Карина Шаймерденова"}
     assert all(u["telegram_id"] is None for u in users), "чужой Telegram ID скрыт"
     admin_view = (await client.get("/api/v1/users", headers=await login_as("admin"), params={"department_id": 1})).json()
     assert all(u["telegram_id"] for u in admin_view)
@@ -271,7 +271,7 @@ async def test_participant_search_does_not_match_hidden_text(app: FastAPI, clien
 
 @pytest.mark.parametrize("who", ["head_design", "owner"])
 async def test_head_and_owner_can_attach_files(app, client, login_as, tmp_path, who) -> None:
-    """A-003: ответственный — Алия Сапарова, руководитель подразделения — Нурлан Беков."""
+    """A-003: ответственный — Вероника Литвин, руководитель подразделения — Бауыржан Сарсенбаев."""
     app.state.settings.attachments_dir = str(tmp_path)
     response = await client.post("/api/v1/appeals/3/attachments", headers=await login_as(who), files={"file": ("план.pdf", b"%PDF")})
     assert response.status_code == 201, response.text
@@ -282,7 +282,7 @@ async def test_head_and_owner_can_attach_files(app, client, login_as, tmp_path, 
 async def test_head_zone_follows_department_head_not_role(app, client, login_as) -> None:
     """Зона руководителя — подразделения, где он записан руководителем (Department.head_id)."""
     async with app.state.sessionmaker() as session, session.begin():
-        await session.execute(update(Department).where(Department.id == 4).values(head_id=7))  # Проектирование -> Тимур Абенов
+        await session.execute(update(Department).where(Department.id == 4).values(head_id=7))  # Проектирование -> Денис Пак
 
     new_head = await login_as("head_sales")
     assert "A-003" in await numbers(client, new_head)

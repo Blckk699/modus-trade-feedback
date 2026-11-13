@@ -25,9 +25,9 @@ async def pending_request(backend, name: str) -> dict:
 async def test_request_is_approved_and_applicant_gets_menu(bot, backend):
     applicant = 555_100_001
     await drain(bot)
-    await apply(bot, applicant, "Сергей Ким", "Продажи", "Менеджер по продажам")
+    await apply(bot, applicant, "Ильдар Хасанов", "Продажи", "Менеджер по продажам")
 
-    request = await pending_request(backend, "Сергей Ким")
+    request = await pending_request(backend, "Ильдар Хасанов")
     assert request["department"]["name"] == "Продажи"
     assert request["telegram_username"] == f"user{applicant}"
     to_admins = await drain(bot)
@@ -76,8 +76,8 @@ async def test_invite_link_opens_menu_once(bot, backend):
     start = invite["bot_link"].split("?start=", 1)[1]
     assert start == f"inv_{invite['token']}"
 
-    await bot.send_text(f"/start {start}", user_id=555_100_003, first_name="Дина", last_name="Ахметова")
-    assert bot.telegram.sent()[-1].text.startswith("Здравствуйте, Дина!")
+    await bot.send_text(f"/start {start}", user_id=555_100_003, first_name="Зарина", last_name="Ахметова")
+    assert bot.telegram.sent()[-1].text.startswith("Здравствуйте, Зарина!")
 
     await bot.send_text(f"/start {start}", user_id=555_100_004)
     reply = bot.telegram.sent()[-1]
