@@ -411,7 +411,7 @@ def test_appeal_card_script_renders_and_escapes():
     assert 'class="bg dot s-in_progress"' in html  # бейдж статуса, как .badge--status-* на сайте
     assert '<span class="no">A-021</span>' in html
     assert "Проблема · Межотдельное взаимодействие · приоритет высокий" in html
-    assert ">МС</span>" in html  # аватарка с инициалами ответственного
+    assert ">ОМ</span>" in html  # аватарка с инициалами ответственного
     assert '<span class="on">В работе</span>' in html
     assert 'class="bg on_time"' in html and "В срок · до 13 ноября, 18:00" in html
     assert html.count("background:var(--s-in_progress)") == 3  # новое → рассмотрение → в работе
