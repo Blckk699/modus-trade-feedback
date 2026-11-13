@@ -5679,7 +5679,8 @@ button.vote__option:not(.vote__option--mine):hover {
   .stage {
     /* на всю высоту окна: пустой список тянется до панели разделов */
     min-height: 100dvh;
-    padding: 0 12px calc(var(--tabbar-h) + 28px + var(--safe-bottom));
+    /* снизу запас под круглую кнопку «+» (56px и по 16px сверху и снизу): последний блок прокручивается из-под неё */
+    padding: 0 12px calc(var(--tabbar-h) + 88px + var(--safe-bottom));
   }
 
   .head {
