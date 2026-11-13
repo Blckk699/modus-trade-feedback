@@ -111,7 +111,7 @@ void main() {
       'PATCH /api/v1/admin/departments/2': (r) => json({
             'id': 2,
             'name': 'Бухгалтерия',
-            'head': {'id': 5, 'full_name': 'Ольга Петрова', 'role': 'employee', 'department': {'id': 2, 'name': 'Бухгалтерия'}},
+            'head': {'id': 5, 'full_name': 'Людмила Корж', 'role': 'employee', 'department': {'id': 2, 'name': 'Бухгалтерия'}},
           }),
     });
     final session = await signedIn(server);
@@ -121,13 +121,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('department-head')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Анна Ли'), findsNothing, reason: 'администратор не назначается');
-    await tester.tap(find.text('Ольга Петрова — Бухгалтерия').last);
+    expect(find.textContaining('Ксения Гарипова'), findsNothing, reason: 'администратор не назначается');
+    await tester.tap(find.text('Людмила Корж — Бухгалтерия').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('form-submit')));
     await tester.pumpAndSettle();
     expect(body(server, 'PATCH', '/api/v1/admin/departments/2'), {'head_id': 5});
-    expect(find.text('Руководитель: Ольга Петрова'), findsOneWidget);
+    expect(find.text('Руководитель: Людмила Корж'), findsOneWidget);
   });
 
   testWidgets('категория: заместитель не может совпадать с ответственным; снятие с использования', (tester) async {
@@ -144,7 +144,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('category-deputy')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Марат Сейткали — Закупки').last);
+    await tester.tap(find.text('Олжас Мукашев — Закупки').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('form-submit')));
     await tester.pumpAndSettle();
@@ -217,7 +217,7 @@ void main() {
     expect(find.text('Выберите ответственного.'), findsOneWidget);
     await tester.tap(find.byKey(const Key('assign-user')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Марат Сейткали — Закупки').last);
+    await tester.tap(find.text('Олжас Мукашев — Закупки').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('form-submit')));
     await tester.pumpAndSettle();

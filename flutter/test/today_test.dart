@@ -43,12 +43,12 @@ void main() {
 
   test('приветствие по времени UTC+5 и первому слову имени', () {
     expect(greeting('Александр Кислянский', DateTime.utc(2026, 11, 12, 14)), 'Добрый вечер, Александр');
-    expect(greeting('Айгерим Нурланова', DateTime.utc(2026, 11, 12, 3)), 'Доброе утро, Айгерим');
+    expect(greeting('Карина Шаймерденова', DateTime.utc(2026, 11, 12, 3)), 'Доброе утро, Карина');
   });
 
   testWidgets('администратор: «Ждёт вас» с обращением без ответственного', (tester) async {
     final server = FakeServer({
-      'GET /api/v1/me': (_) => json(meJson(id: 2, role: 'admin', fullName: 'Анна Ли', permissions: adminPermissions)),
+      'GET /api/v1/me': (_) => json(meJson(id: 2, role: 'admin', fullName: 'Ксения Гарипова', permissions: adminPermissions)),
       'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
       'GET /api/v1/appeals': (r) => json({
             'items': r.url.queryParameters['scope'] == 'unassigned' || r.url.queryParameters['scope'] == 'all'
@@ -71,7 +71,7 @@ void main() {
     await tester.pumpWidget(ModusApp(session: session));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Анна'), findsWidgets);
+    expect(find.textContaining('Ксения'), findsWidgets);
     expect(find.textContaining('1 обращение ждёт ответственного.'), findsOneWidget);
     expect(find.text('Ждёт вас'), findsOneWidget);
     expect(find.text('Ответственного нет: выберите, кто ответит.'), findsOneWidget);

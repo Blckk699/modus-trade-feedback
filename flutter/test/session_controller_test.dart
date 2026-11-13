@@ -36,7 +36,7 @@ void main() {
     expect(jsonDecode(request.body), {'code': '482913'});
     expect(request.headers['authorization'], isNull);
     expect(session.status, SessionStatus.signedIn);
-    expect(session.me.fullName, 'Айгерим Нурланова');
+    expect(session.me.fullName, 'Карина Шаймерденова');
     expect(store.token, 'eyJhbGciOiJIUzI1NiJ9.mock.session');
     expect(session.roleLabel(session.me.role), 'Сотрудник');
   });
@@ -106,7 +106,7 @@ void main() {
   test('dev-вход: список пользователей и вход под выбранным', () async {
     final server = FakeServer({
       'GET /api/v1/auth/dev/users': (_) => json([
-            {'id': 1, 'full_name': 'Ержан Касымов', 'role': 'owner', 'department': null},
+            {'id': 1, 'full_name': 'Андрей Вольф', 'role': 'owner', 'department': null},
           ]),
       'POST /api/v1/auth/dev/login': (_) => json(sessionJson(meJson(id: 1, role: 'owner'))),
       'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
@@ -115,7 +115,7 @@ void main() {
     await session.restore();
 
     final users = await session.devUsers();
-    expect(users!.single.fullName, 'Ержан Касымов');
+    expect(users!.single.fullName, 'Андрей Вольф');
 
     await session.devLogin(1);
     expect(jsonDecode(server.last('POST', '/api/v1/auth/dev/login').body), {'user_id': 1});

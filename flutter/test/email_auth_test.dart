@@ -126,7 +126,7 @@ void main() {
             'request': {
               'id': 9,
               'status': 'pending',
-              'full_name': 'Сергей Ким',
+              'full_name': 'Ильдар Хасанов',
               'email': 's.kim@modus.example',
               'telegram_username': null,
               'department': {'id': 3, 'name': 'Продажи'},
@@ -155,7 +155,7 @@ void main() {
     expect(find.text('Укажите имя и фамилию.'), findsOneWidget);
     expect(find.text('Придумайте пароль.'), findsOneWidget);
 
-    await tester.enterText(find.byKey(const Key('register-name')), 'Сергей Ким');
+    await tester.enterText(find.byKey(const Key('register-name')), 'Ильдар Хасанов');
     await tester.enterText(find.byKey(const Key('register-email')), 's.kim@modus.example');
     await tester.enterText(find.byKey(const Key('register-password')), 'korova-2026');
     await tester.tap(find.byKey(const Key('register-department-true')));
@@ -169,7 +169,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(body(server, '/api/v1/auth/register'), {
-      'full_name': 'Сергей Ким',
+      'full_name': 'Ильдар Хасанов',
       'email': 's.kim@modus.example',
       'password': 'korova-2026',
       'department_id': 3,

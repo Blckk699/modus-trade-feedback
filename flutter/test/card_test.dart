@@ -72,7 +72,7 @@ void main() {
                 'id': 3,
                 'telegram_id': 3,
                 'email': null,
-                'full_name': 'Марат Сейткали',
+                'full_name': 'Олжас Мукашев',
                 'position': null,
                 'role': 'head',
                 'department': {'id': 1, 'name': 'Закупки'},
@@ -94,7 +94,7 @@ void main() {
 
     await tapVisible(tester, find.byKey(const Key('assign-user-true')));
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.textContaining('Марат Сейткали').last);
+    await tapVisible(tester, find.textContaining('Олжас Мукашев').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('assign-reason')), 'Категория без ответственного');
     await tapVisible(tester, find.byKey(const Key('assign-submit')));
