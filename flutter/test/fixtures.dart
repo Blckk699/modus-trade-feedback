@@ -9,7 +9,7 @@ import 'package:http/testing.dart';
 Map<String, dynamic> meJson({
   int id = 4,
   String role = 'employee',
-  String fullName = 'Айгерим Нурланова',
+  String fullName = 'Карина Шаймерденова',
   Map<String, dynamic>? permissions,
   int assignedOpenCount = 0,
 }) =>
@@ -152,8 +152,8 @@ class FakeServer {
       requests.lastWhere((r) => r.method == method && r.url.path == path);
 }
 
-const author = {'id': 4, 'full_name': 'Айгерим Нурланова', 'role': 'employee', 'department': {'id': 1, 'name': 'Закупки'}};
-const assignee = {'id': 3, 'full_name': 'Марат Сейткали', 'role': 'head', 'department': {'id': 1, 'name': 'Закупки'}};
+const author = {'id': 4, 'full_name': 'Карина Шаймерденова', 'role': 'employee', 'department': {'id': 1, 'name': 'Закупки'}};
+const assignee = {'id': 3, 'full_name': 'Олжас Мукашев', 'role': 'head', 'department': {'id': 1, 'name': 'Закупки'}};
 
 /// Обращение по схеме `Appeal` (для списка — подмножество `AppealListItem` тоже подходит).
 Map<String, dynamic> appealJson({
@@ -256,15 +256,15 @@ const headPermissions = {
 
 const usersJson = [
   {
-    'id': 3, 'telegram_id': null, 'full_name': 'Марат Сейткали', 'position': null, 'role': 'head',
+    'id': 3, 'telegram_id': null, 'full_name': 'Олжас Мукашев', 'position': null, 'role': 'head',
     'department': {'id': 1, 'name': 'Закупки'}, 'is_absent': false, 'is_disabled': false,
   },
   {
-    'id': 5, 'telegram_id': null, 'full_name': 'Ольга Петрова', 'position': null, 'role': 'employee',
+    'id': 5, 'telegram_id': null, 'full_name': 'Людмила Корж', 'position': null, 'role': 'employee',
     'department': {'id': 2, 'name': 'Бухгалтерия'}, 'is_absent': true, 'is_disabled': false,
   },
   {
-    'id': 2, 'telegram_id': null, 'full_name': 'Анна Ли', 'position': null, 'role': 'admin',
+    'id': 2, 'telegram_id': null, 'full_name': 'Ксения Гарипова', 'position': null, 'role': 'admin',
     'department': null, 'is_absent': false, 'is_disabled': false,
   },
   {

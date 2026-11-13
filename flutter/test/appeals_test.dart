@@ -113,7 +113,7 @@ void main() {
     expect(server.last('POST', '/api/v1/appeals/21/attachments').headers['content-type'], startsWith('multipart/form-data'));
     expect(uploadedName, 'скан.pdf');
     expect(find.text('Обращение A-021 подано'), findsOneWidget);
-    expect(find.text('Марат Сейткали'), findsOneWidget);
+    expect(find.text('Олжас Мукашев'), findsOneWidget);
     expect(find.text('до 13 ноября 2026, 10:15'), findsOneWidget);
   });
 
@@ -257,7 +257,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(jsonDecode(server.last('POST', '/api/v1/notifications/read').body), {'appeal_id': 21});
-    expect(find.text('Марат Сейткали'), findsOneWidget);
+    expect(find.text('Олжас Мукашев'), findsOneWidget);
     // Переписка — отдельным экраном по кнопке «Переписка», как панель в вебе.
     await tapVisible(tester, find.byKey(const Key('chat-entry')));
     await tester.pumpAndSettle();
@@ -266,7 +266,7 @@ void main() {
     await tester.tap(find.byTooltip('Закрыть'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('пример_заявки.pdf'), 200, scrollable: list);
-    expect(find.text('180 КБ · Айгерим Нурланова'), findsOneWidget);
+    expect(find.text('180 КБ · Карина Шаймерденова'), findsOneWidget);
     expect(find.byKey(const Key('upload-attachment')), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('history-toggle')), 200, scrollable: list);
     expect(find.text('Статус изменён'), findsNothing, reason: 'история свёрнута по умолчанию');

@@ -153,7 +153,7 @@ void main() {
         return json({
           ...draftJson(),
           'summary': b['summary'],
-          'author': {'id': 5, 'full_name': 'Ольга Петрова', 'role': 'employee', 'department': {'id': 2, 'name': 'Бухгалтерия'}},
+          'author': {'id': 5, 'full_name': 'Людмила Корж', 'role': 'employee', 'department': {'id': 2, 'name': 'Бухгалтерия'}},
         });
       },
     });
@@ -174,7 +174,7 @@ void main() {
     await tester.tap(find.byKey(const Key('draft-author-true')));
     await tester.pumpAndSettle();
     expect(find.text('Уволенный'), findsNothing, reason: 'отключённые скрыты');
-    await tester.tap(find.text('Ольга Петрова — Бухгалтерия').last);
+    await tester.tap(find.text('Людмила Корж — Бухгалтерия').last);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.byKey(const Key('draft-save-1')), 200, scrollable: list);
     await tester.tap(find.byKey(const Key('draft-save-1')));
@@ -183,7 +183,7 @@ void main() {
     final body = jsonDecode(server.last('PATCH', '/api/v1/meetings/5/drafts/1').body) as Map;
     expect(body['summary'], 'Акты сверки теряются');
     expect(body['author_id'], 5);
-    await tester.scrollUntilVisible(find.text('Автор: Ольга Петрова'), -200, scrollable: list);
+    await tester.scrollUntilVisible(find.text('Автор: Людмила Корж'), -200, scrollable: list);
     expect(find.text('Акты сверки теряются'), findsOneWidget);
   });
 

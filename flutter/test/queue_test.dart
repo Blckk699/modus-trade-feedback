@@ -251,10 +251,10 @@ void main() {
 
     await tapVisible(tester, find.byKey(const Key('reassign-user')));
     await tester.pumpAndSettle();
-    expect(find.text('Анна Ли'), findsNothing);
+    expect(find.text('Ксения Гарипова'), findsNothing);
     expect(find.text('Уволенный'), findsNothing);
-    expect(find.textContaining('Марат Сейткали —'), findsNothing, reason: 'текущий ответственный');
-    await tapVisible(tester, find.text('Ольга Петрова — Бухгалтерия (отсутствует)').last);
+    expect(find.textContaining('Олжас Мукашев —'), findsNothing, reason: 'текущий ответственный');
+    await tapVisible(tester, find.text('Людмила Корж — Бухгалтерия (отсутствует)').last);
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(submit).onPressed, isNull, reason: 'нет причины');
     await tester.enterText(find.byKey(const Key('reassign-reason')), 'Вопрос бухгалтерии');

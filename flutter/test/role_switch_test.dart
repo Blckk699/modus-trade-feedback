@@ -10,15 +10,15 @@ import 'package:modus_feedback/ui/appeals/appeal_screen.dart';
 
 import 'fixtures.dart';
 
-const headBrief = {'id': 3, 'full_name': 'Марат Сейткали', 'role': 'head', 'department': {'id': 1, 'name': 'Закупки'}};
-const ownerBrief = {'id': 1, 'full_name': 'Ержан Касымов', 'role': 'owner', 'department': null};
+const headBrief = {'id': 3, 'full_name': 'Олжас Мукашев', 'role': 'head', 'department': {'id': 1, 'name': 'Закупки'}};
+const ownerBrief = {'id': 1, 'full_name': 'Андрей Вольф', 'role': 'owner', 'department': null};
 
 Map<String, dynamic> withTargets(Map<String, dynamic> me, List<Map<String, dynamic>> targets) => {...me, 'switch_targets': targets};
 
 Future<(FakeServer, SessionController)> start(WidgetTester tester, {required bool headSeesAppeal}) async {
   final employee = withTargets(meJson(), [headBrief, ownerBrief]);
-  final head = withTargets(meJson(id: 3, role: 'head', fullName: 'Марат Сейткали', permissions: headPermissions), [
-    {'id': 4, 'full_name': 'Айгерим Нурланова', 'role': 'employee', 'department': {'id': 1, 'name': 'Закупки'}},
+  final head = withTargets(meJson(id: 3, role: 'head', fullName: 'Олжас Мукашев', permissions: headPermissions), [
+    {'id': 4, 'full_name': 'Карина Шаймерденова', 'role': 'employee', 'department': {'id': 1, 'name': 'Закупки'}},
     ownerBrief,
   ]);
   var asHead = false;

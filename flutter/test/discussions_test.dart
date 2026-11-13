@@ -91,7 +91,7 @@ void main() {
                 'department': null,
                 'public_summary': 'Сверять акты раз в месяц',
                 'result': 'Ввели ежемесячную сверку',
-                'author_display': 'Дина Жуматова, Бухгалтерия',
+                'author_display': 'Зарина Уалиева, Бухгалтерия',
                 'implemented_at': '2026-11-08T15:00:00+05:00',
                 'discussion_id': null,
               },
@@ -186,7 +186,7 @@ void main() {
     final server = FakeServer({
       'GET /api/v1/discussions/9': (_) => json(discussionJson(canSetNameConsent: true, canVote: false)),
       'POST /api/v1/discussions/9/name-consent': (_) =>
-          json(discussionJson(canSetNameConsent: true, canVote: false, consent: 'shown', authorDisplay: 'Айгерим Нурланова, Закупки')),
+          json(discussionJson(canSetNameConsent: true, canVote: false, consent: 'shown', authorDisplay: 'Карина Шаймерденова, Закупки')),
     });
     final session = await signedIn(server);
     await tester.pumpWidget(screen(session, const DiscussionScreen(discussionId: 9)));

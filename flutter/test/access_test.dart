@@ -15,7 +15,7 @@ import 'fixtures.dart';
 Map<String, dynamic> requestJson({int id = 9, String status = 'pending'}) => {
       'id': id,
       'status': status,
-      'full_name': 'Сергей Ким',
+      'full_name': 'Ильдар Хасанов',
       'email': 's.kim@modus.example',
       'telegram_username': null,
       'department': {'id': 3, 'name': 'Продажи'},
@@ -24,7 +24,7 @@ Map<String, dynamic> requestJson({int id = 9, String status = 'pending'}) => {
       'updated_at': '2026-11-12T10:00:00+05:00',
       'assigned_role': status == 'approved' ? 'head' : null,
       'assigned_department': status == 'approved' ? {'id': 3, 'name': 'Продажи'} : null,
-      'decided_by': status == 'pending' ? null : {'id': 1, 'full_name': 'Ержан Касымов', 'role': 'owner', 'department': null},
+      'decided_by': status == 'pending' ? null : {'id': 1, 'full_name': 'Андрей Вольф', 'role': 'owner', 'department': null},
       'decided_at': status == 'pending' ? null : '2026-11-12T11:00:00+05:00',
       'reject_reason': null,
       'user_id': status == 'approved' ? 21 : null,
@@ -36,7 +36,7 @@ Map<String, dynamic> inviteJson({int id = 4, String state = 'active'}) => {
       'role': 'employee',
       'department': {'id': 1, 'name': 'Закупки'},
       'full_name': null,
-      'created_by': {'id': 1, 'full_name': 'Ержан Касымов', 'role': 'owner', 'department': null},
+      'created_by': {'id': 1, 'full_name': 'Андрей Вольф', 'role': 'owner', 'department': null},
       'created_at': '2026-11-12T10:00:00+05:00',
       'expires_at': '2026-11-19T10:00:00+05:00',
       'max_uses': 1,
@@ -52,7 +52,7 @@ const departments = [
 Future<FakeServer> openAccess(WidgetTester tester, Map<String, dynamic> Function(FakeServer s) routesExtra) async {
   late FakeServer server;
   server = FakeServer({
-    'GET /api/v1/me': (_) => json(meJson(id: 1, role: 'owner', fullName: 'Ержан Касымов', permissions: ownerPermissions)),
+    'GET /api/v1/me': (_) => json(meJson(id: 1, role: 'owner', fullName: 'Андрей Вольф', permissions: ownerPermissions)),
     'GET /api/v1/dictionaries': (_) => json(dictionariesJson),
     'GET /api/v1/departments': (_) => json(departments),
   });
@@ -94,7 +94,7 @@ void main() {
 
     expect(find.byKey(const Key('settings-access')), findsOneWidget);
     expect(find.byKey(const Key('settings-users')), findsNothing, reason: 'остальные вкладки — только администратору');
-    expect(find.text('Сергей Ким'), findsOneWidget);
+    expect(find.text('Ильдар Хасанов'), findsOneWidget);
     expect(server.last('GET', '/api/v1/admin/access-requests').url.queryParameters['status'], 'pending');
 
     await tester.tap(find.byKey(const Key('request-tune-9')));
@@ -108,7 +108,7 @@ void main() {
 
     expect(jsonDecode(server.last('POST', '/api/v1/admin/access-requests/9/approve').body),
         {'role': 'head', 'department_id': 3, 'full_name': null, 'position': null});
-    expect(find.text('Сергей Ким'), findsNothing, reason: 'решённая заявка ушла из «На рассмотрении»');
+    expect(find.text('Ильдар Хасанов'), findsNothing, reason: 'решённая заявка ушла из «На рассмотрении»');
   });
 
   testWidgets('приглашение: проверка полей, создание, ссылки один раз; отзыв', (tester) async {
