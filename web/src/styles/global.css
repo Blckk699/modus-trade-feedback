@@ -5268,11 +5268,15 @@ button.vote__option:not(.vote__option--mine):hover {
 
 /* Трёхмерная фигура: холст во всю панель под текстом, проявляется после загрузки. */
 .auth__scene {
+  --scene-clear: 60%;
   position: absolute;
   inset: 0;
   z-index: 0;
   opacity: 0;
   transition: opacity 0.9s var(--ease);
+  /* Над текстом фигура видна целиком, к его границе гаснет: под строками остаётся едва заметный силуэт. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(var(--scene-clear) - 150px), rgba(0, 0, 0, 0.1) calc(var(--scene-clear) + 30px));
+  mask-image: linear-gradient(to bottom, #000 calc(var(--scene-clear) - 150px), rgba(0, 0, 0, 0.1) calc(var(--scene-clear) + 30px));
 }
 
 .auth__logo,
