@@ -268,3 +268,23 @@ async def test_category_can_be_set_while_assigning(client, login_as) -> None:
     assert after["first_response_due_at"] == body["first_response_due_at"]
     same = await client.post(url, headers=admin, json={"assignee_id": 7, "category_id": 1})
     assert same.status_code == 422, "ни ответственный, ни категория не меняются"
+
+
+async def test_head_cannot_move_appeal_to_another_department_by_category(client, login_as) -> None:
+    """Руководитель закупок меняет категорию только внутри закупок; собственник — любую."""
+    head = await login_as("head_procurement")
+    card = (await client.get("/api/v1/appeals/1", headers=head)).json()
+    assignee, own = card["assignee"]["id"], card["category"]["id"]
+    categories = (await client.get("/api/v1/categories", headers=head)).json()
+    mine = next(c["id"] for c in categories if c["department"]["name"] == "Закупки" and c["id"] != own)
+    foreign = next(c["id"] for c in categories if c["department"]["name"] != "Закупки")
+    url = "/api/v1/appeals/1/reassign"
+
+    refused = await client.post(url, headers=head, json={"assignee_id": assignee, "category_id": foreign})
+    assert (refused.status_code, refused.json()["error"]["details"]["fields"][0]["field"]) == (422, "category_id")
+    assert (await client.get("/api/v1/appeals/1", headers=head)).json()["category"]["id"] == own
+
+    allowed = await client.post(url, headers=head, json={"assignee_id": assignee, "category_id": mine})
+    assert (allowed.status_code, allowed.json()["category"]["id"]) == (200, mine)
+    by_owner = await client.post(url, headers=await login_as("owner"), json={"assignee_id": assignee, "category_id": foreign})
+    assert (by_owner.status_code, by_owner.json()["category"]["id"]) == (200, foreign)
