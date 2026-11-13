@@ -2955,10 +2955,12 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
             /**
-             * @description Роль, выданная при одобрении
+             * @description Роль, выданная при одобрении. На экране заявок выбирают `employee`, `head` или `admin`;
+             *     `owner` встречается у заявок, решённых в обход экрана. Нераспознанная роль отдаётся как `null`
+             *
              * @enum {string|null}
              */
-            assigned_role: "employee" | "head" | "admin" | null;
+            assigned_role: "employee" | "head" | "admin" | "owner" | null;
             /** @description Подразделение, назначенное при одобрении */
             assigned_department: components["schemas"]["DepartmentRef"] | null;
             decided_by: components["schemas"]["UserBrief"] | null;

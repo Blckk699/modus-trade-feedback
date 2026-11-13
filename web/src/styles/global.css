@@ -1125,6 +1125,9 @@ svg {
 .toast__action {
   /* контейнер сообщений клики пропускает; кнопка в сообщении — нет */
   pointer-events: auto;
+  /* в длинном сообщении сжимается текст, а не кнопка: иначе подпись рвётся по буквам */
+  flex: none;
+  white-space: nowrap;
   margin-left: 6px;
   padding: 4px 12px;
   border: 0;
