@@ -240,3 +240,31 @@ async def test_has_password_is_shown_to_admin_and_owner_of_the_account(client, l
     # Коллегам чужой признак не показывается, свой — виден.
     for user in (await client.get("/api/v1/users", headers=sales)).json():
         assert user["has_password"] is (True if user["id"] == me["id"] else None)
+
+
+async def test_category_can_be_set_while_assigning(client, login_as) -> None:
+    """Обращению без категории администратор задаёт и ответственного, и категорию."""
+    created = await client.post("/api/v1/appeals", headers=await login_as("employee_sales"), json={**FORM, "category_id": None})
+    appeal = created.json()
+    assert (appeal["category"], appeal["assignee"]) == (None, None)
+    admin = await login_as("admin")
+    url = f"/api/v1/appeals/{appeal['id']}/reassign"
+
+    bad = await client.post(url, headers=admin, json={"assignee_id": 7, "category_id": 9999})
+    assert (bad.status_code, bad.json()["error"]["details"]["fields"][0]["field"]) == (422, "category_id")
+
+    done = await client.post(url, headers=admin, json={"assignee_id": 7, "category_id": 9})
+    body = done.json()
+    assert (done.status_code, body["assignee"]["id"], body["category"]["id"]) == (200, 7, 9)
+    assert body["department"] is not None, "подразделение берётся из категории"
+    history = (await client.get(f"/api/v1/appeals/{appeal['id']}/history", headers=await login_as("owner"))).json()
+    changed = [e for e in history if e["kind"] == "field_changed" and e["field"] == "category"]
+    assert [(e["old_value"], e["new_value"]) for e in changed] == [(None, body["category"]["name"])]
+
+    # Тот же ответственный и другая категория — меняется только категория, причина не нужна.
+    only_category = await client.post(url, headers=admin, json={"assignee_id": 7, "category_id": 1})
+    after = only_category.json()
+    assert (only_category.status_code, after["assignee"]["id"], after["category"]["id"]) == (200, 7, 1)
+    assert after["first_response_due_at"] == body["first_response_due_at"]
+    same = await client.post(url, headers=admin, json={"assignee_id": 7, "category_id": 1})
+    assert same.status_code == 422, "ни ответственный, ни категория не меняются"
