@@ -38,6 +38,7 @@ from app.models import (
     MeetingDraft,
     User,
 )
+from app.seed.showcase_more import add_more
 
 DISCUSSED_APPEAL = "A-012"
 MAIN_APPEAL = "A-003"
@@ -200,3 +201,4 @@ async def add_showcase(session: AsyncSession, now: datetime, tz: tzinfo) -> None
     await _add_duplicates(session, users, tz)
     await _add_meeting(session, users, now)
     await session.flush()
+    await add_more(session, now, tz)
