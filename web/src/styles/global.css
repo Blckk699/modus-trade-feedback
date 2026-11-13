@@ -15,6 +15,8 @@
   --surface: #ffffff;
   --surface-2: #f1f3f7;
   --surface-3: #e6eaf0;
+  --auth-field: var(--surface);
+  --auth-field-focus: var(--surface);
   --line: #e2e6ec;
   --line-strong: #c9d0da;
   /* дорожка выключенного переключателя: не меньше 3:1 к фону (WCAG 1.4.11). У полей рамок нет: заливка и мягкая тень */
@@ -97,6 +99,8 @@
     --surface: #202020;
     --surface-2: #1b1b1b;
     --surface-3: #2c2c2c;
+    --auth-field: #303030;
+    --auth-field-focus: #3a3a3a;
     --line: #2a2a2a;
     --line-strong: #404040;
   --field-line: #787878;
@@ -156,6 +160,8 @@
   --surface: #202020;
   --surface-2: #1b1b1b;
   --surface-3: #2c2c2c;
+  --auth-field: #303030;
+  --auth-field-focus: #3a3a3a;
   --line: #2a2a2a;
   --line-strong: #404040;
   --field-line: #787878;
@@ -5415,6 +5421,20 @@ button.vote__option:not(.vote__option--mine):hover {
   max-width: 34em;
   color: var(--muted);
   text-wrap: pretty;
+}
+
+/* Экран входа лежит на тёмном градиенте: в тёмной теме поля светлее, чтобы читались без рамок */
+.auth__panel .input {
+  background: var(--auth-field);
+}
+
+.auth__panel .input:focus,
+.auth__panel .input:focus-visible {
+  background: var(--auth-field-focus);
+}
+
+.auth__panel .input[aria-invalid='true'] {
+  background: var(--danger-bg);
 }
 
 /* ───────── профиль ───────── */
