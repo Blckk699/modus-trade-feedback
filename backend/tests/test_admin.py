@@ -79,7 +79,7 @@ async def test_departments_and_heads(client, login_as) -> None:
     assert (await admin_call(client, admin, "PATCH", "/departments/1", {"head_id": 2})).status_code == 422, "не администратор"
 
     changed = await admin_call(client, admin, "PATCH", "/departments/1", {"head_id": 4})
-    assert changed.json()["head"]["full_name"] == "Айгерим Нурланова"
+    assert changed.json()["head"]["full_name"] == "Карина Шаймерденова"
     listing = await client.get("/api/v1/appeals", headers=await login_as("employee_procurement"), params={"scope": "department"})
     assert listing.status_code == 200 and listing.json()["total"] == 3
 
@@ -92,14 +92,14 @@ async def test_category_rules_drive_routing(client, login_as) -> None:
         assert response.status_code == 422, body
 
     changed = await admin_call(client, admin, "PATCH", "/categories/1", {"responsible_id": 13, "deputy_id": 4})
-    assert (changed.json()["responsible"]["full_name"], changed.json()["deputy"]["full_name"]) == ("Даурен Исаев", "Айгерим Нурланова")
+    assert (changed.json()["responsible"]["full_name"], changed.json()["deputy"]["full_name"]) == ("Станислав Цой", "Карина Шаймерденова")
     employee = await login_as("employee_sales")
     first = (await client.post("/api/v1/appeals", headers=employee, json=FORM)).json()
-    assert first["assignee"]["full_name"] == "Даурен Исаев"
+    assert first["assignee"]["full_name"] == "Станислав Цой"
 
     await admin_call(client, admin, "PATCH", "/users/13", {"is_absent": True})
     second = (await client.post("/api/v1/appeals", headers=employee, json=FORM)).json()
-    assert second["assignee"]["full_name"] == "Айгерим Нурланова"
+    assert second["assignee"]["full_name"] == "Карина Шаймерденова"
 
 
 async def test_new_and_inactive_categories(client, login_as) -> None:

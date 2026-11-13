@@ -75,7 +75,7 @@ async def test_scenario_2_routing_with_deputy_and_admin_queue(client, login_as) 
 
     await ok(await client.patch(f"{API}/admin/users/{HEAD_ID}", headers=admin, json={"is_absent": True}))
     second = await ok(await client.post(f"{API}/appeals", headers=author, json=FORM), 201)
-    assert second["assignee"]["full_name"] == "Айгерим Нурланова"
+    assert second["assignee"]["full_name"] == "Карина Шаймерденова"
 
     orphan = await ok(await client.post(f"{API}/appeals", headers=author, json={**FORM, "category_id": None}), 201)
     assert orphan["assignee"] is None

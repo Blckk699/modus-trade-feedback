@@ -7,8 +7,8 @@ import { expect, test, type Page } from '@playwright/test';
  * Элементы ищутся по ролям и подписям — так тест не зависит от классов вёрстки.
  */
 
-const AUTHOR = 'Айгерим Нурланова';
-const ASSIGNEE = 'Марат Сейткали';
+const AUTHOR = 'Карина Шаймерденова';
+const ASSIGNEE = 'Олжас Мукашев';
 const CATEGORY = 'Межотдельное взаимодействие';
 
 async function loginAs(page: Page, name: string) {

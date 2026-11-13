@@ -17,7 +17,7 @@ DEPARTMENTS = [{"id": 1, "name": "Закупки"}, {"id": 3, "name": "Прод�
 PENDING = {
     "id": 7,
     "status": "pending",
-    "full_name": "Сергей Ким",
+    "full_name": "Ильдар Хасанов",
     "telegram_username": "sergey_kim",
     "department": {"id": 3, "name": "Продажи"},
     "comment": "Менеджер по продажам",
@@ -58,7 +58,7 @@ def body(request) -> dict:
 
 
 async def test_stranger_start_offers_access_request(harness, backend):
-    await harness.send_text("/start", user_id=STRANGER, first_name="Сергей", last_name="Ким")
+    await harness.send_text("/start", user_id=STRANGER, first_name="Ильдар", last_name="Хасанов")
 
     [reply] = harness.telegram.sent()
     assert reply.text == INTRO
@@ -73,12 +73,12 @@ async def test_stranger_start_offers_access_request(harness, backend):
 
 
 async def test_stranger_submits_request_with_profile_name_department_and_comment(harness, backend):
-    await harness.send_text("/start", user_id=STRANGER, first_name="Сергей", last_name="Ким", username="sergey_kim")
+    await harness.send_text("/start", user_id=STRANGER, first_name="Ильдар", last_name="Хасанов", username="sergey_kim")
     await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
 
     ask_name = harness.telegram.sent()[-1]
-    assert "Оставить: Айгерим" in ask_name.text  # имя из профиля того, кто нажал кнопку
-    await harness.send_text("Сергей  Ким", user_id=STRANGER, username="sergey_kim")
+    assert "Оставить: Карина" in ask_name.text  # имя из профиля того, кто нажал кнопку
+    await harness.send_text("Ильдар  Хасанов", user_id=STRANGER, username="sergey_kim")
 
     ask_department = harness.telegram.sent()[-1]
     assert ask_department.text == texts.ASK_DEPARTMENT
@@ -91,7 +91,7 @@ async def test_stranger_submits_request_with_profile_name_department_and_comment
     [submitted] = backend.calls("POST", "/api/v1/access-requests")
     assert submitted.headers["X-Telegram-Id"] == str(STRANGER)
     assert body(submitted) == {
-        "full_name": "Сергей Ким",
+        "full_name": "Ильдар Хасанов",
         "department_id": 3,
         "comment": "Менеджер по продажам",
         "telegram_username": "sergey_kim",
@@ -102,13 +102,13 @@ async def test_stranger_submits_request_with_profile_name_department_and_comment
 async def test_keep_profile_name_and_skip_optional_fields(harness, backend):
     await harness.send_text("/start", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
-    await harness.press(harness.telegram.sent()[-1], texts.keep_name_button("Айгерим"), user_id=STRANGER)
+    await harness.press(harness.telegram.sent()[-1], texts.keep_name_button("Карина"), user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_NO_DEPARTMENT, user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_SKIP, user_id=STRANGER)
 
     [submitted] = backend.calls("POST", "/api/v1/access-requests")
     assert body(submitted) == {
-        "full_name": "Айгерим",
+        "full_name": "Карина",
         "department_id": None,
         "comment": None,
         "telegram_username": None,
@@ -120,7 +120,7 @@ async def test_request_without_department_list_skips_that_step(harness, backend)
 
     await harness.send_text("/start", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
-    await harness.send_text("Сергей Ким", user_id=STRANGER)
+    await harness.send_text("Ильдар Хасанов", user_id=STRANGER)
 
     assert harness.telegram.sent()[-1].text == texts.ASK_COMMENT
 
@@ -132,7 +132,7 @@ async def test_repeated_start_shows_pending_request(harness, backend):
 
     [reply] = harness.telegram.sent()
     assert "на рассмотрении" in reply.text
-    assert "Сергей Ким" in reply.text and "Продажи" in reply.text and "11.11.2026 09:12" in reply.text
+    assert "Ильдар Хасанов" in reply.text and "Продажи" in reply.text and "11.11.2026 09:12" in reply.text
     assert inline_texts(reply.reply_markup) == [texts.BTN_EDIT_REQUEST]
 
 
@@ -141,7 +141,7 @@ async def test_resubmitting_pending_request_says_updated(harness, backend):
 
     await harness.send_text("/start", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
-    await harness.send_text("Сергей Ким", user_id=STRANGER)
+    await harness.send_text("Ильдар Хасанов", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], "IT", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_SKIP, user_id=STRANGER)
 
@@ -175,7 +175,7 @@ async def test_rate_limit_message_is_shown(harness, backend):
 
     await harness.send_text("/start", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], texts.BTN_REQUEST_ACCESS, user_id=STRANGER)
-    await harness.send_text("Сергей Ким", user_id=STRANGER)
+    await harness.send_text("Ильдар Хасанов", user_id=STRANGER)
     await harness.press(harness.telegram.sent()[-1], "IT", user_id=STRANGER)
     await harness.send_text("Подрядчик", user_id=STRANGER)
 
@@ -197,18 +197,18 @@ async def test_disabled_user_still_refused_without_form(harness):
 
 
 async def test_valid_invite_opens_role_menu_at_once(harness, backend):
-    new_user = {**employee(STRANGER), "full_name": "Сергей Ким"}
+    new_user = {**employee(STRANGER), "full_name": "Ильдар Хасанов"}
     backend.on("POST", "/api/v1/invites/accept", 200, {"created": True, "user": new_user, "session": None})
 
     await harness.send_text(
-        "/start inv_k3J9xQ2mP0", user_id=STRANGER, first_name="Сергей", last_name="Ким", username="sergey_kim"
+        "/start inv_k3J9xQ2mP0", user_id=STRANGER, first_name="Ильдар", last_name="Хасанов", username="sergey_kim"
     )
 
     [accepted] = backend.calls("POST", "/api/v1/invites/accept")
     assert accepted.headers["X-Telegram-Id"] == str(STRANGER)
-    assert body(accepted) == {"token": "k3J9xQ2mP0", "full_name": "Сергей Ким", "telegram_username": "sergey_kim"}
+    assert body(accepted) == {"token": "k3J9xQ2mP0", "full_name": "Ильдар Хасанов", "telegram_username": "sergey_kim"}
     [reply] = harness.telegram.sent()
-    assert "Здравствуйте, Сергей!" in reply.text
+    assert "Здравствуйте, Ильдар!" in reply.text
     assert reply_texts(reply.reply_markup) == [texts.BTN_SUBMIT, texts.BTN_MY_APPEALS, texts.BTN_LOGIN_CODE]
     assert backend.calls("POST", "/api/v1/access-requests/mine") == []
 
@@ -232,7 +232,7 @@ async def test_registered_user_with_invite_link_just_gets_menu(harness):
     await harness.send_text("/start inv_k3J9xQ2mP0")
 
     [reply] = harness.telegram.sent()
-    assert "Здравствуйте, Айгерим!" in reply.text
+    assert "Здравствуйте, Карина!" in reply.text
     assert harness.backend.calls("POST", "/api/v1/invites/accept") == []
 
 
@@ -258,7 +258,7 @@ async def test_new_request_notification_opens_requests_screen_for_admin(harness)
     note = access_notification(
         931,
         "access_request_created",
-        "Новая заявка на доступ: <b>Сергей Ким</b>, Продажи.",
+        "Новая заявка на доступ: <b>Ильдар Хасанов</b>, Продажи.",
         100000002,
         2,
         buttons=[{"type": "open_access_requests", "text": "Открыть заявки", "appeal_id": None, "discussion_id": None}],
@@ -330,7 +330,7 @@ async def test_voice_in_the_middle_of_form_keeps_it(harness, backend):
     assert harness.telegram.sent()[-1].text == texts.FORM_NEEDS_TEXT
     assert backend.calls("POST", "/api/v1/drafts/voice") == []
 
-    await harness.send_text("Сергей Ким", user_id=STRANGER)
+    await harness.send_text("Ильдар Хасанов", user_id=STRANGER)
     assert harness.telegram.sent()[-1].text == texts.ASK_DEPARTMENT
 
 

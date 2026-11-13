@@ -11,7 +11,7 @@ const base = {
   due_state: 'no_deadline' as const,
   escalation_level: 0,
 };
-const person = { id: 3, full_name: 'Марат Сейткали' } as never;
+const person = { id: 3, full_name: 'Олжас Мукашев' } as never;
 const category = { id: 9, name: 'Закупки' } as never;
 
 describe('кто и когда для автора', () => {
@@ -29,7 +29,7 @@ describe('кто и когда для автора', () => {
 
   it('назначен — имя и категория, срок, Telegram привязан', () => {
     const r = whoWhen({ ...base, assignee: person, category, first_response_due_at: '2026-11-17T18:00:00+05:00' }, true);
-    expect(r.who).toBe('Марат Сейткали, ответственный за «Закупки»');
+    expect(r.who).toBe('Олжас Мукашев, ответственный за «Закупки»');
     expect(r.when).toMatch(/^Первый ответ — до /);
     expect(r.where).toMatch(/^Ответы и смена статуса придут в Telegram/);
   });

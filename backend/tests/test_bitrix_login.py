@@ -178,7 +178,7 @@ async def test_employee_and_head_are_matched_by_email_and_id_is_remembered(
     client, app, demo, fake_bitrix_oauth, user_id: int
 ) -> None:
     await set_user(app, user_id, email="s.kim@company.kz")
-    fake_bitrix_oauth.profile = BitrixProfile(id=77, email=" S.Kim@Company.KZ ", first_name="Сергей")
+    fake_bitrix_oauth.profile = BitrixProfile(id=77, email=" S.Kim@Company.KZ ", first_name="Ильдар")
 
     result = await portal_login(client)
     session = await exchange(client, result["code"])

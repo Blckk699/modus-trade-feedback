@@ -1,8 +1,8 @@
 """Статусы, решения и приватная переписка (B-06). Истории 13–16, 28–33, 46, 60.
 
-Сид: A-001 «Новое» (ответственный — Марат Сейткали, автор — Айгерим Нурланова), A-002 «На рассмотрении»,
-A-003 «В работе» (ответственный — Алия Сапарова, руководитель — Нурлан Беков), A-005 «Ожидает уточнения»
-(автор — Дина Жуматова), A-009 «В работе», A-017 «Отклонено».
+Сид: A-001 «Новое» (ответственный — Олжас Мукашев, автор — Карина Шаймерденова), A-002 «На рассмотрении»,
+A-003 «В работе» (ответственный — Вероника Литвин, руководитель — Бауыржан Сарсенбаев), A-005 «Ожидает уточнения»
+(автор — Зарина Уалиева), A-009 «В работе», A-017 «Отклонено».
 """
 
 from __future__ import annotations
@@ -136,11 +136,11 @@ async def test_head_and_owner_act_without_becoming_assignee(client, login_as) ->
     """Истории 46, 60: руководитель и собственник решают по обращению, ответственный не меняется."""
     done = await act(client, await login_as("head_design"), 3, "implement", {"result": "Правило номенклатуры утверждено"})
     assert done.status_code == 200
-    assert done.json()["assignee"]["full_name"] == "Алия Сапарова"
+    assert done.json()["assignee"]["full_name"] == "Вероника Литвин"
 
     taken = await act(client, await login_as("owner"), 7, "take")
     assert taken.status_code == 200
-    assert taken.json()["assignee"]["full_name"] == "Даурен Исаев"
+    assert taken.json()["assignee"]["full_name"] == "Станислав Цой"
 
 
 @pytest.mark.parametrize(("who", "status"), [("admin", 403), ("employee_procurement", 403), ("employee_sales", 403)])
@@ -186,7 +186,7 @@ async def test_author_answers_clarification_in_bot(client, demo, login_as) -> No
         json={"text": "Чаще всего акты сверки"},
     )
     assert response.status_code == 201
-    assert response.json()["author"]["full_name"] == "Дина Жуматова"
+    assert response.json()["author"]["full_name"] == "Зарина Уалиева"
     head = await login_as("head_accounting")
     assert (await card(client, head, 5))["status"] == "in_review"
     kinds = [e["kind"] for e in (await client.get("/api/v1/appeals/5/history", headers=head)).json()]

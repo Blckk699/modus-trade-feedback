@@ -34,7 +34,7 @@ describe('разделы карточки по access (истории 17, 19, 37
 });
 
 describe('назначение ответственного в карточке (история 70)', () => {
-  const marat = { id: 3, full_name: 'Марат Сейткали', role: 'head' as const, department: { id: 2, name: 'Закупки' } };
+  const marat = { id: 3, full_name: 'Олжас Мукашев', role: 'head' as const, department: { id: 2, name: 'Закупки' } };
 
   it('без ответственного и с правом reassign — показываем блок назначения', () => {
     expect(needsAssignee({ assignee: null, allowed_actions: ['reassign'] })).toBe(true);

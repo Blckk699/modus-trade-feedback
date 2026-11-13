@@ -110,7 +110,7 @@ async def test_new_last_24h_and_load(client, login_as) -> None:
     assert created.json()["id"] in [a["id"] for a in body["new_last_24h"]]
     load = body["assignee_load"]
     assert [i["open_count"] for i in load] == sorted((i["open_count"] for i in load), reverse=True)
-    assert any(i["assignee"]["full_name"] == "Марат Сейткали" for i in load)
+    assert any(i["assignee"]["full_name"] == "Олжас Мукашев" for i in load)
 
 
 async def test_digest_uses_claude_text_escaped(client, login_as, fake_claude) -> None:
